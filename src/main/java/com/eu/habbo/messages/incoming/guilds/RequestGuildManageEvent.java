@@ -7,8 +7,17 @@ import com.eu.habbo.messages.outgoing.guilds.GuildManageComposer;
 
 public class RequestGuildManageEvent extends MessageHandler {
     @Override
+    public int getRatelimit() {
+        return 500;
+    }
+
+    @Override
     public void handle() throws Exception {
         Guild guild = Emulator.getGameEnvironment().getGuildManager().getGuild(this.packet.readInt());
+
+        if(guild == null) {
+            return;
+        }
 
         this.client.sendResponse(new GuildManageComposer(guild));
     }
