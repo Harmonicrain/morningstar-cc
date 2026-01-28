@@ -302,19 +302,13 @@ public class PetManager {
     }
 
     public THashSet<PetRace> getBreeds(String petName) {
-        if (!petName.startsWith("a0 pet")) {
-            LOGGER.error("Pet {} not found. Make sure it matches the pattern \"a0 pet<pet_id>\"!", petName);
+        if (!petName.matches("a0 pet\\d{1,3}")) {
+            LOGGER.error("Pet data '{}' not found. Expected format: a0 pet<0-999>", petName);
             return null;
         }
 
-        try {
-            int petId = Integer.parseInt(petName.split("t")[1]);
-            return this.petRaces.get(petId);
-        } catch (Exception e) {
-            LOGGER.error("Caught exception", e);
-        }
-
-        return null;
+        final int petId = Integer.parseInt(petName.substring(6));
+        return this.petRaces.get(petId);
     }
 
     public TIntObjectHashMap<ArrayList<PetBreedingReward>> getBreedingRewards(int petType) {
