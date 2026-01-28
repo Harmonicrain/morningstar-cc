@@ -20,7 +20,7 @@ public class GuildForumThreadsEvent extends MessageHandler {
 
         Guild guild = Emulator.getGameEnvironment().getGuildManager().getGuild(guildId);
 
-        if (guild == null) {
+        if (guild == null || !guild.hasForum()) {
             this.client.sendResponse(new ConnectionErrorComposer(404));
             return;
         }

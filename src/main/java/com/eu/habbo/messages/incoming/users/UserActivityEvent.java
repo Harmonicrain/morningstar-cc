@@ -11,11 +11,10 @@ public class UserActivityEvent extends MessageHandler {
         String value = this.packet.readString();
         String action = this.packet.readString();
 
-        switch (type) {
-            case "Quiz":
-                if (value.equalsIgnoreCase("7")) {
-                    AchievementManager.progressAchievement(this.client.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("SafetyQuizGraduate"));
-                }
+        if (type.equals("Quiz")) {
+            if (value.equalsIgnoreCase("7")) {
+                AchievementManager.progressAchievement(this.client.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("SafetyQuizGraduate"));
+            }
         }
 
         switch (action) {

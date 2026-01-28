@@ -45,7 +45,7 @@ public class GuildForumThreadUpdateEvent extends MessageHandler {
 
         boolean isAdmin = (guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || member.getRank().type < GuildRank.MEMBER.type);
 
-        if ((guild.canModForum() == SettingsState.OWNER && guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() && !isStaff) || (guild.canModForum() == SettingsState.ADMINS && !isAdmin && !isStaff)) {
+        if ((guild.canModForum() == SettingsState.OWNER && guild.getOwnerId() != this.client.getHabbo().getHabboInfo().getId() && !isStaff) || (guild.canModForum() == SettingsState.ADMINS && !isAdmin && !isStaff)) {
             this.client.sendResponse(new ConnectionErrorComposer(403));
             return;
         }

@@ -34,7 +34,7 @@ public class GuildForumThreadsMessagesEvent extends MessageHandler {
         Guild guild = Emulator.getGameEnvironment().getGuildManager().getGuild(guildId);
         ForumThread thread = ForumThread.getById(threadId);
         boolean hasStaffPermissions = this.client.getHabbo().hasPermission(Permission.ACC_MODTOOL_TICKET_Q);
-        if (guild == null || thread == null) {
+        if (guild == null || thread == null || !guild.hasForum()) {
             this.client.sendResponse(new ConnectionErrorComposer(404));
             return;
         }
