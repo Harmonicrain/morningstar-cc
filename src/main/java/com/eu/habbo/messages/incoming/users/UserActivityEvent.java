@@ -6,6 +6,11 @@ import com.eu.habbo.messages.incoming.MessageHandler;
 
 public class UserActivityEvent extends MessageHandler {
     @Override
+    public int getRatelimit() {
+        return 250;
+    }
+
+    @Override
     public void handle() throws Exception {
         String type = this.packet.readString();
         String value = this.packet.readString();
