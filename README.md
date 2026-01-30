@@ -18,7 +18,7 @@ Arcturus Morningstar is as a fork of Arcturus Emulator by TheGeneral. Arcturus M
 ## Download ##
 [![image](https://img.shields.io/badge/STABLE%20RELEASES-3.5.5-success.svg?style=for-the-badge&logo=appveyor)](https://git.krews.org/morningstar/Arcturus-Community/-/releases)
 
-[![image](https://img.shields.io/badge/DEVELOPER%20BUILDS-4.0-red.svg?style=for-the-badge&logo=appveyor)](https://git.krews.org/morningstar/Arcturus-Community/-/jobs) *
+[![image](https://img.shields.io/badge/DEVELOPER%20BUILDS-4.0-red.svg?style=for-the-badge&logo=appveyor)](https://git.krews.org/morningstar/Arcturus-Community/-/jobs)
 
 [![image](https://img.shields.io/badge/RECOMMENDED%20PLUGINS-blue.svg?style=for-the-badge&logo=)](https://git.krews.org/morningstar/archive) 
 
