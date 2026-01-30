@@ -38,14 +38,15 @@ public class GuildForumModerateThreadEvent extends MessageHandler {
         }
 
         GuildMember member = Emulator.getGameEnvironment().getGuildManager().getGuildMember(guildId, this.client.getHabbo().getHabboInfo().getId());
-        boolean hasStaffPerms = this.client.getHabbo().hasPermission(Permission.ACC_MODTOOL_TICKET_Q); // check for if they have staff perm
-        boolean isGuildAdmin = (guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || member.getRank().equals(GuildRank.ADMIN));
+        boolean hasStaffPerms = this.client.getHabbo().hasPermission(Permission.ACC_MODTOOL_TICKET_Q);
 
-
-        if (member == null) {
+        if (member == null && !hasStaffPerms && guild.getOwnerId() != this.client.getHabbo().getHabboInfo().getId()) {
             this.client.sendResponse(new ConnectionErrorComposer(401));
             return;
         }
+
+        boolean isGuildAdmin = (guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || (member != null && member.getRank().equals(GuildRank.ADMIN)));
+
         if (!isGuildAdmin && !hasStaffPerms) {
             this.client.sendResponse(new ConnectionErrorComposer(403));
             return;

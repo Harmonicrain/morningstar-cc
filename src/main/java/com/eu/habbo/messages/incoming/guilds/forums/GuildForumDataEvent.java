@@ -17,8 +17,8 @@ public class GuildForumDataEvent extends MessageHandler {
 
         Guild guild = Emulator.getGameEnvironment().getGuildManager().getGuild(guildId);
 
-        if (guild == null)
-            return;
+        if (guild == null) return;
+        if (!guild.hasForum()) return;
 
         this.client.sendResponse(new GuildForumDataComposer(guild, this.client.getHabbo()));
 
