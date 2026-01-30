@@ -94,7 +94,7 @@ public class RoomManager {
         registerGameType(IceTagGame.class);
         registerGameType(RollerskateGame.class);
 
-        LOGGER.info("Room Manager -> Loaded! (" + (System.currentTimeMillis() - millis) + " MS)");
+        LOGGER.info("Room Manager -> Loaded! ({} MS)", System.currentTimeMillis() - millis);
     }
 
     public void loadRoomModels() {
@@ -294,6 +294,10 @@ public class RoomManager {
     public Room loadRoom(int id, boolean loadData) {
         Room room = null;
 
+        if(id == 0) {
+            return null;
+        }
+
         if (this.activeRooms.containsKey(id)) {
             room = this.activeRooms.get(id);
 
@@ -414,7 +418,7 @@ public class RoomManager {
 
     public RoomLayout loadLayout(String name, Room room) {
         RoomLayout layout = null;
-        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT * FROM room_models WHERE name LIKE ? LIMIT 1")) {
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT * FROM room_models WHERE name = ? LIMIT 1")) {
             statement.setString(1, name);
             try (ResultSet set = statement.executeQuery()) {
                 if (set.next()) {
@@ -1031,7 +1035,7 @@ public class RoomManager {
 
         Collections.sort(rooms);
 
-        return new ArrayList<>(rooms.subList(0, (rooms.size() < count ? rooms.size() : count)));
+        return new ArrayList<>(rooms.subList(0, (Math.min(rooms.size(), count))));
     }
 
     public ArrayList<Room> getPopularRooms(int count, int category) {
@@ -1049,7 +1053,7 @@ public class RoomManager {
 
         Collections.sort(rooms);
 
-        return new ArrayList<>(rooms.subList(0, (rooms.size() < count ? rooms.size() : count)));
+        return new ArrayList<>(rooms.subList(0, (Math.min(rooms.size(), count))));
     }
 
     public Map<Integer, List<Room>> getPopularRoomsByCategory(int count) {
@@ -1073,7 +1077,7 @@ public class RoomManager {
 
             Collections.sort(set.getValue());
 
-            result.put(set.getKey(), new ArrayList<>(set.getValue().subList(0, (set.getValue().size() < count ? set.getValue().size() : count))));
+            result.put(set.getKey(), new ArrayList<>(set.getValue().subList(0, (Math.min(set.getValue().size(), count)))));
         }
 
         return result;
@@ -1124,7 +1128,7 @@ public class RoomManager {
 
         for (Room room : this.activeRooms.values()) {
             for (String s : room.getTags().split(";")) {
-                if (s.toLowerCase().equals(tag.toLowerCase())) {
+                if (s.equalsIgnoreCase(tag)) {
                     rooms.add(room);
                     break;
                 }
@@ -1290,7 +1294,7 @@ public class RoomManager {
 
         Collections.sort(rooms);
 
-        return rooms.subList(0, (rooms.size() > limit ? limit : rooms.size()));
+        return rooms.subList(0, (Math.min(rooms.size(), limit)));
     }
 
     public ArrayList<Room> getRoomsWithRights(Habbo habbo) {

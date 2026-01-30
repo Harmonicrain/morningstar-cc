@@ -34,9 +34,9 @@ public class RedeemItemEvent extends MessageHandler {
                     if ((item.getBaseItem().getName().startsWith("CF_") || item.getBaseItem().getName().startsWith("CFC_")) && !item.getBaseItem().getName().contains("_diamond_")) {
                         int credits;
                         try {
-                            credits = Integer.valueOf(item.getBaseItem().getName().split("_")[1]);
+                            credits = Integer.parseInt(item.getBaseItem().getName().split("_")[1]);
                         } catch (Exception e) {
-                            LOGGER.error("Failed to parse redeemable furniture: " + item.getBaseItem().getName() + ". Must be in format of CF_<amount>");
+                            LOGGER.error("Failed to parse redeemable furniture: {}. Must be in format of CF_<amount>", item.getBaseItem().getName());
                             return;
                         }
 
@@ -45,9 +45,9 @@ public class RedeemItemEvent extends MessageHandler {
                         int pixels;
 
                         try {
-                            pixels = Integer.valueOf(item.getBaseItem().getName().split("_")[1]);
+                            pixels = Integer.parseInt(item.getBaseItem().getName().split("_")[1]);
                         } catch (Exception e) {
-                            LOGGER.error("Failed to parse redeemable pixel furniture: " + item.getBaseItem().getName() + ". Must be in format of PF_<amount>");
+                            LOGGER.error("Failed to parse redeemable pixel furniture: {}. Must be in format of PF_<amount>", item.getBaseItem().getName());
                             return;
                         }
 
@@ -57,16 +57,16 @@ public class RedeemItemEvent extends MessageHandler {
                         int points;
 
                         try {
-                            pointsType = Integer.valueOf(item.getBaseItem().getName().split("_")[1]);
+                            pointsType = Integer.parseInt(item.getBaseItem().getName().split("_")[1]);
                         } catch (Exception e) {
-                            LOGGER.error("Failed to parse redeemable points furniture: " + item.getBaseItem().getName() + ". Must be in format of DF_<pointstype>_<amount> where <pointstype> equals integer representation of seasonal currency.");
+                            LOGGER.error("Failed to parse redeemable points furniture: {}. Must be in format of DF_<pointstype>_<amount> where <pointstype> equals integer representation of seasonal currency.", item.getBaseItem().getName());
                             return;
                         }
 
                         try {
-                            points = Integer.valueOf(item.getBaseItem().getName().split("_")[2]);
+                            points = Integer.parseInt(item.getBaseItem().getName().split("_")[2]);
                         } catch (Exception e) {
-                            LOGGER.error("Failed to parse redeemable points furniture: " + item.getBaseItem().getName() + ". Must be in format of DF_<pointstype>_<amount> where <pointstype> equals integer representation of seasonal currency.");
+                            LOGGER.error("Failed to parse redeemable points furniture: {}. Must be in format of DF_<pointstype>_<amount> where <pointstype> equals integer representation of seasonal currency.", item.getBaseItem().getName());
                             return;
                         }
 
@@ -75,9 +75,9 @@ public class RedeemItemEvent extends MessageHandler {
                         int points;
 
                         try {
-                            points = Integer.valueOf(item.getBaseItem().getName().split("_")[2]);
+                            points = Integer.parseInt(item.getBaseItem().getName().split("_")[2]);
                         } catch (Exception e) {
-                            LOGGER.error("Failed to parse redeemable diamonds furniture: " + item.getBaseItem().getName() + ". Must be in format of CF_diamond_<amount>");
+                            LOGGER.error("Failed to parse redeemable diamonds furniture: {}. Must be in format of CF_diamond_<amount>", item.getBaseItem().getName());
                             return;
                         }
 

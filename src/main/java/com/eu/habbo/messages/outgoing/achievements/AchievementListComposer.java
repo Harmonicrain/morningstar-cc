@@ -43,7 +43,7 @@ public class AchievementListComposer extends MessageComposer {
                 this.response.appendInt(nextLevel != null ? nextLevel.progress : -1); //Progress needed
                 this.response.appendInt(nextLevel != null ? nextLevel.rewardAmount : -1); //Reward amount
                 this.response.appendInt(nextLevel != null ? nextLevel.rewardType : -1); //Reward currency ID
-                this.response.appendInt(achievementProgress <= 0 ? 0 : achievementProgress); //Current progress
+                this.response.appendInt(Math.max(achievementProgress, 0)); //Current progress
                 this.response.appendBoolean(AchievementManager.hasAchieved(this.habbo, achievement)); //Achieved? (Current Progress == MaxLevel.Progress)
                 this.response.appendString(achievement.category.toString().toLowerCase()); //Category
                 this.response.appendString(""); //Empty, completly unused in client code
@@ -57,5 +57,9 @@ public class AchievementListComposer extends MessageComposer {
         }
 
         return this.response;
+    }
+
+    public Habbo getHabbo() {
+        return habbo;
     }
 }

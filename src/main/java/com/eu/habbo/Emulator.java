@@ -37,7 +37,7 @@ public final class Emulator {
 
     public final static int MAJOR = 3;
     public final static int MINOR = 5;
-    public final static int BUILD = 1;
+    public final static int BUILD = 5;
     public final static String PREVIEW = "";
 
     public static final String version = "Arcturus Morningstar" + " " + MAJOR + "." + MINOR + "." + BUILD + " " + PREVIEW;
@@ -48,8 +48,8 @@ public final class Emulator {
                     "██╔████╔██║██║   ██║██████╔╝██╔██╗ ██║██║██╔██╗ ██║██║  ███╗███████╗   ██║   ███████║██████╔╝\n" +
                     "██║╚██╔╝██║██║   ██║██╔══██╗██║╚██╗██║██║██║╚██╗██║██║   ██║╚════██║   ██║   ██╔══██║██╔══██╗\n" +
                     "██║ ╚═╝ ██║╚██████╔╝██║  ██║██║ ╚████║██║██║ ╚████║╚██████╔╝███████║   ██║   ██║  ██║██║  ██║\n" +
-                    "╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝\n" ;
-
+                    "╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝\n" +
+                    "Still Rocking in 2026.\n";
 
     public static String build = "";
     public static boolean isReady = false;
@@ -115,11 +115,10 @@ public final class Emulator {
                 System.out.println("Warning, this is a beta build, this means that there may be unintended consequences so make sure you take regular backups while using this build. If you notice any issues you should make an issue on the Krews Git.");
                 promptEnterKey();
             }
-            LOGGER.info("eek. Has it really been a year?");
-            LOGGER.info("This project is for educational purposes only. This Emulator is an open-source fork of Arcturus created by TheGeneral.");
+            LOGGER.info("\nFollow our development at https://git.krews.org/morningstar/Arcturus-Community, ");
+            LOGGER.info("\nThis project is for educational purposes only. This Emulator is an open-source fork of Arcturus created by TheGeneral.");
             LOGGER.info("Version: {}", version);
             LOGGER.info("Build: {}", build);
-            LOGGER.info("Follow our development at https://git.krews.org/morningstar/Arcturus-Community");
 
             long startTime = System.nanoTime();
 
@@ -236,70 +235,28 @@ public final class Emulator {
 
         LOGGER.info("Stopping Arcturus Morningstar {}", version);
 
-        try {
-            if (Emulator.getPluginManager() != null)
-                Emulator.getPluginManager().fireEvent(new EmulatorStartShutdownEvent());
-        } catch (Exception e) {
-        }
-
-        try {
-            if (Emulator.cameraClient != null)
-                Emulator.cameraClient.disconnect();
-        } catch (Exception e) {
-        }
-
-        try {
-            if (Emulator.rconServer != null)
-                Emulator.rconServer.stop();
-        } catch (Exception e) {
-        }
-
-        try {
-            if (Emulator.gameEnvironment != null)
-                Emulator.gameEnvironment.dispose();
-        } catch (Exception e) {
-        }
-
-        try {
-            if (Emulator.getPluginManager() != null)
-                Emulator.getPluginManager().fireEvent(new EmulatorStoppedEvent());
-        } catch (Exception e) {
-        }
-
-        try {
-            if (Emulator.pluginManager != null)
-                Emulator.pluginManager.dispose();
-        } catch (Exception e) {
-        }
-
-        try {
-            if (Emulator.config != null) {
-                Emulator.config.saveToDatabase();
-            }
-        } catch (Exception e) {
-        }
-
-        try {
-            if (Emulator.gameServer != null)
-                Emulator.gameServer.stop();
-        } catch (Exception e) {
-        }
+        if (Emulator.pluginManager != null) tryShutdown(() -> Emulator.pluginManager.fireEvent(new EmulatorStartShutdownEvent()));
+        if (Emulator.cameraClient != null) tryShutdown(() -> Emulator.cameraClient.disconnect());
+        if (Emulator.rconServer != null) tryShutdown(() -> Emulator.rconServer.stop());
+        if (Emulator.gameEnvironment != null) tryShutdown(() -> Emulator.gameEnvironment.dispose());
+        if (Emulator.pluginManager != null) tryShutdown(() -> Emulator.pluginManager.fireEvent(new EmulatorStoppedEvent()));
+        if (Emulator.pluginManager != null) tryShutdown(() -> Emulator.pluginManager.dispose());
+        if (Emulator.config != null) tryShutdown(() -> Emulator.config.saveToDatabase());
+        if (Emulator.gameServer != null) tryShutdown(() -> Emulator.gameServer.stop());
 
         LOGGER.info("Stopped Arcturus Morningstar {}", version);
 
-        if (Emulator.database != null) {
-            Emulator.getDatabase().dispose();
-        }
+        if (Emulator.database != null) tryShutdown(() -> Emulator.database.dispose());
+        if (Emulator.threading != null) tryShutdown(() -> Emulator.threading.shutDown());
+
         Emulator.stopped = true;
+    }
 
-        // if (osName.startsWith("Windows") && (!classPath.contains("idea_rt.jar"))) {
-        //     AnsiConsole.systemUninstall();
-        // }
+    private static void tryShutdown(Runnable action) {
         try {
-            if (Emulator.threading != null)
-
-                Emulator.threading.shutDown();
+            action.run();
         } catch (Exception e) {
+            LOGGER.error("Error during shutdown", e);
         }
     }
 

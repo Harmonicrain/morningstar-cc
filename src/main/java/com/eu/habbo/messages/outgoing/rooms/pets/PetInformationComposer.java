@@ -43,7 +43,7 @@ public class PetInformationComposer extends MessageComposer {
         }
         this.response.appendInt(this.pet.getEnergy());
         this.response.appendInt(this.pet.getMaxEnergy()); //Max energy
-        this.response.appendInt(this.pet.getHappyness()); //this.pet.getHappyness()
+        this.response.appendInt(this.pet.getHappiness());
         this.response.appendInt(100);
         this.response.appendInt(this.pet.getRespect());
         this.response.appendInt(this.pet.getUserId());
@@ -66,5 +66,17 @@ public class PetInformationComposer extends MessageComposer {
 
 
         return this.response;
+    }
+
+    public Pet getPet() {
+        return pet;
+    }
+
+    public Room getRoom() {
+        return room;
+    }
+
+    public Habbo getRequestingHabbo() {
+        return requestingHabbo;
     }
 }

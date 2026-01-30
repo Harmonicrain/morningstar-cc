@@ -286,6 +286,48 @@ public class InteractionGameTimer extends HabboItem implements Runnable {
 
     }
 
+
+    public void startTimer(Room room) {
+        if (!isRunning) {
+            isRunning = true;
+            isPaused = false;
+            if(timeNow <= 0) {
+                timeNow = baseTime;
+                room.updateItem(this);
+            }
+            this.createNewGame(room);
+            WiredHandler.handle(WiredTriggerType.GAME_STARTS, null, room, new Object[]{this});
+            if (!threadActive) {
+                threadActive = true;
+                Emulator.getThreading().run(new GameTimer(this), 1000);
+            }
+        }
+    }
+
+    public void pauseTimer(Room room) {
+        if (isRunning && !isPaused) {
+            isPaused = true;
+            pause(room);
+        }
+    }
+
+    public void resumeTimer(Room room) {
+        if (!this.isRunning) {
+            startTimer(room);
+            return;
+        }
+
+        if (this.isPaused) {
+            this.isPaused = false;
+            this.unpause(room);
+
+            if (!this.threadActive) {
+                this.threadActive = true;
+                Emulator.getThreading().run(new GameTimer(this), 1000);
+            }
+        }
+    }
+
     private void increaseTimer(Room room) {
         if (this.isRunning)
             return;

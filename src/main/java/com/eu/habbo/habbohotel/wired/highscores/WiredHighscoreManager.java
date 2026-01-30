@@ -38,7 +38,7 @@ public class WiredHighscoreManager {
         this.data.clear();
         this.loadHighscoreData();
 
-        LOGGER.info("Highscore Manager -> Loaded! (" + (System.currentTimeMillis() - millis) + " MS, " + this.data.size() + " items)");
+        LOGGER.info("Highscore Manager -> Loaded! ({} MS, {} items)", System.currentTimeMillis() - millis, this.data.size());
     }
 
     @EventHandler
@@ -152,6 +152,18 @@ public class WiredHighscoreManager {
         }
 
         return false;
+    }
+
+    public HashMap<Integer, List<WiredHighscoreDataEntry>> getData() {
+        return this.data;
+    }
+
+    public List<WiredHighscoreDataEntry> getEntriesForItemId(int itemId) {
+        return this.data.get(itemId);
+    }
+
+    public void setEntriesForItemId(int itemId, List<WiredHighscoreDataEntry> entries) {
+        this.data.put(itemId, entries);
     }
 
     private long getTodayStartTimestamp() {

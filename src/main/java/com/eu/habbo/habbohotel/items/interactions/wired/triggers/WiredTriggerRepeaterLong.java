@@ -55,7 +55,7 @@ public class WiredTriggerRepeaterLong extends InteractionWiredTrigger implements
             this.repeatTime = data.repeatTime;
         } else {
             if (wiredData.length() >= 1) {
-                this.repeatTime = (Integer.valueOf(wiredData));
+                this.repeatTime = (Integer.parseInt(wiredData));
             }
         }
 
@@ -119,10 +119,16 @@ public class WiredTriggerRepeaterLong extends InteractionWiredTrigger implements
     @Override
     public void cycle(Room room) {
         this.counter += 500;
-        if (this.counter >= this.repeatTime) {
+        long currentMillis = System.currentTimeMillis();
+        String Key = Double.toString(this.getX()) + Double.toString(this.getY());
+
+        room.repeatersLastTick.putIfAbsent(Key, currentMillis);
+
+        if (this.counter >= this.repeatTime && room.repeatersLastTick.get(Key) < currentMillis - 4950) {
             this.counter = 0;
             if (this.getRoomId() != 0) {
                 if (room.isLoaded()) {
+                    room.repeatersLastTick.put(Key, currentMillis);
                     WiredHandler.handle(this, null, room, new Object[]{this});
                 }
             }

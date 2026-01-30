@@ -19,6 +19,7 @@ import com.eu.habbo.habbohotel.navigation.NavigatorManager;
 import com.eu.habbo.habbohotel.permissions.PermissionsManager;
 import com.eu.habbo.habbohotel.pets.PetManager;
 import com.eu.habbo.habbohotel.polls.PollManager;
+import com.eu.habbo.habbohotel.rooms.RoomChatBubbleManager;
 import com.eu.habbo.habbohotel.rooms.RoomManager;
 import com.eu.habbo.habbohotel.users.HabboManager;
 import com.eu.habbo.habbohotel.users.subscriptions.SubscriptionManager;
@@ -56,6 +57,7 @@ public class GameEnvironment {
     private PollManager pollManager;
     private SubscriptionManager subscriptionManager;
     private CalendarManager calendarManager;
+    private RoomChatBubbleManager roomChatBubbleManager;
 
     public void load() throws Exception {
         LOGGER.info("GameEnvironment -> Loading...");
@@ -81,6 +83,7 @@ public class GameEnvironment {
         this.craftingManager = new CraftingManager();
         this.pollManager = new PollManager();
         this.calendarManager = new CalendarManager();
+        this.roomChatBubbleManager = new RoomChatBubbleManager();
 
         this.roomManager.loadPublicRooms();
         this.navigatorManager.loadNavigator();
@@ -212,4 +215,8 @@ public class GameEnvironment {
     }
 
     public CalendarManager getCalendarManager() { return this.calendarManager; }
+
+    public RoomChatBubbleManager getRoomChatBubbleManager() {
+        return roomChatBubbleManager;
+    }
 }

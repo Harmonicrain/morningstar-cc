@@ -25,7 +25,6 @@ import com.eu.habbo.habbohotel.users.clothingvalidation.ClothingValidationManage
 import com.eu.habbo.habbohotel.users.HabboInventory;
 import com.eu.habbo.habbohotel.users.HabboManager;
 import com.eu.habbo.habbohotel.users.subscriptions.SubscriptionHabboClub;
-import com.eu.habbo.habbohotel.users.subscriptions.SubscriptionManager;
 import com.eu.habbo.habbohotel.wired.WiredHandler;
 import com.eu.habbo.habbohotel.wired.highscores.WiredHighscoreManager;
 import com.eu.habbo.messages.PacketManager;
@@ -100,6 +99,8 @@ public class PluginManager {
         BotManager.MAXIMUM_NAME_LENGTH = Emulator.getConfig().getInt("hotel.bot.max.namelength");
         BotManager.MAXIMUM_CHAT_SPEED = Emulator.getConfig().getInt("hotel.bot.max.chatdelay");
         Bot.PLACEMENT_MESSAGES = Emulator.getConfig().getValue("hotel.bot.placement.messages", "Yo!;Hello I'm a real party animal!;Hello!").split(";");
+        Bot.BOT_LIMIT_WALKING_DISTANCE = Emulator.getConfig().getBoolean("hotel.bot.limit.walking.distance", true);
+        Bot.BOT_WALKING_DISTANCE_RADIUS = Emulator.getConfig().getInt("hotel.bot.limit.walking.distance.radius", 5);
 
         HabboInventory.MAXIMUM_ITEMS = Emulator.getConfig().getInt("hotel.inventory.max.items");
         Messenger.MAXIMUM_FRIENDS = Emulator.getConfig().getInt("hotel.users.max.friends", 300);
@@ -127,7 +128,7 @@ public class PluginManager {
         RoomChatMessage.BANNED_BUBBLES = new int[bannedBubbles.length];
         for (int i = 0; i < RoomChatMessage.BANNED_BUBBLES.length; i++) {
             try {
-                RoomChatMessage.BANNED_BUBBLES[i] = Integer.valueOf(bannedBubbles[i]);
+                RoomChatMessage.BANNED_BUBBLES[i] = Integer.parseInt(bannedBubbles[i]);
             } catch (Exception e) {
                 LOGGER.error("Caught exception", e);
             }
@@ -407,7 +408,7 @@ public class PluginManager {
 
         this.loadPlugins();
 
-        LOGGER.info("Plugin Manager -> Loaded! " + this.plugins.size() + " plugins! (" + (System.currentTimeMillis() - millis) + " MS)");
+        LOGGER.info("Plugin Manager -> Loaded! {} plugins! ({} MS)", this.plugins.size(), System.currentTimeMillis() - millis);
 
         this.registerDefaultEvents();
     }

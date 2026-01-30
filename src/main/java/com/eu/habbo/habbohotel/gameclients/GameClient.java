@@ -6,6 +6,7 @@ import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.MessageComposer;
+import com.eu.habbo.plugin.events.emulator.OutgoingPacketEvent;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,6 +88,17 @@ public class GameClient {
                 return;
             }
 
+            OutgoingPacketEvent event = new OutgoingPacketEvent(this.habbo, response.getComposer(), response);
+            Emulator.getPluginManager().fireEvent(event);
+
+            if (event.isCancelled()) {
+                return;
+            }
+
+            if (event.hasCustomMessage()) {
+                response = event.getCustomMessage();
+            }
+
             this.channel.write(response, this.channel.voidPromise());
             this.channel.flush();
         }
@@ -97,6 +109,17 @@ public class GameClient {
             for (ServerMessage response : responses) {
                 if (response == null || response.getHeader() <= 0) {
                     return;
+                }
+
+                OutgoingPacketEvent event = new OutgoingPacketEvent(this.habbo, response.getComposer(), response);
+                Emulator.getPluginManager().fireEvent(event);
+
+                if (event.isCancelled()) {
+                    continue;
+                }
+
+                if (event.hasCustomMessage()) {
+                    response = event.getCustomMessage();
                 }
 
                 this.channel.write(response);

@@ -25,7 +25,7 @@ public class UserCurrencyComposer extends MessageComposer {
         for (String s : pointsTypes) {
             int type;
             try {
-                type = Integer.valueOf(s);
+                type = Integer.parseInt(s);
             } catch (Exception e) {
                 LOGGER.error("Caught exception", e);
                 return null;
@@ -35,5 +35,9 @@ public class UserCurrencyComposer extends MessageComposer {
             this.response.appendInt(this.habbo.getHabboInfo().getCurrencyAmount(type));
         }
         return this.response;
+    }
+
+    public Habbo getHabbo() {
+        return habbo;
     }
 }

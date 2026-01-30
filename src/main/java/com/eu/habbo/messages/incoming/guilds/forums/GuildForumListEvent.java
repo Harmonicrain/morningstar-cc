@@ -19,6 +19,11 @@ public class GuildForumListEvent extends MessageHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(GuildForumListEvent.class);
 
     @Override
+    public int getRatelimit() {
+        return 500;
+    }
+
+    @Override
     public void handle() throws Exception {
         int mode = this.packet.readInt();
         int offset = this.packet.readInt();

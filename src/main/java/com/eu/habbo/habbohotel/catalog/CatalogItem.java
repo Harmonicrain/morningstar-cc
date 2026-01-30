@@ -183,6 +183,10 @@ public class CatalogItem implements ISerialize, Runnable, Comparable<CatalogItem
         return this.orderNumber;
     }
 
+    public void setNeedsUpdate(boolean needsUpdate) {
+        this.needsUpdate = needsUpdate;
+    }
+
     public synchronized void sellRare() {
         this.limitedSells++;
 
@@ -214,7 +218,7 @@ public class CatalogItem implements ISerialize, Runnable, Comparable<CatalogItem
 
                     identifier = Integer.parseInt(itemId);
                 } catch (Exception e) {
-                    LOGGER.info("Invalid value (" + itemId + ") for items_base column for catalog_item id (" + this.id + "). Value must be integer or of the format of integer:amount;integer:amount");
+                    LOGGER.info("Invalid value ({}) for items_base column for catalog_item id ({}). Value must be integer or of the format of integer:amount;integer:amount", itemId, this.id);
                     continue;
                 }
                 if (identifier > 0) {
@@ -261,12 +265,12 @@ public class CatalogItem implements ISerialize, Runnable, Comparable<CatalogItem
                     }
                 }
             } catch (Exception e) {
-                LOGGER.debug("Failed to load " + this.itemId);
+                LOGGER.debug("Failed to load {}", this.itemId);
                 LOGGER.error("Caught exception", e);
             }
         } else {
             try {
-                Item item = Emulator.getGameEnvironment().getItemManager().getItem(Integer.valueOf(this.itemId));
+                Item item = Emulator.getGameEnvironment().getItemManager().getItem(Integer.parseInt(this.itemId));
 
                 if (item != null) {
                     this.allowGift = item.allowGift();

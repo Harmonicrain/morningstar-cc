@@ -14,16 +14,22 @@ public class RequestOffersEvent extends MessageHandler {
     public final static Map<Integer, ServerMessage> cachedResults = new ConcurrentHashMap<>(0);
 
     @Override
+    public int getRatelimit() {
+        return 500;
+    }
+
+    @Override
     public void handle() throws Exception {
         int min = this.packet.readInt();
         int max = this.packet.readInt();
         String query = this.packet.readString();
         int type = this.packet.readInt();
 
-        boolean tryCache = false;
-        if (min == -1 && max == -1 && query.isEmpty()) {
-            tryCache = true;
+        if (query.length() > 30) {
+            query = query.substring(0, 30);
         }
+
+        boolean tryCache = min == -1 && max == -1 && query.isEmpty();
 
         if (tryCache) {
             ServerMessage message = cachedResults.get(type);

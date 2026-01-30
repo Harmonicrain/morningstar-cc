@@ -32,7 +32,7 @@ public class GuildForumListComposer extends MessageComposer {
         this.response.appendInt(this.index);
 
         Iterator<Guild> it = guilds.iterator();
-        int count = guilds.size() > 20 ? 20 : guilds.size();
+        int count = Math.min(guilds.size(), 20);
 
         this.response.appendInt(count);
 
@@ -51,5 +51,21 @@ public class GuildForumListComposer extends MessageComposer {
         }
 
         return this.response;
+    }
+
+    public Set<Guild> getGuilds() {
+        return guilds;
+    }
+
+    public Habbo getHabbo() {
+        return habbo;
+    }
+
+    public int getMode() {
+        return mode;
+    }
+
+    public int getIndex() {
+        return index;
     }
 }

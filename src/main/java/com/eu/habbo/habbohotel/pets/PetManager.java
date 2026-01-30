@@ -83,7 +83,7 @@ public class PetManager {
 
         reloadPetData();
 
-        LOGGER.info("Pet Manager -> Loaded! (" + (System.currentTimeMillis() - millis) + " MS)");
+        LOGGER.info("Pet Manager -> Loaded! ({} MS)", System.currentTimeMillis() - millis);
     }
 
     public static int getLevel(int experience) {
@@ -234,10 +234,10 @@ public class PetManager {
                         if (petVocalsType != null) {
                             this.petData.get(set.getInt("pet_id")).petVocals.get(petVocalsType).add(new PetVocal(set.getString("message")));
                         } else {
-                            LOGGER.error("Unknown pet vocal type " + set.getString("type"));
+                            LOGGER.error("Unknown pet vocal type {}", set.getString("type"));
                         }
                     } else {
-                        LOGGER.error("Missing pet_actions table entry for pet id " + set.getInt("pet_id"));
+                        LOGGER.error("Missing pet_actions table entry for pet id {}", set.getInt("pet_id"));
                     }
                 } else {
                     if (!PetData.generalPetVocals.containsKey(PetVocalsType.valueOf(set.getString("type").toUpperCase())))
@@ -302,19 +302,13 @@ public class PetManager {
     }
 
     public THashSet<PetRace> getBreeds(String petName) {
-        if (!petName.startsWith("a0 pet")) {
-            LOGGER.error("Pet " + petName + " not found. Make sure it matches the pattern \"a0 pet<pet_id>\"!");
+        if (!petName.matches("a0 pet\\d{1,3}")) {
+            LOGGER.error("Pet data '{}' not found. Expected format: a0 pet<0-999>", petName);
             return null;
         }
 
-        try {
-            int petId = Integer.valueOf(petName.split("t")[1]);
-            return this.petRaces.get(petId);
-        } catch (Exception e) {
-            LOGGER.error("Caught exception", e);
-        }
-
-        return null;
+        final int petId = Integer.parseInt(petName.substring(6));
+        return this.petRaces.get(petId);
     }
 
     public TIntObjectHashMap<ArrayList<PetBreedingReward>> getBreedingRewards(int petType) {
@@ -349,7 +343,7 @@ public class PetManager {
                 return this.petData.get(type);
             } else {
                 try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
-                    LOGGER.error("Missing petdata for type " + type + ". Adding this to the database...");
+                    LOGGER.error("Missing petdata for type {}. Adding this to the database...", type);
                     try (PreparedStatement statement = connection.prepareStatement("INSERT INTO pet_actions (pet_type) VALUES (?)")) {
                         statement.setInt(1, type);
                         statement.execute();
@@ -361,7 +355,7 @@ public class PetManager {
                             if (set.next()) {
                                 PetData petData = new PetData(set);
                                 this.petData.put(type, petData);
-                                LOGGER.error("Missing petdata for type " + type + " added to the database!");
+                                LOGGER.error("Missing petdata for type {} added to the database!", type);
                                 return petData;
                             }
                         }
@@ -392,17 +386,17 @@ public class PetManager {
     }
 
     public Pet createPet(Item item, String name, String race, String color, GameClient client) {
-        int type = Integer.valueOf(item.getName().toLowerCase().replace("a0 pet", ""));
+        int type = Integer.parseInt(item.getName().toLowerCase().replace("a0 pet", ""));
 
         if (this.petData.containsKey(type)) {
             Pet pet;
             if (type == 15)
-                pet = new HorsePet(type, Integer.valueOf(race), color, name, client.getHabbo().getHabboInfo().getId());
+                pet = new HorsePet(type, Integer.parseInt(race), color, name, client.getHabbo().getHabboInfo().getId());
             else if (type == 16)
                 pet = this.createMonsterplant(null, client.getHabbo(), false, null, 0);
             else
                 pet = new Pet(type,
-                        Integer.valueOf(race),
+                        Integer.parseInt(race),
                         color,
                         name,
                         client.getHabbo().getHabboInfo().getId()

@@ -12,6 +12,11 @@ import com.eu.habbo.plugin.events.guilds.GuildGivenAdminEvent;
 
 public class GuildSetAdminEvent extends MessageHandler {
     @Override
+    public int getRatelimit() {
+        return 500;
+    }
+
+    @Override
     public void handle() throws Exception {
         int guildId = this.packet.readInt();
         int userId = this.packet.readInt();
@@ -20,14 +25,14 @@ public class GuildSetAdminEvent extends MessageHandler {
 
         if (guild != null) {
             if (guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || this.client.getHabbo().hasPermission(Permission.ACC_GUILD_ADMIN)) {
-                Emulator.getGameEnvironment().getGuildManager().setAdmin(guild, userId);
-
                 Habbo habbo = Emulator.getGameEnvironment().getHabboManager().getHabbo(userId);
 
                 GuildGivenAdminEvent adminEvent = new GuildGivenAdminEvent(guild, userId, habbo, this.client.getHabbo());
                 Emulator.getPluginManager().fireEvent(adminEvent);
                 if (adminEvent.isCancelled())
                     return;
+
+                Emulator.getGameEnvironment().getGuildManager().setAdmin(guild, userId);
 
                 if (habbo != null) {
                     Room room = habbo.getHabboInfo().getCurrentRoom();

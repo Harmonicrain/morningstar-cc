@@ -68,8 +68,9 @@ public class WiredConditionHabboHasEffect extends InteractionWiredCondition {
         message.appendInt(0);
         message.appendInt(this.getBaseItem().getSpriteId());
         message.appendInt(this.getId());
-        message.appendString(this.effectId + "");
-        message.appendInt(0);
+        message.appendString("");
+        message.appendInt(1);
+        message.appendInt(this.effectId);
         message.appendInt(0);
         message.appendInt(this.getType().code);
         message.appendInt(0);

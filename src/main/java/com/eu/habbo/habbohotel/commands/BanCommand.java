@@ -28,7 +28,7 @@ public class BanCommand extends Command {
 
         int banTime;
         try {
-            banTime = Integer.valueOf(params[2]);
+            banTime = Integer.parseInt(params[2]);
         } catch (Exception e) {
             gameClient.getHabbo().whisper(Emulator.getTexts().getValue("commands.error.cmd_ban.invalid_time"), RoomChatMessageBubbles.ALERT);
             return true;
@@ -39,7 +39,7 @@ public class BanCommand extends Command {
             return true;
         }
 
-        if (params[1].toLowerCase().equals(gameClient.getHabbo().getHabboInfo().getUsername().toLowerCase())) {
+        if (params[1].equalsIgnoreCase(gameClient.getHabbo().getHabboInfo().getUsername())) {
             gameClient.getHabbo().whisper(Emulator.getTexts().getValue("commands.error.cmd_ban.ban_self"), RoomChatMessageBubbles.ALERT);
             return true;
         }

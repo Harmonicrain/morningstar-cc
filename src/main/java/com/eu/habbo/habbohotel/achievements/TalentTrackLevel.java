@@ -34,23 +34,23 @@ public class TalentTrackLevel {
                 if (achievements[i].isEmpty() || achievementLevels[i].isEmpty())
                     continue;
 
-                Achievement achievement = Emulator.getGameEnvironment().getAchievementManager().getAchievement(Integer.valueOf(achievements[i]));
+                Achievement achievement = Emulator.getGameEnvironment().getAchievementManager().getAchievement(Integer.parseInt(achievements[i]));
 
                 if (achievement != null) {
-                    this.achievements.put(achievement, Integer.valueOf(achievementLevels[i]));
+                    this.achievements.put(achievement, Integer.parseInt(achievementLevels[i]));
                 } else {
-                    LOGGER.error("Could not find achievement with ID " + achievements[i] + " for talenttrack level " + this.level + " of type " + this.type);
+                    LOGGER.error("Could not find achievement with ID {} for talenttrack level {} of type {}", achievements[i], this.level, this.type);
                 }
             }
         }
 
         for (String s : set.getString("reward_furni").split(",")) {
-            Item item = Emulator.getGameEnvironment().getItemManager().getItem(Integer.valueOf(s));
+            Item item = Emulator.getGameEnvironment().getItemManager().getItem(Integer.parseInt(s));
 
             if (item != null) {
                 this.items.add(item);
             } else {
-                LOGGER.error("Incorrect reward furni (ID: " + s + ") for talent track level " + this.level);
+                LOGGER.error("Incorrect reward furni (ID: {}) for talent track level {}", s, this.level);
             }
         }
 

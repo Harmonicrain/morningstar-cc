@@ -48,7 +48,7 @@ public class RoomBundleLayout extends SingleBundle {
                 if (this.room != null)
                     this.room.preventUnloading = true;
             } else {
-                LOGGER.error("No room id specified for room bundle " + this.getPageName() + "(" + this.getId() + ")");
+                LOGGER.error("No room id specified for room bundle {}({})", this.getPageName(), this.getId());
             }
         }
 
@@ -96,7 +96,7 @@ public class RoomBundleLayout extends SingleBundle {
             }
 
             if (!item[0].getExtradata().isEmpty()) {
-                items.put(Emulator.getGameEnvironment().getItemManager().getItem(Integer.valueOf(item[0].getExtradata())), 1);
+                items.put(Emulator.getGameEnvironment().getItemManager().getItem(Integer.parseInt(item[0].getExtradata())), 1);
             }
 
             StringBuilder data = new StringBuilder();

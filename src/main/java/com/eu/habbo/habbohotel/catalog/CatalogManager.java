@@ -221,7 +221,7 @@ public class CatalogManager {
 
         this.ecotronItem = Emulator.getGameEnvironment().getItemManager().getItem("ecotron_box");
 
-        LOGGER.info("Catalog Manager -> Loaded! (" + (System.currentTimeMillis() - millis) + " MS)");
+        LOGGER.info("Catalog Manager -> Loaded! ({} MS)", System.currentTimeMillis() - millis);
     }
 
 
@@ -280,7 +280,7 @@ public class CatalogManager {
                     Class<? extends CatalogPage> pageClazz = pageDefinitions.get(set.getString("page_layout"));
 
                     if (pageClazz == null) {
-                        LOGGER.info("Unknown Page Layout: " + set.getString("page_layout"));
+                        LOGGER.info("Unknown Page Layout: {}", set.getString("page_layout"));
                         continue;
                     }
 
@@ -305,7 +305,7 @@ public class CatalogManager {
                 }
             } else {
                 if (object.parentId != -2) {
-                    LOGGER.info("Parent Page not found for " + object.getPageName() + " (ID: " + object.id + ", parent_id: " + object.parentId + ")");
+                    LOGGER.info("Parent Page not found for {} (ID: {}, parent_id: {})", object.getPageName(), object.id, object.parentId);
                 }
             }
             return true;
@@ -313,7 +313,7 @@ public class CatalogManager {
 
         this.catalogPages.putAll(pages);
 
-        LOGGER.info("Loaded " + this.catalogPages.size() + " Catalog Pages!");
+        LOGGER.info("Loaded {} Catalog Pages!", this.catalogPages.size());
     }
 
 
@@ -630,11 +630,7 @@ public class CatalogManager {
                 boolean isVisiblePage = object.visible;
                 boolean hasRightRank = object.getRank() <= habbo.getHabboInfo().getRank().getId();
 
-                boolean clubRightsOkay = true;
-
-                if(object.isClubOnly() && !habbo.getHabboInfo().getHabboStats().hasActiveClub()) {
-                    clubRightsOkay = false;
-                }
+                boolean clubRightsOkay = !object.isClubOnly() || habbo.getHabboInfo().getHabboStats().hasActiveClub();
 
                 if (isVisiblePage && hasRightRank && clubRightsOkay) {
                     pages.add(object);
@@ -674,9 +670,13 @@ public class CatalogManager {
 
         page = this.getCatalogPage(pageId);
 
+        if (page == null)
+            return false;
+
         page.getCatalogItems().put(item.getId(), item);
 
         item.setPageId(pageId);
+        item.setNeedsUpdate(true);
 
         item.run();
         return true;
@@ -898,7 +898,9 @@ public class CatalogManager {
                 boolean badgeFound = false;
 
                 for (int i = 0; i < amount; i++) {
-                    habbo.getHabboStats().addLtdLog(item.getId(), Emulator.getIntUnixTimestamp());
+                    if(item.isLimited()) {
+                        habbo.getHabboStats().addLtdLog(item.getId(), Emulator.getIntUnixTimestamp());
+                    }
 
                     for (Item baseItem : item.getBaseItems()) {
                         for (int k = 0; k < item.getItemAmount(baseItem.getId()); k++) {

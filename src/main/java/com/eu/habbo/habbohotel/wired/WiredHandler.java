@@ -10,6 +10,7 @@ import com.eu.habbo.habbohotel.items.interactions.InteractionWiredTrigger;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredTriggerReset;
 import com.eu.habbo.habbohotel.items.interactions.wired.effects.WiredEffectGiveReward;
 import com.eu.habbo.habbohotel.items.interactions.wired.effects.WiredEffectTriggerStacks;
+import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredExtraOrEval;
 import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredExtraRandom;
 import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredExtraUnseen;
 import com.eu.habbo.habbohotel.rooms.Room;
@@ -166,10 +167,23 @@ public class WiredHandler {
 
             THashSet<InteractionWiredCondition> conditions = room.getRoomSpecialTypes().getConditions(trigger.getX(), trigger.getY());
             THashSet<InteractionWiredEffect> effects = room.getRoomSpecialTypes().getEffects(trigger.getX(), trigger.getY());
-            if (Emulator.getPluginManager().fireEvent(new WiredStackTriggeredEvent(room, roomUnit, trigger, effects, conditions)).isCancelled())
-                return false;
 
-            if (!conditions.isEmpty()) {
+            boolean hasExtraOrEval = room.getRoomSpecialTypes().hasExtraType(trigger.getX(), trigger.getY(), WiredExtraOrEval.class);
+
+            if (!conditions.isEmpty() && hasExtraOrEval) {
+                ArrayList<WiredConditionType> matchedConditions = new ArrayList<>(conditions.size());
+                for (InteractionWiredCondition searchMatched : conditions) {
+                    if (!matchedConditions.contains(searchMatched.getType()) && searchMatched.execute(roomUnit, room, stuff)) {
+                        matchedConditions.add(searchMatched.getType());
+                    }
+                }
+
+                if(matchedConditions.size() == 0) {
+                    return false;
+                }
+            }
+
+            if (!conditions.isEmpty() && !hasExtraOrEval) {
                 ArrayList<WiredConditionType> matchedConditions = new ArrayList<>(conditions.size());
                 for (InteractionWiredCondition searchMatched : conditions) {
                     if (!matchedConditions.contains(searchMatched.getType()) && searchMatched.operator() == WiredConditionOperator.OR && searchMatched.execute(roomUnit, room, stuff)) {
@@ -186,6 +200,9 @@ public class WiredHandler {
                     }
                 }
             }
+
+            if (Emulator.getPluginManager().fireEvent(new WiredStackTriggeredEvent(room, roomUnit, trigger, effects, conditions)).isCancelled())
+                return false;
 
             trigger.setCooldown(millis);
 
@@ -234,7 +251,7 @@ public class WiredHandler {
             executed = true;
             if (!effect.requiresTriggeringUser() || (roomUnit != null && effect.requiresTriggeringUser())) {
                 Emulator.getThreading().run(() -> {
-                    if (room.isLoaded()) {
+                    if (room.isLoaded() && room.getHabbos().size() > 0) {
                         try {
                             if (!effect.execute(roomUnit, room, stuff)) return;
                             effect.setCooldown(millis);
@@ -244,7 +261,7 @@ public class WiredHandler {
 
                         effect.activateBox(room, roomUnit, millis);
                     }
-                }, effect.getDelay() * 500);
+                }, effect.getDelay() * 500L);
             }
         }
 
@@ -327,23 +344,23 @@ public class WiredHandler {
                     return;
 
                 if (rewardReceived.type.equalsIgnoreCase("credits")) {
-                    int credits = Integer.valueOf(rewardReceived.value);
+                    int credits = Integer.parseInt(rewardReceived.value);
                     habbo.giveCredits(credits);
                 } else if (rewardReceived.type.equalsIgnoreCase("pixels")) {
-                    int pixels = Integer.valueOf(rewardReceived.value);
+                    int pixels = Integer.parseInt(rewardReceived.value);
                     habbo.givePixels(pixels);
                 } else if (rewardReceived.type.startsWith("points")) {
-                    int points = Integer.valueOf(rewardReceived.value);
+                    int points = Integer.parseInt(rewardReceived.value);
                     int type = 5;
 
                     try {
-                        type = Integer.valueOf(rewardReceived.type.replace("points", ""));
+                        type = Integer.parseInt(rewardReceived.type.replace("points", ""));
                     } catch (Exception e) {
                     }
 
                     habbo.givePoints(type, points);
                 } else if (rewardReceived.type.equalsIgnoreCase("furni")) {
-                    Item baseItem = Emulator.getGameEnvironment().getItemManager().getItem(Integer.valueOf(rewardReceived.value));
+                    Item baseItem = Emulator.getGameEnvironment().getItemManager().getItem(Integer.parseInt(rewardReceived.value));
                     if (baseItem != null) {
                         HabboItem item = Emulator.getGameEnvironment().getItemManager().createItem(habbo.getHabboInfo().getId(), baseItem, 0, 0, "");
 
@@ -356,9 +373,9 @@ public class WiredHandler {
                         }
                     }
                 } else if (rewardReceived.type.equalsIgnoreCase("respect")) {
-                    habbo.getHabboStats().respectPointsReceived += Integer.valueOf(rewardReceived.value);
+                    habbo.getHabboStats().respectPointsReceived += Integer.parseInt(rewardReceived.value);
                 } else if (rewardReceived.type.equalsIgnoreCase("cata")) {
-                    CatalogItem item = Emulator.getGameEnvironment().getCatalogManager().getCatalogItem(Integer.valueOf(rewardReceived.value));
+                    CatalogItem item = Emulator.getGameEnvironment().getCatalogManager().getCatalogItem(Integer.parseInt(rewardReceived.value));
 
                     if (item != null) {
                         Emulator.getGameEnvironment().getCatalogManager().purchaseItem(null, item, habbo, 1, "", true);

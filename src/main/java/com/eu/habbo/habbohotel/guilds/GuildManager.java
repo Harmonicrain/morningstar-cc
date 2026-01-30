@@ -38,7 +38,7 @@ public class GuildManager {
         this.loadGuildParts();
         this.loadGuildViews();
 
-        LOGGER.info("Guild Manager -> Loaded! (" + (System.currentTimeMillis() - millis) + " MS)");
+        LOGGER.info("Guild Manager -> Loaded! ({} MS)", System.currentTimeMillis() - millis);
     }
 
 
@@ -491,6 +491,27 @@ public class GuildManager {
             try (ResultSet set = statement.executeQuery()) {
                 while (set.next()) {
                     Guild guild = getGuild(set.getInt("guild_id"));
+
+                    if (guild != null) {
+                        guilds.add(guild);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
+
+        return guilds;
+    }
+
+    public List<Guild> getOwnedGuilds(int userId) {
+        List<Guild> guilds = new ArrayList<Guild>();
+
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT id FROM guilds WHERE user_id = ?")) {
+            statement.setInt(1, userId);
+            try (ResultSet set = statement.executeQuery()) {
+                while (set.next()) {
+                    Guild guild = getGuild(set.getInt("id"));
 
                     if (guild != null) {
                         guilds.add(guild);
