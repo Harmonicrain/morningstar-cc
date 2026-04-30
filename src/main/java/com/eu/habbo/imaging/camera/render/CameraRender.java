@@ -1,5 +1,6 @@
 package com.eu.habbo.imaging.camera.render;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.imaging.camera.CameraPalette;
 import com.eu.habbo.imaging.camera.CameraPaletteCache;
 import org.slf4j.Logger;
@@ -16,6 +17,8 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -29,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -53,6 +57,8 @@ public abstract class CameraRender {
 
     private final BasicStroke simpleStroke = new BasicStroke(0);
     private final Map<String, BufferedImage> spriteCache = new HashMap<>();
+    private final Map<String, BufferedImage> urlImageCache = new HashMap<>();
+    private FetchBudget fetchBudget;
     private final Map<CameraPlane, DoorwayMask> doorwayMaskCache = new IdentityHashMap<>();
     private final Map<CameraPlane, DoorwayMask> avatarRevealMaskCache = new IdentityHashMap<>();
     private final Set<CameraSprite> doorwayAvatarSprites = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -72,6 +78,9 @@ public abstract class CameraRender {
         if (this.render != null)
             return this.render;
 
+        this.fetchBudget = new FetchBudget(
+                Emulator.getConfig().getInt("camera.image.fetch.max.per.render", 30),
+                Emulator.getConfig().getInt("camera.image.fetch.budget.ms", 8000));
         this.renderBackgroundColor = getRenderBackgroundColor();
         this.render = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         this.graphics = this.render.createGraphics();
@@ -1552,21 +1561,33 @@ public abstract class CameraRender {
         target.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
     }
 
-    private static BufferedImage readUrlImage(String name) {
+    private BufferedImage readUrlImage(String name) {
         if (name == null || name.isEmpty()) {
             return null;
         }
-        if (name.startsWith("//")) {
-            name = "http:" + name;
+        if (this.urlImageCache.containsKey(name)) {
+            return this.urlImageCache.get(name);
         }
+        if (this.fetchBudget == null || !this.fetchBudget.tryConsume()) {
+            LOGGER.debug("Camera URL fetch budget exhausted, skipping: {}", name);
+            return null;
+        }
+
+        BufferedImage image = fetchUrlImage(name);
+        this.urlImageCache.put(name, image);
+        return image;
+    }
+
+    private static BufferedImage fetchUrlImage(String name) {
+        String requestUrl = name.startsWith("//") ? "http:" + name : name;
         try {
-            URL url = new URL(name);
+            URL url = new URL(requestUrl);
             if (!isAllowedSpriteUrlScheme(url.getProtocol())) {
-                LOGGER.debug("Rejecting non-http(s) camera sprite URL: {}", name);
+                LOGGER.debug("Rejecting non-http(s) camera sprite URL: {}", requestUrl);
                 return null;
             }
             if (!isAllowedSpriteUrlHost(url.getHost())) {
-                LOGGER.debug("Rejecting private/loopback camera sprite URL: {}", name);
+                LOGGER.debug("Rejecting private/loopback camera sprite URL: {}", requestUrl);
                 return null;
             }
             URLConnection conn = url.openConnection();
@@ -1575,14 +1596,53 @@ public abstract class CameraRender {
                 // host check above. Caller treats null as "couldn't fetch".
                 httpConn.setInstanceFollowRedirects(false);
             }
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(10000);
+            conn.setConnectTimeout(Emulator.getConfig().getInt("camera.image.fetch.connect.timeout.ms", 2000));
+            conn.setReadTimeout(Emulator.getConfig().getInt("camera.image.fetch.read.timeout.ms", 3000));
+            int maxBytes = Emulator.getConfig().getInt("camera.image.fetch.max.bytes", 2097152);
             try (InputStream stream = conn.getInputStream()) {
-                return ImageIO.read(stream);
+                byte[] bytes = readBounded(stream, maxBytes);
+                if (bytes == null) {
+                    LOGGER.debug("Camera sprite URL exceeded max bytes ({}): {}", maxBytes, requestUrl);
+                    return null;
+                }
+                return ImageIO.read(new ByteArrayInputStream(bytes));
             }
         } catch (Exception e) {
-            LOGGER.debug("Failed to fetch camera sprite from URL: {}", name, e);
+            LOGGER.debug("Failed to fetch camera sprite from URL: {}", requestUrl, e);
             return null;
+        }
+    }
+
+    private static byte[] readBounded(InputStream stream, int maxBytes) throws java.io.IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream(Math.min(maxBytes, 16384));
+        byte[] chunk = new byte[8192];
+        int total = 0;
+        int read;
+        while ((read = stream.read(chunk)) != -1) {
+            if (total + read > maxBytes) {
+                return null;
+            }
+            buffer.write(chunk, 0, read);
+            total += read;
+        }
+        return buffer.toByteArray();
+    }
+
+    private static final class FetchBudget {
+        private int remaining;
+        private final long deadlineNanos;
+
+        FetchBudget(int maxFetches, int budgetMs) {
+            this.remaining = maxFetches;
+            this.deadlineNanos = System.nanoTime() + budgetMs * 1_000_000L;
+        }
+
+        boolean tryConsume() {
+            if (remaining <= 0 || System.nanoTime() > deadlineNanos) {
+                return false;
+            }
+            remaining--;
+            return true;
         }
     }
 
@@ -1593,6 +1653,9 @@ public abstract class CameraRender {
     private static boolean isAllowedSpriteUrlHost(String host) {
         if (host == null || host.isEmpty()) {
             return false;
+        }
+        if (isHostAllowlisted(host)) {
+            return true;
         }
         try {
             InetAddress[] addresses = InetAddress.getAllByName(host);
@@ -1612,6 +1675,32 @@ public abstract class CameraRender {
         } catch (UnknownHostException e) {
             return false;
         }
+    }
+
+    private static boolean isHostAllowlisted(String host) {
+        String configured = Emulator.getConfig().getValue("camera.allowed.image.hosts", "");
+        if (configured.isEmpty()) {
+            return false;
+        }
+        String target = host.toLowerCase(Locale.ROOT);
+        for (String entry : configured.split(",")) {
+            String trimmed = entry.trim().toLowerCase(Locale.ROOT);
+            if (trimmed.isEmpty() || trimmed.equals("*")) {
+                continue;
+            }
+            if (trimmed.startsWith("*.")) {
+                String suffix = trimmed.substring(2);
+                if (suffix.isEmpty()) {
+                    continue;
+                }
+                if (target.equals(suffix) || target.endsWith("." + suffix)) {
+                    return true;
+                }
+            } else if (trimmed.equals(target)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void renderFilters() {

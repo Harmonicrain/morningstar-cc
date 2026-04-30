@@ -24,7 +24,6 @@ import java.nio.file.Paths;
 
 public class CameraRenderManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraRenderManager.class);
-    private static final Logger CAMERA_LOGGER = LoggerFactory.getLogger("camera.capture");
 
     private final Path spritesDir;
     private final Path binaryDir;
@@ -73,107 +72,102 @@ public class CameraRenderManager {
                 this.spritesDir, this.binaryDir, this.outputDir, this.thumbnailOutputDir, this.urlPrefix, this.thumbnailUrlPrefix);
     }
 
-    public void renderPhotoAsync(Habbo habbo, int backgroundColor, String wallPaint, String json, int timestamp) {
-        Emulator.getThreading().run(() -> renderPhoto(habbo, backgroundColor, wallPaint, json, timestamp));
+    public void renderPhotoAsync(CameraRenderRequest request) {
+        Emulator.getThreading().run(() -> renderPhoto(request));
     }
 
-    public void renderThumbnailAsync(Habbo habbo, int backgroundColor, String wallPaint, String json) {
-        Emulator.getThreading().run(() -> renderThumbnail(habbo, backgroundColor, wallPaint, json));
+    public void renderThumbnailAsync(CameraRenderRequest request) {
+        Emulator.getThreading().run(() -> renderThumbnail(request));
     }
 
-    private void renderPhoto(Habbo habbo, int backgroundColor, String wallPaint, String json, int timestamp) {
-        if (habbo == null || habbo.getClient() == null) {
-            return;
-        }
-
-        String username = habbo.getHabboInfo().getUsername();
-        int userId = habbo.getHabboInfo().getId();
-        int roomId = habbo.getHabboInfo().getPhotoRoomId();
-
+    private void renderPhoto(CameraRenderRequest request) {
         try {
-            CameraParser parser = new CameraParser(json);
+            CameraParser parser = new CameraParser(request.json());
             JSONCamera scene = parser.getResult();
 
             if (scene == null) {
-                CAMERA_LOGGER.error("event=photo_failed user={} userId={} roomId={} timestamp={} reason=scene_parse_failed", username, userId, roomId, timestamp);
-                handleRenderError(habbo);
+                LOGGER.warn("Camera photo parse failed for user={} userId={} roomId={} timestamp={}", request.username(), request.userId(), request.roomId(), request.timestamp());
+                handlePhotoRenderError(request);
                 return;
             }
 
-            CameraRender render = new CameraRenderImage(scene, backgroundColor, this.spritesDir, this.paletteCache, wallPaint, this.wallColorResolver);
+            CameraRender render = new CameraRenderImage(scene, request.backgroundColor(), this.spritesDir, this.paletteCache, request.wallPaint(), this.wallColorResolver);
             BufferedImage image = render.render();
 
-            roomId = scene.getRoomid();
-
-            String relativePath = username + "/" + userId + "_" + timestamp + ".png";
+            String relativePath = request.username() + "/" + request.userId() + "_" + request.timestamp() + ".png";
             saveImage(image, relativePath);
 
-            String smallRelativePath = username + "/" + userId + "_" + timestamp + "_small.png";
+            String smallRelativePath = request.username() + "/" + request.userId() + "_" + request.timestamp() + "_small.png";
             BufferedImage smallImage = CameraUtils.resize(image, 100, 100);
             saveImage(smallImage, smallRelativePath);
 
-            String url = composeUrl(relativePath);
-
-            CAMERA_LOGGER.info("event=photo_rendered user={} userId={} roomId={} timestamp={} file={} smallFile={} url={}",
-                    username, userId, roomId, timestamp, relativePath, smallRelativePath, url);
-
-            if (timestamp == habbo.getHabboInfo().getPhotoTimestamp()) {
-                AchievementManager.progressAchievement(habbo, Emulator.getGameEnvironment().getAchievementManager().getAchievement("CameraPhotoCount"), 1);
-                habbo.getClient().sendResponse(new CameraStorageUrlMessageComposer(url));
-                habbo.getHabboInfo().setPhotoJSON(habbo.getHabboInfo().getPhotoJSON().replace("%room_id%", roomId + "").replace("%url%", url));
-                habbo.getHabboInfo().setPhotoURL(url);
-            }
+            commitPhoto(request, composeUrl(relativePath));
         } catch (Exception e) {
-            CAMERA_LOGGER.error("event=photo_failed user={} userId={} roomId={} timestamp={} reason={}",
-                    username, userId, roomId, timestamp, e.getClass().getSimpleName(), e);
-            LOGGER.error("Failed to render camera photo for {}", habbo.getHabboInfo().getUsername(), e);
-            handleRenderError(habbo);
+            LOGGER.error("Failed to render camera photo for {} (roomId={} timestamp={})", request.username(), request.roomId(), request.timestamp(), e);
+            handlePhotoRenderError(request);
         }
     }
 
-    private void renderThumbnail(Habbo habbo, int backgroundColor, String wallPaint, String json) {
-        if (habbo == null || habbo.getClient() == null) {
-            return;
-        }
-
-        String username = habbo.getHabboInfo().getUsername();
-        int userId = habbo.getHabboInfo().getId();
-        int roomId = habbo.getHabboInfo().getCurrentRoom() != null ? habbo.getHabboInfo().getCurrentRoom().getId() : 0;
-
+    private void renderThumbnail(CameraRenderRequest request) {
         try {
-            CameraParser parser = new CameraParser(json);
+            CameraParser parser = new CameraParser(request.json());
             JSONCamera scene = parser.getResult();
 
             if (scene == null) {
-                CAMERA_LOGGER.error("event=thumbnail_failed user={} userId={} roomId={} reason=scene_parse_failed", username, userId, roomId);
-                habbo.getClient().sendResponse(new ThumbnailStatusMessageComposer());
+                LOGGER.warn("Camera thumbnail parse failed for user={} userId={} roomId={}", request.username(), request.userId(), request.roomId());
+                sendThumbnailStatus(request);
                 return;
             }
 
-            CameraRender render = new CameraRenderRoom(scene, backgroundColor, this.spritesDir, this.paletteCache, wallPaint, this.wallColorResolver);
+            CameraRender render = new CameraRenderRoom(scene, request.backgroundColor(), this.spritesDir, this.paletteCache, request.wallPaint(), this.wallColorResolver);
             BufferedImage image = render.render();
 
-            roomId = scene.getRoomid();
-
-            String relativePath = roomId + ".png";
+            String relativePath = request.roomId() + ".png";
             saveImage(image, this.thumbnailOutputDir, relativePath);
 
-            CAMERA_LOGGER.info("event=thumbnail_rendered user={} userId={} roomId={} file={} url={}",
-                    username, userId, roomId, relativePath, composeThumbnailUrl(relativePath));
-
-            habbo.getClient().sendResponse(new ThumbnailStatusMessageComposer());
+            sendThumbnailStatus(request);
         } catch (Exception e) {
-            CAMERA_LOGGER.error("event=thumbnail_failed user={} userId={} roomId={} reason={}", username, userId, roomId, e.getClass().getSimpleName(), e);
-            LOGGER.error("Failed to render camera thumbnail for {}", habbo.getHabboInfo().getUsername(), e);
-            habbo.getClient().sendResponse(new ThumbnailStatusMessageComposer());
+            LOGGER.error("Failed to render camera thumbnail for {} (roomId={})", request.username(), request.roomId(), e);
+            sendThumbnailStatus(request);
         }
     }
 
-    private void handleRenderError(Habbo habbo) {
+    private void commitPhoto(CameraRenderRequest request, String url) {
+        Habbo habbo = Emulator.getGameEnvironment().getHabboManager().getHabbo(request.userId());
+        if (habbo == null || habbo.getClient() == null) {
+            return;
+        }
+        if (habbo.getHabboInfo().getPhotoTimestamp() != request.timestamp()) {
+            return;
+        }
+
+        AchievementManager.progressAchievement(habbo, Emulator.getGameEnvironment().getAchievementManager().getAchievement("CameraPhotoCount"), 1);
+        habbo.getClient().sendResponse(new CameraStorageUrlMessageComposer(url));
+        habbo.getHabboInfo().setPhotoJSON(habbo.getHabboInfo().getPhotoJSON().replace("%room_id%", request.roomId() + "").replace("%url%", url));
+        habbo.getHabboInfo().setPhotoURL(url);
+    }
+
+    private void handlePhotoRenderError(CameraRenderRequest request) {
+        Habbo habbo = Emulator.getGameEnvironment().getHabboManager().getHabbo(request.userId());
+        if (habbo == null) {
+            return;
+        }
+        if (habbo.getHabboInfo().getPhotoTimestamp() != request.timestamp()) {
+            return;
+        }
+
         habbo.getHabboInfo().setPhotoTimestamp(0);
         habbo.getHabboInfo().setPhotoJSON("");
         habbo.getHabboInfo().setPhotoURL("");
         habbo.alert(Emulator.getTexts().getValue("camera.error.creation"));
+    }
+
+    private void sendThumbnailStatus(CameraRenderRequest request) {
+        Habbo habbo = Emulator.getGameEnvironment().getHabboManager().getHabbo(request.userId());
+        if (habbo == null || habbo.getClient() == null) {
+            return;
+        }
+        habbo.getClient().sendResponse(new ThumbnailStatusMessageComposer());
     }
 
     private void saveImage(BufferedImage image, String relativePath) throws IOException {
@@ -195,9 +189,5 @@ public class CameraRenderManager {
             url = url.replace("https://", "http://");
         }
         return url;
-    }
-
-    private String composeThumbnailUrl(String relativePath) {
-        return this.thumbnailUrlPrefix + relativePath.replace("\\", "/");
     }
 }

@@ -1,13 +1,17 @@
 package com.eu.habbo.messages.incoming.camera;
 
 import com.eu.habbo.Emulator;
+import com.eu.habbo.habbohotel.rooms.Room;
+import com.eu.habbo.imaging.camera.CameraRenderRequest;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.util.crypto.ZIP;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 public class RenderRoomThumbnailMessageEvent extends MessageHandler {
-    private static final Logger CAMERA_LOGGER = LoggerFactory.getLogger("camera.capture");
+    private static final Logger LOGGER = LoggerFactory.getLogger(RenderRoomThumbnailMessageEvent.class);
 
     @Override
     public void handle() throws Exception {
@@ -16,26 +20,48 @@ public class RenderRoomThumbnailMessageEvent extends MessageHandler {
             return;
         }
 
-        if (!this.client.getHabbo().getHabboInfo().getCurrentRoom().isOwner(this.client.getHabbo()))
+        Room currentRoom = this.client.getHabbo().getHabboInfo().getCurrentRoom();
+        if (currentRoom == null) {
             return;
+        }
+
+        if (!currentRoom.isOwner(this.client.getHabbo())) {
+            return;
+        }
 
         this.packet.getBuffer().readFloat();
-        byte[] data = this.packet.getBuffer().readBytes(this.packet.getBuffer().readableBytes()).array();
-        String content = new String(ZIP.inflate(data));
+
+        String username = this.client.getHabbo().getHabboInfo().getUsername();
+        int userId = this.client.getHabbo().getHabboInfo().getId();
+
+        int compressedLen = this.packet.getBuffer().readableBytes();
+        int maxCompressed = Emulator.getConfig().getInt("camera.limits.compressed.bytes", 16384);
+        if (compressedLen > maxCompressed) {
+            LOGGER.warn("Thumbnail request rejected (compressed payload too large): user={} userId={} size={} limit={}", username, userId, compressedLen, maxCompressed);
+            return;
+        }
+
+        byte[] data = this.packet.getBuffer().readBytes(compressedLen).array();
+
+        int maxInflated = Emulator.getConfig().getInt("camera.limits.inflated.bytes", 262144);
+        byte[] inflated;
+        try {
+            inflated = ZIP.inflate(data, maxInflated);
+        } catch (IOException e) {
+            LOGGER.warn("Thumbnail request rejected (inflate overflow): user={} userId={} compressedLen={} limit={} detail={}", username, userId, compressedLen, maxInflated, e.getMessage());
+            return;
+        }
+        String content = new String(inflated);
 
         int timestamp = Emulator.getIntUnixTimestamp();
-        var currentRoom = this.client.getHabbo().getHabboInfo().getCurrentRoom();
         int backgroundColor = currentRoom.getBackgroundTonerColor().getRGB();
         String wallPaint = currentRoom.getWallPaint();
         int roomId = currentRoom.getId();
-        String username = this.client.getHabbo().getHabboInfo().getUsername();
-        int userId = this.client.getHabbo().getHabboInfo().getId();
 
         this.client.getHabbo().getHabboInfo().setPhotoJSON(Emulator.getConfig().getValue("camera.extradata").replace("%timestamp%", timestamp + ""));
         this.client.getHabbo().getHabboInfo().setPhotoTimestamp(timestamp);
 
-        CAMERA_LOGGER.info("event=thumbnail_request user={} userId={} roomId={} timestamp={} json={}", username, userId, roomId, timestamp, content);
-
-        Emulator.getCameraRenderManager().renderThumbnailAsync(this.client.getHabbo(), backgroundColor, wallPaint, content);
+        Emulator.getCameraRenderManager().renderThumbnailAsync(
+                CameraRenderRequest.forThumbnail(userId, username, roomId, backgroundColor, wallPaint, content));
     }
 }
