@@ -5,7 +5,7 @@ import com.eu.habbo.core.*;
 import com.eu.habbo.core.consolecommands.ConsoleCommand;
 import com.eu.habbo.database.Database;
 import com.eu.habbo.habbohotel.GameEnvironment;
-import com.eu.habbo.networking.camera.CameraClient;
+import com.eu.habbo.imaging.camera.CameraRenderManager;
 import com.eu.habbo.networking.gameserver.GameServer;
 import com.eu.habbo.networking.rconserver.RCONServer;
 import com.eu.habbo.plugin.PluginManager;
@@ -59,7 +59,7 @@ public final class Emulator {
     private static TextsManager texts;
     private static GameServer gameServer;
     private static RCONServer rconServer;
-    private static CameraClient cameraClient;
+    private static CameraRenderManager cameraRenderManager;
     private static Logging logging;
     private static Database database;
     private static DatabaseLogger databaseLogger;
@@ -142,6 +142,7 @@ public final class Emulator {
             Emulator.rconServer.initializePipeline();
             Emulator.rconServer.connect();
             Emulator.badgeImager = new BadgeImager();
+            Emulator.cameraRenderManager = new CameraRenderManager();
 
             LOGGER.info("Arcturus Morningstar has successfully loaded.");
             LOGGER.info("System launched in: {}ms. Using {} threads!", (System.nanoTime() - startTime) / 1e6, Runtime.getRuntime().availableProcessors() * 2);
@@ -231,12 +232,6 @@ public final class Emulator {
         try {
             if (Emulator.getPluginManager() != null)
                 Emulator.getPluginManager().fireEvent(new EmulatorStartShutdownEvent());
-        } catch (Exception e) {
-        }
-
-        try {
-            if (Emulator.cameraClient != null)
-                Emulator.cameraClient.disconnect();
         } catch (Exception e) {
         }
 
@@ -355,12 +350,8 @@ public final class Emulator {
         return badgeImager;
     }
 
-    public static CameraClient getCameraClient() {
-        return cameraClient;
-    }
-
-    public static synchronized void setCameraClient(CameraClient client) {
-        cameraClient = client;
+    public static CameraRenderManager getCameraRenderManager() {
+        return cameraRenderManager;
     }
 
     public static int getTimeStarted() {

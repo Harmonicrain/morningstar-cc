@@ -7,6 +7,15 @@ TODO.txt
 packet.pkt
 plugins/**
 src/test/
+!src/test/
+!src/test/java/
+!src/test/java/com/
+!src/test/java/com/eu/
+!src/test/java/com/eu/habbo/
+!src/test/java/com/eu/habbo/imaging/
+!src/test/java/com/eu/habbo/imaging/camera/
+!src/test/java/com/eu/habbo/imaging/camera/render/
+!src/test/java/com/eu/habbo/imaging/camera/render/CameraRenderTest.java
 target/
 config.ini
 *.txt

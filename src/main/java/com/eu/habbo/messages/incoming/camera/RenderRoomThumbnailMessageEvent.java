@@ -2,12 +2,13 @@ package com.eu.habbo.messages.incoming.camera;
 
 import com.eu.habbo.Emulator;
 import com.eu.habbo.messages.incoming.MessageHandler;
-import com.eu.habbo.messages.outgoing.camera.ThumbnailStatusMessageComposer;
-import com.eu.habbo.networking.camera.CameraClient;
-import com.eu.habbo.networking.camera.messages.outgoing.CameraRenderImageComposer;
 import com.eu.habbo.util.crypto.ZIP;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RenderRoomThumbnailMessageEvent extends MessageHandler {
+    private static final Logger CAMERA_LOGGER = LoggerFactory.getLogger("camera.capture");
+
     @Override
     public void handle() throws Exception {
         if (!this.client.getHabbo().hasPermission("acc_camera")) {
@@ -18,20 +19,23 @@ public class RenderRoomThumbnailMessageEvent extends MessageHandler {
         if (!this.client.getHabbo().getHabboInfo().getCurrentRoom().isOwner(this.client.getHabbo()))
             return;
 
-        if (CameraClient.isLoggedIn) {
-            this.packet.getBuffer().readFloat();
-            byte[] data = this.packet.getBuffer().readBytes(this.packet.getBuffer().readableBytes()).array();
-            String content = new String(ZIP.inflate(data));
+        this.packet.getBuffer().readFloat();
+        byte[] data = this.packet.getBuffer().readBytes(this.packet.getBuffer().readableBytes()).array();
+        String content = new String(ZIP.inflate(data));
 
-            CameraRenderImageComposer composer = new CameraRenderImageComposer(this.client.getHabbo().getHabboInfo().getId(), this.client.getHabbo().getHabboInfo().getCurrentRoom().getBackgroundTonerColor().getRGB(), 110, 110, content);
+        int timestamp = Emulator.getIntUnixTimestamp();
+        var currentRoom = this.client.getHabbo().getHabboInfo().getCurrentRoom();
+        int backgroundColor = currentRoom.getBackgroundTonerColor().getRGB();
+        String wallPaint = currentRoom.getWallPaint();
+        int roomId = currentRoom.getId();
+        String username = this.client.getHabbo().getHabboInfo().getUsername();
+        int userId = this.client.getHabbo().getHabboInfo().getId();
 
-            this.client.getHabbo().getHabboInfo().setPhotoJSON(Emulator.getConfig().getValue("camera.extradata").replace("%timestamp%", composer.timestamp + ""));
-            this.client.getHabbo().getHabboInfo().setPhotoTimestamp(composer.timestamp);
+        this.client.getHabbo().getHabboInfo().setPhotoJSON(Emulator.getConfig().getValue("camera.extradata").replace("%timestamp%", timestamp + ""));
+        this.client.getHabbo().getHabboInfo().setPhotoTimestamp(timestamp);
 
-            Emulator.getCameraClient().sendMessage(composer);
-        } else {
-            this.client.sendResponse(new ThumbnailStatusMessageComposer());
-            this.client.getHabbo().alert(Emulator.getTexts().getValue("camera.disabled"));
-        }
+        CAMERA_LOGGER.info("event=thumbnail_request user={} userId={} roomId={} timestamp={} json={}", username, userId, roomId, timestamp, content);
+
+        Emulator.getCameraRenderManager().renderThumbnailAsync(this.client.getHabbo(), backgroundColor, wallPaint, content);
     }
 }

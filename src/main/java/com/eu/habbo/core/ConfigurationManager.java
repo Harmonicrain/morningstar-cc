@@ -148,6 +148,11 @@ public class ConfigurationManager {
     }
 
 
+    public boolean containsKey(String key) {
+        return this.properties.containsKey(key);
+    }
+
+
     public String getValue(String key, String defaultValue) {
         if (this.isLoading)
             return defaultValue;

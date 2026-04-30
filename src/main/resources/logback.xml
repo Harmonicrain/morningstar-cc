@@ -53,9 +53,25 @@
         </encoder>
     </appender>
 
+    <appender name="FileCamera" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logging/camera.txt</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logging/camera.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <logger name="io.netty" level="INFO"/>
 
     <logger name="com.zaxxer.hikari" level="ERROR"/>
+
+    <logger name="camera.capture" level="INFO" additivity="false">
+        <appender-ref ref="FileCamera" />
+    </logger>
 
     <root level="INFO">
         <appender-ref ref="Console" />
