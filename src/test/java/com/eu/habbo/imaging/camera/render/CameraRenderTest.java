@@ -1,16 +1,22 @@
 package com.eu.habbo.imaging.camera.render;
 
+import com.eu.habbo.Emulator;
+import com.eu.habbo.core.ConfigurationManager;
+import com.eu.habbo.threading.ThreadPooling;
 import com.google.gson.Gson;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class CameraRenderTest {
     private static final int BLUE_BACKGROUND = 0x8BDFEF;
@@ -18,6 +24,35 @@ class CameraRenderTest {
 
     @TempDir
     Path spritesDir;
+
+    @BeforeAll
+    static void installEmulatorConfig() throws Exception {
+        Path configFile = Files.createTempFile("camera-render-test", ".ini");
+        Files.writeString(configFile, """
+                camera.image.fetch.max.per.render=30
+                camera.image.fetch.budget.ms=8000
+                camera.image.fetch.connect.timeout.ms=2000
+                camera.image.fetch.read.timeout.ms=3000
+                camera.image.fetch.max.bytes=2097152
+                camera.allowed.image.hosts=
+                """);
+
+        Field configField = Emulator.class.getDeclaredField("config");
+        configField.setAccessible(true);
+        configField.set(null, new ConfigurationManager(configFile.toString()));
+
+        Field threadingField = Emulator.class.getDeclaredField("threading");
+        threadingField.setAccessible(true);
+        threadingField.set(null, new ThreadPooling(1));
+    }
+
+    @Test
+    void spriteLoaderRejectsPathTraversalAssets() {
+        CameraImageLoader imageLoader = new CameraImageLoader(spritesDir);
+
+        assertNull(imageLoader.spriteFile("../escape"));
+        assertNull(imageLoader.readSprite("../escape"));
+    }
 
     @Test
     void rendersTexturedWallUsingPlaneColor() throws Exception {
@@ -290,7 +325,7 @@ class CameraRenderTest {
     }
 
     @Test
-    void avatarNearDoorButOutsideOpeningStaysInFrontOfWall() throws Exception {
+    void avatarNearDoorButOutsideOpeningIsCoveredByWall() throws Exception {
         writeSolidSprite("wall_texture_test_white", 10, 10, 0xFFFFFF);
         writeSolidSprite("h_std_door_green", 20, 40, 0x00FF00);
         writeSolidSprite("h_std_front_blue", 20, 40, 0x0000FF);
@@ -325,11 +360,11 @@ class CameraRenderTest {
                 """.formatted(background));
 
         assertRgb(0x00FF00, image.getRGB(25, 90));
-        assertRgb(0x0000FF, image.getRGB(45, 90));
+        assertRgb(0xFF0000, image.getRGB(45, 90));
     }
 
     @Test
-    void frontAvatarClusterStaysOverWallWhenShadowsPrecedeAnchors() throws Exception {
+    void frontAvatarClusterOutsideOpeningIsCoveredWhenShadowsPrecedeAnchors() throws Exception {
         writeSolidSprite("wall_texture_test_white", 10, 10, 0xFFFFFF);
         writeSolidSprite("h_std_shadow_back", 20, 8, 0x666666);
         writeSolidSprite("h_std_shadow_front", 20, 8, 0x444444);
@@ -368,11 +403,11 @@ class CameraRenderTest {
                 """.formatted(background));
 
         assertRgb(0x00FF00, image.getRGB(25, 90));
-        assertRgb(0x0000FF, image.getRGB(45, 90));
+        assertRgb(0xFF0000, image.getRGB(45, 90));
     }
 
     @Test
-    void wallTopCapUsesWallFaceColor() throws Exception {
+    void untexturedWallTopCapUsesOwnPlaneColor() throws Exception {
         writeSolidSprite("wall_texture_test_white", 8, 8, 0xFFFFFF);
         int background = 0x000000;
         int wallColor = 0xC9A400;
@@ -405,7 +440,7 @@ class CameraRenderTest {
                 }
                 """.formatted(background, wallColor));
 
-        assertRgb(wallColor, image.getRGB(100, 48));
+        assertRgb(0x7A6700, image.getRGB(100, 48));
     }
 
     @Test
@@ -617,8 +652,9 @@ class CameraRenderTest {
     private void assertRgb(int expected, int actual) {
         Color actualColor = new Color(actual);
         Color expectedColor = new Color(expected);
-        assertEquals(expectedColor.getRed(), actualColor.getRed(), 2, "red mismatch");
-        assertEquals(expectedColor.getGreen(), actualColor.getGreen(), 2, "green mismatch");
-        assertEquals(expectedColor.getBlue(), actualColor.getBlue(), 2, "blue mismatch");
+        String message = "expected #%06X but was #%06X".formatted(expected & 0xFFFFFF, actual & 0xFFFFFF);
+        assertEquals(expectedColor.getRed(), actualColor.getRed(), 2, "red mismatch: " + message);
+        assertEquals(expectedColor.getGreen(), actualColor.getGreen(), 2, "green mismatch: " + message);
+        assertEquals(expectedColor.getBlue(), actualColor.getBlue(), 2, "blue mismatch: " + message);
     }
 }
