@@ -107,8 +107,7 @@ final class CameraPlaneRenderer {
     }
 
     boolean hasPlaneMasks(CameraPlane plane) {
-        return (plane.getMasks() != null && plane.getMasks().length > 0)
-                || (plane.getRectangleMasks() != null && plane.getRectangleMasks().length > 0);
+        return plane.getMasks() != null && plane.getMasks().length > 0;
     }
 
     boolean planeIntersects(CameraPlane plane, Rectangle bounds) {
@@ -319,9 +318,7 @@ final class CameraPlaneRenderer {
             return true;
         }
 
-        boolean hasBitmapMasks = plane.getMasks() != null && plane.getMasks().length > 0;
-        boolean hasRectangleMasks = plane.getRectangleMasks() != null && plane.getRectangleMasks().length > 0;
-        return !hasBitmapMasks && !hasRectangleMasks;
+        return plane.getMasks() == null || plane.getMasks().length == 0;
     }
 
     private Color getTexturePrefillColor(CameraPlane plane, PlaneStyle planeStyle) {
@@ -350,7 +347,7 @@ final class CameraPlaneRenderer {
 
         List<BufferedImage> columns = new ArrayList<>();
         for (CameraTexCols texCol : plane.getTexCols()) {
-            BufferedImage column = buildTextureColumn(texCol, bounds.height, plane.isBottomAligned(), planeStyle, plane.getTextureOffsetX(), plane.getTextureOffsetY());
+            BufferedImage column = buildTextureColumn(texCol, bounds.height, plane.isBottomAligned(), planeStyle);
             if (column != null) {
                 columns.add(column);
             }
@@ -377,7 +374,6 @@ final class CameraPlaneRenderer {
 
         textureGraphics.dispose();
         applyMasks(texture, plane.getMasks());
-        applyRectangleMasks(texture, plane.getRectangleMasks());
         return texture;
     }
 
@@ -414,7 +410,7 @@ final class CameraPlaneRenderer {
         return points[2];
     }
 
-    private BufferedImage buildTextureColumn(CameraTexCols texCol, int heightValue, boolean bottomAligned, PlaneStyle planeStyle, int textureOffsetX, int textureOffsetY) {
+    private BufferedImage buildTextureColumn(CameraTexCols texCol, int heightValue, boolean bottomAligned, PlaneStyle planeStyle) {
         if (texCol == null || texCol.getAssetNames() == null || texCol.getAssetNames().length == 0) {
             return null;
         }
@@ -439,7 +435,6 @@ final class CameraPlaneRenderer {
                 continue;
             }
 
-            cell = offsetTextureCell(cell, textureOffsetX, textureOffsetY);
             cell = tintTexture(cell, planeStyle.textureTint());
             cells.add(cell);
             widthValue = Math.max(widthValue, cell.getWidth());
@@ -474,33 +469,6 @@ final class CameraPlaneRenderer {
 
         columnGraphics.dispose();
         return column;
-    }
-
-    private BufferedImage offsetTextureCell(BufferedImage source, int textureOffsetX, int textureOffsetY) {
-        if (source.getWidth() <= 0 || source.getHeight() <= 0 || (textureOffsetX == 0 && textureOffsetY == 0)) {
-            return source;
-        }
-
-        int offsetX = positiveModulo(textureOffsetX, source.getWidth());
-        int offsetY = positiveModulo(textureOffsetY, source.getHeight());
-        if (offsetX == 0 && offsetY == 0) {
-            return source;
-        }
-
-        BufferedImage shifted = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
-        for (int x = 0; x < shifted.getWidth(); x++) {
-            int sourceX = (x + offsetX) % source.getWidth();
-            for (int y = 0; y < shifted.getHeight(); y++) {
-                int sourceY = (y + offsetY) % source.getHeight();
-                shifted.setRGB(x, y, source.getRGB(sourceX, sourceY));
-            }
-        }
-        return shifted;
-    }
-
-    private int positiveModulo(int value, int divisor) {
-        int result = value % divisor;
-        return result < 0 ? result + divisor : result;
     }
 
     private boolean shouldSkipNeutralWallTexture(String asset, PlaneStyle planeStyle) {
@@ -563,31 +531,6 @@ final class CameraPlaneRenderer {
             // with it â€” so the cutouts placed at raw (location.x, location.y) here end up
             // at the same screen position the room view paints them.
             clearMaskedPixels(texture, maskImage, mask.getLocation().x, mask.getLocation().y);
-        }
-    }
-
-    private void applyRectangleMasks(BufferedImage texture, CameraRectangleMask[] masks) {
-        if (masks == null || masks.length == 0) {
-            return;
-        }
-
-        for (CameraRectangleMask mask : masks) {
-            if (mask == null || mask.getWidth() <= 0 || mask.getHeight() <= 0) {
-                continue;
-            }
-
-            int startX = Math.max(0, mask.getX());
-            int startY = Math.max(0, mask.getY());
-            int endX = Math.min(texture.getWidth(), mask.getX() + mask.getWidth());
-            int endY = Math.min(texture.getHeight(), mask.getY() + mask.getHeight());
-            int rectW = endX - startX;
-            int rectH = endY - startY;
-            if (rectW <= 0 || rectH <= 0) {
-                continue;
-            }
-
-            int[] zeros = new int[rectW * rectH];
-            texture.setRGB(startX, startY, rectW, rectH, zeros, 0, rectW);
         }
     }
 

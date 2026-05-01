@@ -4,12 +4,9 @@ public class CameraPlane {
     private float z;
     private boolean bottomAligned;
     private int color;
-    private int textureOffsetX;
-    private int textureOffsetY;
     private CameraPositionPoint[] cornerPoints;
     private CameraTexCols[] texCols;
     private CameraMask[] masks;
-    private CameraRectangleMask[] rectangleMasks;
 
     public float getZ() {
         return z;
@@ -23,14 +20,6 @@ public class CameraPlane {
         return color;
     }
 
-    public int getTextureOffsetX() {
-        return textureOffsetX;
-    }
-
-    public int getTextureOffsetY() {
-        return textureOffsetY;
-    }
-
     public CameraPositionPoint[] getCornerPoints() {
         return cornerPoints;
     }
@@ -41,9 +30,5 @@ public class CameraPlane {
 
     public CameraMask[] getMasks() {
         return masks;
-    }
-
-    public CameraRectangleMask[] getRectangleMasks() {
-        return rectangleMasks;
     }
 }
