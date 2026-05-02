@@ -142,7 +142,15 @@ public final class Emulator {
             Emulator.rconServer.initializePipeline();
             Emulator.rconServer.connect();
             Emulator.badgeImager = new BadgeImager();
-            Emulator.cameraRenderManager = new CameraRenderManager();
+            if (Emulator.getConfig().getInt("camera.enabled", 1) == 0) {
+                LOGGER.info("Camera disabled by configuration.");
+            } else {
+                try {
+                    Emulator.cameraRenderManager = new CameraRenderManager();
+                } catch (IllegalStateException e) {
+                    LOGGER.warn("Camera disabled: {}", e.getMessage());
+                }
+            }
 
             LOGGER.info("Arcturus Morningstar has successfully loaded.");
             LOGGER.info("System launched in: {}ms. Using {} threads!", (System.nanoTime() - startTime) / 1e6, Runtime.getRuntime().availableProcessors() * 2);

@@ -5,11 +5,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.util.Iterator;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
@@ -151,17 +154,40 @@ final class CameraImageLoader {
             conn.setConnectTimeout(Emulator.getConfig().getInt("camera.image.fetch.connect.timeout.ms", 2000));
             conn.setReadTimeout(Emulator.getConfig().getInt("camera.image.fetch.read.timeout.ms", 3000));
             int maxBytes = Emulator.getConfig().getInt("camera.image.fetch.max.bytes", 2097152);
+            int maxPixels = Emulator.getConfig().getInt("camera.image.fetch.max.pixels", 4_000_000);
             try (InputStream stream = conn.getInputStream()) {
                 byte[] bytes = readBounded(stream, maxBytes);
                 if (bytes == null) {
                     LOGGER.debug("Camera sprite URL exceeded max bytes ({}): {}", maxBytes, requestUrl);
                     return null;
                 }
-                return ImageIO.read(new ByteArrayInputStream(bytes));
+                return decodeBounded(bytes, maxPixels, requestUrl);
             }
         } catch (Exception e) {
             LOGGER.debug("Failed to fetch camera sprite from URL: {}", requestUrl, e);
             return null;
+        }
+    }
+
+    private static BufferedImage decodeBounded(byte[] bytes, int maxPixels, String sourceUrl) throws Exception {
+        try (ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                return null;
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                if ((long) width * height > maxPixels) {
+                    LOGGER.debug("Camera sprite URL image dimensions {}x{} exceed max pixels ({}): {}", width, height, maxPixels, sourceUrl);
+                    return null;
+                }
+                return reader.read(0);
+            } finally {
+                reader.dispose();
+            }
         }
     }
 

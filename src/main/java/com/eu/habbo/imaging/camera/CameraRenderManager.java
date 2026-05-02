@@ -102,10 +102,10 @@ public class CameraRenderManager {
                 image = CameraUtils.resize(cropped, image.getWidth(), image.getHeight());
             }
 
-            String relativePath = request.username() + "/" + request.userId() + "_" + request.timestamp() + ".png";
+            String relativePath = request.userId() + "/" + request.userId() + "_" + request.timestamp() + ".png";
             saveImage(image, relativePath);
 
-            String smallRelativePath = request.username() + "/" + request.userId() + "_" + request.timestamp() + "_small.png";
+            String smallRelativePath = request.userId() + "/" + request.userId() + "_" + request.timestamp() + "_small.png";
             BufferedImage smallImage = CameraUtils.resize(image, 100, 100);
             saveImage(smallImage, smallRelativePath);
 

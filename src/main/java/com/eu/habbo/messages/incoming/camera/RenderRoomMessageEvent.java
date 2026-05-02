@@ -21,6 +21,11 @@ public class RenderRoomMessageEvent extends MessageHandler {
             return;
         }
 
+        if (Emulator.getCameraRenderManager() == null) {
+            this.client.getHabbo().alert(Emulator.getTexts().getValue("camera.disabled"));
+            return;
+        }
+
         Room currentRoom = this.client.getHabbo().getHabboInfo().getCurrentRoom();
         if (currentRoom == null) {
             return;

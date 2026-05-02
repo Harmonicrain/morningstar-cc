@@ -216,6 +216,15 @@ public abstract class CameraRender {
 
                 this.graphics.drawImage(effect, 0, 0, null);
             } else if (filter.blendMode == CameraFilters.BlendMode.NORMAL) {
+                for (int x = 0; x < effect.getWidth(); ++x) {
+                    for (int y = 0; y < effect.getHeight(); ++y) {
+                        int rgb = effect.getRGB(x, y);
+                        int srcA = (rgb >> 24) & 0xFF;
+                        int scaledA = Math.min(255, (int) (srcA * (modifier.getAlpha() / 255f)));
+                        effect.setRGB(x, y, (scaledA << 24) | (rgb & 0x00FFFFFF));
+                    }
+                }
+
                 this.graphics.drawImage(effect, 0, 0, null);
             } else {
                 int maxX = Math.min(effect.getWidth(), this.render.getWidth());
