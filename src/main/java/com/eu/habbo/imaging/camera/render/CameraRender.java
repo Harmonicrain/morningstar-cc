@@ -205,16 +205,37 @@ public abstract class CameraRender {
             if (isFrame) {
                 this.graphics.drawImage(effect, 0, 0, null);
             } else if (filter.blendMode == CameraFilters.BlendMode.HARDLIGHT) {
-                for (int x = 0; x < effect.getWidth(); ++x) {
-                    for (int y = 0; y < effect.getHeight(); ++y) {
-                        int rgb = effect.getRGB(x, y);
-                        int srcA = (rgb >> 24) & 0xFF;
-                        int scaledA = Math.min(255, (int) (srcA * (modifier.getAlpha() / 255f)));
-                        effect.setRGB(x, y, (scaledA << 24) | (rgb & 0x00FFFFFF));
+                int maxX = Math.min(effect.getWidth(), this.render.getWidth());
+                int maxY = Math.min(effect.getHeight(), this.render.getHeight());
+                for (int x = 0; x < maxX; ++x) {
+                    for (int y = 0; y < maxY; ++y) {
+                        int eRgb = effect.getRGB(x, y);
+                        int eA = (eRgb >> 24) & 0xFF;
+                        if (eA == 0) {
+                            continue;
+                        }
+                        int scaledA = Math.min(255, (int) (eA * (modifier.getAlpha() / 255f)));
+                        float alphaFactor = scaledA / 255f;
+                        int eR = (eRgb >> 16) & 0xFF;
+                        int eG = (eRgb >> 8) & 0xFF;
+                        int eB = eRgb & 0xFF;
+
+                        int rRgb = this.render.getRGB(x, y);
+                        int rA = (rRgb >> 24) & 0xFF;
+                        int rR = (rRgb >> 16) & 0xFF;
+                        int rG = (rRgb >> 8) & 0xFF;
+                        int rB = rRgb & 0xFF;
+
+                        int blendR = hardlight(rR, eR);
+                        int blendG = hardlight(rG, eG);
+                        int blendB = hardlight(rB, eB);
+
+                        int outR = CameraRenderUtils.clampByte(Math.round((rR * (1f - alphaFactor)) + (blendR * alphaFactor)));
+                        int outG = CameraRenderUtils.clampByte(Math.round((rG * (1f - alphaFactor)) + (blendG * alphaFactor)));
+                        int outB = CameraRenderUtils.clampByte(Math.round((rB * (1f - alphaFactor)) + (blendB * alphaFactor)));
+                        this.render.setRGB(x, y, (rA << 24) | (outR << 16) | (outG << 8) | outB);
                     }
                 }
-
-                this.graphics.drawImage(effect, 0, 0, null);
             } else if (filter.blendMode == CameraFilters.BlendMode.NORMAL) {
                 for (int x = 0; x < effect.getWidth(); ++x) {
                     for (int y = 0; y < effect.getHeight(); ++y) {
@@ -268,6 +289,13 @@ public abstract class CameraRender {
                 }
             }
         }
+    }
+
+    private static int hardlight(int base, int blend) {
+        if (blend < 128) {
+            return (2 * base * blend) / 255;
+        }
+        return 255 - (2 * (255 - base) * (255 - blend)) / 255;
     }
 
     private static int compareRenderLayers(RenderLayer left, RenderLayer right) {

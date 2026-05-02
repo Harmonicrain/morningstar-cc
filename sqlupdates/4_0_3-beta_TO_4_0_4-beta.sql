@@ -79,6 +79,7 @@ INSERT IGNORE INTO `emulator_settings` (`key`, `value`) VALUES
 ('camera.limits.inflated.bytes', '262144'),
 ('camera.limits.filters', '16'),
 ('camera.limits.planes', '64'),
-('camera.limits.sprites', '512');
+('camera.limits.sprites', '512'),
+('camera.limits.plane.texture.pixels', '4000000');
 
 SET FOREIGN_KEY_CHECKS = 1;

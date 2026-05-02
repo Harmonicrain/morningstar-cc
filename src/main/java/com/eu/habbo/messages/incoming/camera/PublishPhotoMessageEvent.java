@@ -27,6 +27,7 @@ public class PublishPhotoMessageEvent extends MessageHandler {
         if (habbo.getHabboInfo().getPhotoTimestamp() == 0) return;
         if (habbo.getHabboInfo().getPhotoJSON().isEmpty()) return;
         if (!habbo.getHabboInfo().getPhotoJSON().contains(habbo.getHabboInfo().getPhotoTimestamp() + "")) return;
+        if (habbo.getHabboInfo().getPhotoJSON().contains("%url%")) return;
 
         if (habbo.getHabboInfo().getCurrencyAmount(PublishPhotoMessageEvent.CAMERA_PUBLISH_POINTS_TYPE) < PublishPhotoMessageEvent.CAMERA_PUBLISH_POINTS) {
             this.client.sendResponse(new NotEnoughBalanceMessageComposer(false, true, PublishPhotoMessageEvent.CAMERA_PUBLISH_POINTS));

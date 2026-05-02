@@ -31,6 +31,7 @@ public class PurchasePhotoMessageEvent extends MessageHandler {
         if (this.client.getHabbo().getHabboInfo().getPhotoJSON().isEmpty()) return;
         if (!this.client.getHabbo().getHabboInfo().getPhotoJSON().contains(this.client.getHabbo().getHabboInfo().getPhotoTimestamp() + ""))
             return;
+        if (this.client.getHabbo().getHabboInfo().getPhotoJSON().contains("%url%")) return;
 
         if (Emulator.getPluginManager().fireEvent(new UserPurchasePictureEvent(this.client.getHabbo(), this.client.getHabbo().getHabboInfo().getPhotoURL(), this.client.getHabbo().getHabboInfo().getPhotoRoomId(), this.client.getHabbo().getHabboInfo().getPhotoTimestamp())).isCancelled()) {
             return;

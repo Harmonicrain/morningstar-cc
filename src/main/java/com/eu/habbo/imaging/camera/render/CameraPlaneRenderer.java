@@ -1,5 +1,7 @@
 package com.eu.habbo.imaging.camera.render;
 
+import com.eu.habbo.Emulator;
+
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -333,7 +335,9 @@ final class CameraPlaneRenderer {
 
     private BufferedImage buildPlaneTexture(CameraPlane plane, PlaneStyle planeStyle) {
         Rectangle bounds = getPlaneTextureBounds(plane);
-        if (bounds.width <= 0 || bounds.height <= 0) {
+        int maxPlaneTexturePixels = Emulator.getConfig().getInt("camera.limits.plane.texture.pixels", 4_000_000);
+        if (bounds.width <= 0 || bounds.height <= 0
+                || (long) bounds.width * bounds.height > maxPlaneTexturePixels) {
             return null;
         }
 

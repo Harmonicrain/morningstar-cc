@@ -93,7 +93,7 @@ public class CameraRenderManager {
             CameraRender render = new CameraRenderImage(scene, request.backgroundColor(), this.spritesDir, this.framesDir, this.paletteCache, request.wallPaint(), this.wallColorResolver);
             BufferedImage image = render.render();
             if (scene.getZoom() > 1) {
-                int zoom = scene.getZoom();
+                int zoom = Math.min(scene.getZoom(), 4);
                 int cropW = image.getWidth() / zoom;
                 int cropH = image.getHeight() / zoom;
                 int cropX = (image.getWidth() - cropW) / 2;

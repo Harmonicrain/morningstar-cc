@@ -6,7 +6,7 @@ public class CameraSprite implements Comparable<CameraSprite> {
     private int color = -1;
     private int y;
     private double z;
-    private int alpha;
+    private Integer alpha;
     private boolean flipH;
     private double skew;
     private String blendMode = "";
@@ -32,7 +32,7 @@ public class CameraSprite implements Comparable<CameraSprite> {
         return this.z;
     }
 
-    public int getAlpha() {
+    public Integer getAlpha() {
         return this.alpha;
     }
 

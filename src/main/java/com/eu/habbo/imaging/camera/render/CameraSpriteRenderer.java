@@ -159,10 +159,8 @@ final class CameraSpriteRenderer {
     }
 
     private void renderSprite(Graphics2D target, CameraSprite sprite) {
-        int alpha = (sprite.getAlpha() != 0) ? sprite.getAlpha() : 255;
-        if (alpha <= 0 || alpha > 255) {
-            alpha = 1;
-        }
+        Integer rawAlpha = sprite.getAlpha();
+        int alpha = rawAlpha == null ? 255 : Math.max(0, Math.min(255, rawAlpha));
 
         BufferedImage spriteImage = getSpriteImage(sprite);
         if (spriteImage == null) {

@@ -17,6 +17,11 @@ public class RenderRoomThumbnailMessageEvent extends MessageHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderRoomThumbnailMessageEvent.class);
 
     @Override
+    public int getRatelimit() {
+        return 3000;
+    }
+
+    @Override
     public void handle() throws Exception {
         if (!this.client.getHabbo().hasPermission("acc_camera")) {
             this.client.getHabbo().alert(Emulator.getTexts().getValue("camera.permission"));
