@@ -24,13 +24,16 @@ final class CameraImageLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraImageLoader.class);
 
     private final Path spritesDir;
+    private final Path framesDir;
     private final Map<String, BufferedImage> spriteCache = new HashMap<>();
+    private final Map<String, BufferedImage> frameCache = new HashMap<>();
     private final Map<String, BufferedImage> urlImageCache = new HashMap<>();
 
     private FetchBudget fetchBudget;
 
-    CameraImageLoader(Path spritesDir) {
+    CameraImageLoader(Path spritesDir, Path framesDir) {
         this.spritesDir = spritesDir;
+        this.framesDir = framesDir;
     }
 
     void resetFetchBudget(int maxFetches, int budgetMs) {
@@ -38,13 +41,21 @@ final class CameraImageLoader {
     }
 
     File spriteFile(String asset) {
+        return resolveAssetFile(this.spritesDir, asset);
+    }
+
+    File frameFile(String asset) {
+        return resolveAssetFile(this.framesDir, asset);
+    }
+
+    private static File resolveAssetFile(Path dir, String asset) {
         if (asset == null || asset.isEmpty()) {
             return null;
         }
-        // Normalize and confirm the resolved path stays inside spritesDir, so a sprite
+        // Normalize and confirm the resolved path stays inside dir, so an asset
         // name from JSON like "../../config/server" can't escape the assets directory.
-        Path resolved = this.spritesDir.resolve(asset + ".png").normalize();
-        if (!resolved.startsWith(this.spritesDir)) {
+        Path resolved = dir.resolve(asset + ".png").normalize();
+        if (!resolved.startsWith(dir)) {
             return null;
         }
         return resolved.toFile();
@@ -67,7 +78,30 @@ final class CameraImageLoader {
                 image = null;
             }
         }
+        // null is cached intentionally: a failed read should not be retried on the same render
         this.spriteCache.put(asset, image);
+        return image;
+    }
+
+    BufferedImage readFrame(String asset) {
+        if (asset == null || asset.isEmpty()) {
+            return null;
+        }
+        if (this.frameCache.containsKey(asset)) {
+            return this.frameCache.get(asset);
+        }
+
+        BufferedImage image = null;
+        File file = frameFile(asset);
+        if (file != null) {
+            try {
+                image = ImageIO.read(file);
+            } catch (Exception e) {
+                image = null;
+            }
+        }
+        // null is cached intentionally: a failed read should not be retried on the same render
+        this.frameCache.put(asset, image);
         return image;
     }
 

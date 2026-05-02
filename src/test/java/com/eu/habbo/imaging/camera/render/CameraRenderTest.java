@@ -25,6 +25,9 @@ class CameraRenderTest {
     @TempDir
     Path spritesDir;
 
+    @TempDir
+    Path framesDir;
+
     @BeforeAll
     static void installEmulatorConfig() throws Exception {
         Path configFile = Files.createTempFile("camera-render-test", ".ini");
@@ -48,7 +51,7 @@ class CameraRenderTest {
 
     @Test
     void spriteLoaderRejectsPathTraversalAssets() {
-        CameraImageLoader imageLoader = new CameraImageLoader(spritesDir);
+        CameraImageLoader imageLoader = new CameraImageLoader(spritesDir, framesDir);
 
         assertNull(imageLoader.spriteFile("../escape"));
         assertNull(imageLoader.readSprite("../escape"));
@@ -309,12 +312,12 @@ class CameraRenderTest {
     private BufferedImage renderScene(String json) {
         JSONCamera scene = new Gson().fromJson(json, JSONCamera.class);
         WallColorResolver resolver = new WallColorResolver(null);
-        return new CameraRenderImage(scene, 0x000000, spritesDir, null, null, resolver).render();
+        return new CameraRenderImage(scene, 0x000000, spritesDir, framesDir, null, null, resolver).render();
     }
 
     private BufferedImage renderScene(String json, String wallPaint, WallColorResolver resolver) {
         JSONCamera scene = new Gson().fromJson(json, JSONCamera.class);
-        return new CameraRenderImage(scene, 0x000000, spritesDir, null, wallPaint, resolver).render();
+        return new CameraRenderImage(scene, 0x000000, spritesDir, framesDir, null, wallPaint, resolver).render();
     }
 
     private void writeSolidSprite(String name, int width, int height, int rgb) throws Exception {

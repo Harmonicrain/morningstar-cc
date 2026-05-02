@@ -13,14 +13,15 @@ public class RenderFromJsonMain {
     public static void main(String[] args) throws Exception {
         Path jsonPath = Paths.get(args.length > 0 ? args[0] : "debug/scene.json");
         Path outPath = Paths.get(args.length > 1 ? args[1] : "debug/out.png");
-        Path spritesDir = Paths.get(args.length > 2 ? args[2] : "C:/habbo/camera-tool/out/sprites");
+        Path spritesDir = Paths.get(args.length > 2 ? args[2] : "C:/habbo/camera-tool/ngh/ngh/sprites");
+        Path framesDir = Paths.get(args.length > 3 ? args[3] : "C:/habbo/camera-tool/ngh/ngh/frames");
 
         String json = Files.readString(jsonPath);
         JSONCamera scene = new Gson().fromJson(json, JSONCamera.class);
 
         WallColorResolver resolver = new WallColorResolver(null);
         int backgroundColor = 0x000000;
-        BufferedImage image = new CameraRenderImage(scene, backgroundColor, spritesDir, null, null, resolver).render();
+        BufferedImage image = new CameraRenderImage(scene, backgroundColor, spritesDir, framesDir, null, null, resolver).render();
 
         File outFile = outPath.toFile();
         File parent = outFile.getParentFile();

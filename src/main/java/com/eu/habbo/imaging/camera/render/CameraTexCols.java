@@ -7,9 +7,5 @@ public class CameraTexCols {
         return assetNames;
     }
 
-    public String getAssetName(int index) {
-        if (index > assetNames.length || index < 0)
-            throw new IndexOutOfBoundsException();
-        return assetNames[index];
-    }
+
 }

@@ -26,31 +26,26 @@ public class CameraRenderManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraRenderManager.class);
 
     private final Path spritesDir;
+    private final Path framesDir;
     private final Path binaryDir;
     private final Path outputDir;
     private final Path thumbnailOutputDir;
     private final String urlPrefix;
-    private final String thumbnailUrlPrefix;
     private final CameraPaletteCache paletteCache;
     private final WallColorResolver wallColorResolver;
 
     public CameraRenderManager() {
-        this.spritesDir = Paths.get(Emulator.getConfig().getValue("camera.assets.sprites.path")).toAbsolutePath().normalize();
-        this.binaryDir = Paths.get(Emulator.getConfig().getValue("camera.assets.binary.path")).toAbsolutePath().normalize();
-        this.outputDir = Paths.get(Emulator.getConfig().getValue("camera.output.path")).toAbsolutePath().normalize();
-        this.thumbnailOutputDir = Paths.get(Emulator.getConfig().getValue("camera.output.thumbnail.path")).toAbsolutePath().normalize();
+        this.spritesDir = Paths.get(requireConfigValue("camera.assets.sprites.path")).toAbsolutePath().normalize();
+        this.framesDir = Paths.get(requireConfigValue("camera.assets.frames.path")).toAbsolutePath().normalize();
+        this.binaryDir = Paths.get(requireConfigValue("camera.assets.binary.path")).toAbsolutePath().normalize();
+        this.outputDir = Paths.get(requireConfigValue("camera.output.path")).toAbsolutePath().normalize();
+        this.thumbnailOutputDir = Paths.get(requireConfigValue("camera.output.thumbnail.path")).toAbsolutePath().normalize();
 
-        String configuredUrl = Emulator.getConfig().getValue("camera.output.url");
+        String configuredUrl = requireConfigValue("camera.output.url");
         if (!configuredUrl.endsWith("/")) {
             configuredUrl = configuredUrl + "/";
         }
         this.urlPrefix = configuredUrl;
-
-        String configuredThumbnailUrl = Emulator.getConfig().getValue("camera.output.thumbnail.url");
-        if (!configuredThumbnailUrl.endsWith("/")) {
-            configuredThumbnailUrl = configuredThumbnailUrl + "/";
-        }
-        this.thumbnailUrlPrefix = configuredThumbnailUrl;
 
         try {
             Files.createDirectories(this.outputDir);
@@ -62,14 +57,17 @@ public class CameraRenderManager {
         if (!Files.isDirectory(this.spritesDir)) {
             LOGGER.warn("Camera sprites directory does not exist: {} (renders will be missing textures and decorations)", this.spritesDir);
         }
+        if (!Files.isDirectory(this.framesDir)) {
+            LOGGER.warn("Camera frames directory does not exist: {} (renders will be missing frame overlays)", this.framesDir);
+        }
 
         this.paletteCache = new CameraPaletteCache(this.binaryDir);
 
         Path wallColorsPath = Paths.get(Emulator.getConfig().getValue("camera.wall.colors.path", "./camera_wall_colors.properties")).toAbsolutePath().normalize();
         this.wallColorResolver = new WallColorResolver(wallColorsPath);
 
-        LOGGER.info("Camera renderer initialised. sprites={}, binary={}, output={}, thumbnailOutput={}, url={}, thumbnailUrl={}",
-                this.spritesDir, this.binaryDir, this.outputDir, this.thumbnailOutputDir, this.urlPrefix, this.thumbnailUrlPrefix);
+        LOGGER.info("Camera renderer initialised. sprites={}, frames={}, binary={}, output={}, thumbnailOutput={}, url={}",
+                this.spritesDir, this.framesDir, this.binaryDir, this.outputDir, this.thumbnailOutputDir, this.urlPrefix);
     }
 
     public void renderPhotoAsync(CameraRenderRequest request) {
@@ -91,8 +89,18 @@ public class CameraRenderManager {
                 return;
             }
 
-            CameraRender render = new CameraRenderImage(scene, request.backgroundColor(), this.spritesDir, this.paletteCache, request.wallPaint(), this.wallColorResolver);
+            LOGGER.debug("Camera photo render: user={} zoom={}", request.username(), scene.getZoom());
+            CameraRender render = new CameraRenderImage(scene, request.backgroundColor(), this.spritesDir, this.framesDir, this.paletteCache, request.wallPaint(), this.wallColorResolver);
             BufferedImage image = render.render();
+            if (scene.getZoom() > 1) {
+                int zoom = scene.getZoom();
+                int cropW = image.getWidth() / zoom;
+                int cropH = image.getHeight() / zoom;
+                int cropX = (image.getWidth() - cropW) / 2;
+                int cropY = (image.getHeight() - cropH) / 2;
+                BufferedImage cropped = image.getSubimage(cropX, cropY, cropW, cropH);
+                image = CameraUtils.resize(cropped, image.getWidth(), image.getHeight());
+            }
 
             String relativePath = request.username() + "/" + request.userId() + "_" + request.timestamp() + ".png";
             saveImage(image, relativePath);
@@ -119,7 +127,7 @@ public class CameraRenderManager {
                 return;
             }
 
-            CameraRender render = new CameraRenderRoom(scene, request.backgroundColor(), this.spritesDir, this.paletteCache, request.wallPaint(), this.wallColorResolver);
+            CameraRender render = new CameraRenderRoom(scene, request.backgroundColor(), this.spritesDir, this.framesDir, this.paletteCache, request.wallPaint(), this.wallColorResolver);
             BufferedImage image = render.render();
 
             String relativePath = request.roomId() + ".png";
@@ -175,7 +183,11 @@ public class CameraRenderManager {
     }
 
     private void saveImage(BufferedImage image, Path baseDir, String relativePath) throws IOException {
-        File file = baseDir.resolve(relativePath).toFile();
+        Path resolved = baseDir.resolve(relativePath).normalize();
+        if (!resolved.startsWith(baseDir)) {
+            throw new IOException("Path traversal rejected: " + resolved + " escapes " + baseDir);
+        }
+        File file = resolved.toFile();
         File parent = file.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
             throw new IOException("Failed to create directory: " + parent.getAbsolutePath());
@@ -189,5 +201,13 @@ public class CameraRenderManager {
             url = url.replace("https://", "http://");
         }
         return url;
+    }
+
+    private static String requireConfigValue(String key) {
+        String value = Emulator.getConfig().getValue(key);
+        if (value.isBlank()) {
+            throw new IllegalStateException("Required camera config key is missing or blank: " + key);
+        }
+        return value;
     }
 }

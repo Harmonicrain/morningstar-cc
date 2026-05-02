@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn -q -DskipTests compile)",
+      "Bash(node -e \"require\\('./scripts/config'\\).loadConfig\\(\\)\")",
+      "Bash(node scripts/dump-camera-assets.js --dry-run)",
+      "Bash(node scripts/dump-camera-assets.js --swf-root 'C:/tmp/fake' --dry-run)",
+      "Bash(node scripts/dump-camera-assets.js --config 'C:/tmp/alt-camera.config.json' --dry-run)",
+      "PowerShell($ErrorActionPreference = 'Stop'; Write-Host '=== guard rejects non-matching path ==='; try { & 'C:\\\\habbo\\\\camera-tool\\\\clean-output.ps1' -Out 'C:\\\\Windows\\\\Temp\\\\foo' } catch { Write-Host \"REJECTED: $\\($_.Exception.Message\\)\" }; Write-Host ''; Write-Host '=== guard accepts custom-config path ==='; try { & 'C:\\\\habbo\\\\camera-tool\\\\clean-output.ps1' -Config 'C:\\\\tmp\\\\alt-camera.config.json' -Out 'C:\\\\tmp\\\\nonexistent-test-folder' } catch { Write-Host \"REJECTED: $\\($_.Exception.Message\\)\" })",
+      "Bash(node --check scripts/dump-camera-assets.js)",
+      "Bash(git -C /c/habbo/server/Arcturus-Community log --oneline -5 -- src/main/java/com/eu/habbo/messages/incoming/camera/ src/main/java/com/eu/habbo/imaging/camera/)",
+      "Bash(git -C /c/habbo/server/Arcturus-Community show c9fb9ab6 -- src/main/java/com/eu/habbo/messages/incoming/camera/RenderRoomMessageEvent.java)"
+    ]
+  }
+}

@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class RenderRoomMessageEvent extends MessageHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderRoomMessageEvent.class);
@@ -25,7 +26,7 @@ public class RenderRoomMessageEvent extends MessageHandler {
             return;
         }
 
-        this.packet.getBuffer().readFloat();
+        this.packet.getBuffer().readFloat(); // consumes the 4-byte ByteArray length prefix from the wire protocol
 
         String username = this.client.getHabbo().getHabboInfo().getUsername();
         int userId = this.client.getHabbo().getHabboInfo().getId();
@@ -34,6 +35,7 @@ public class RenderRoomMessageEvent extends MessageHandler {
         int maxCompressed = Emulator.getConfig().getInt("camera.limits.compressed.bytes", 16384);
         if (compressedLen > maxCompressed) {
             LOGGER.warn("Photo request rejected (compressed payload too large): user={} userId={} size={} limit={}", username, userId, compressedLen, maxCompressed);
+            this.client.getHabbo().alert(Emulator.getTexts().getValue("camera.error.creation"));
             return;
         }
 
@@ -45,9 +47,10 @@ public class RenderRoomMessageEvent extends MessageHandler {
             inflated = ZIP.inflate(data, maxInflated);
         } catch (IOException e) {
             LOGGER.warn("Photo request rejected (inflate overflow): user={} userId={} compressedLen={} limit={} detail={}", username, userId, compressedLen, maxInflated, e.getMessage());
+            this.client.getHabbo().alert(Emulator.getTexts().getValue("camera.error.creation"));
             return;
         }
-        String content = new String(inflated);
+        String content = new String(inflated, StandardCharsets.UTF_8);
 
         int timestamp = Emulator.getIntUnixTimestamp();
         int backgroundColor = currentRoom.getBackgroundTonerColor().getRGB();

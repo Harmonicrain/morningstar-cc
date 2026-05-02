@@ -32,12 +32,12 @@ public abstract class CameraRender {
     private final CameraPlaneRenderer planeRenderer;
     private final CameraDoorwayRenderer doorwayRenderer;
 
-    public CameraRender(JSONCamera result, int width, int height, int backgroundColor, Path spritesDir, CameraPaletteCache paletteCache, String wallPaint, WallColorResolver wallColorResolver) {
+    public CameraRender(JSONCamera result, int width, int height, int backgroundColor, Path spritesDir, Path framesDir, CameraPaletteCache paletteCache, String wallPaint, WallColorResolver wallColorResolver) {
         this.data = result;
         this.width = width;
         this.height = height;
         this.backgroundColor = backgroundColor;
-        this.imageLoader = new CameraImageLoader(spritesDir);
+        this.imageLoader = new CameraImageLoader(spritesDir, framesDir);
         this.spriteRenderer = new CameraSpriteRenderer(this.imageLoader, paletteCache);
         this.planeRenderer = new CameraPlaneRenderer(this.data, this.width, this.height, this.imageLoader, wallPaint, wallColorResolver);
         this.doorwayRenderer = new CameraDoorwayRenderer(this.data, this.width, this.height, this.planeRenderer, this.spriteRenderer);
@@ -55,22 +55,24 @@ public abstract class CameraRender {
         this.renderBackgroundColor = this.planeRenderer.getRenderBackgroundColor(this.backgroundColor);
         this.render = new BufferedImage(this.width, this.height, BufferedImage.TYPE_INT_RGB);
         this.graphics = this.render.createGraphics();
-        this.graphics.setPaint(new Color(this.renderBackgroundColor));
-        this.graphics.fillRect(0, 0, this.render.getWidth(), this.render.getHeight());
-        // Habbo art is pixel-perfect; antialiasing softens polygon edges and leaves sub-pixel
-        // gaps where adjacent planes meet (the 1px background-black line at the wall/floor seam).
-        CameraRenderUtils.applyPixelRenderingHints(this.graphics);
+        try {
+            this.graphics.setPaint(new Color(this.renderBackgroundColor));
+            this.graphics.fillRect(0, 0, this.render.getWidth(), this.render.getHeight());
+            // Habbo art is pixel-perfect; antialiasing softens polygon edges and leaves sub-pixel
+            // gaps where adjacent planes meet (the 1px background-black line at the wall/floor seam).
+            CameraRenderUtils.applyPixelRenderingHints(this.graphics);
 
-        // Render every non-landscape plane, then sprites on top. Sprites south of/in front of
-        // walls are fully visible. Masked walls (doorways) won't reveal a character standing
-        // in the doorway through their cutout â€” that has to be handled separately on a
-        // per-sprite basis, but at least no sprite gets wrongly clipped.
-        this.doorwayRenderer.precomputeDoorwayState();
-        this.renderByDepth();
-        this.renderFilters();
-        this.renderEffects();
-
-        this.graphics.dispose();
+            // Render every non-landscape plane, then sprites on top. Sprites south of/in front of
+            // walls are fully visible. Masked walls (doorways) won't reveal a character standing
+            // in the doorway through their cutout â€” that has to be handled separately on a
+            // per-sprite basis, but at least no sprite gets wrongly clipped.
+            this.doorwayRenderer.precomputeDoorwayState();
+            this.renderByDepth();
+            this.renderFilters();
+            this.renderEffects();
+        } finally {
+            this.graphics.dispose();
+        }
         return this.render;
     }
 
@@ -134,7 +136,8 @@ public abstract class CameraRender {
             }
 
             float[] matrix = f.matrix;
-            float filterAlphaTerm = filter.getAlpha() / 255f;
+            float strength = filter.getAlpha() / 255f;
+            float weakness = 1f - strength;
             // render is TYPE_INT_RGB so getRGB returns alpha=255 regardless of pixel.
             int srcA = 255;
 
@@ -149,17 +152,18 @@ public abstract class CameraRender {
                 int srcG = (pixel >> 8) & 0xFF;
                 int srcB = pixel & 0xFF;
 
-                float red = matrix[0] * srcR + matrix[1] * srcG + matrix[2] * srcB + matrix[3] * srcA + matrix[4] * filterAlphaTerm;
-                float green = matrix[5] * srcR + matrix[6] * srcG + matrix[7] * srcB + matrix[8] * srcA + matrix[9] * filterAlphaTerm;
-                float blue = matrix[10] * srcR + matrix[11] * srcG + matrix[12] * srcB + matrix[13] * srcA + matrix[14] * filterAlphaTerm;
-                float a = matrix[15] * srcR + matrix[16] * srcG + matrix[17] * srcB + matrix[18] * srcA + matrix[19] * filterAlphaTerm;
+                // Apply the full colormatrix unconditionally, then lerp toward the original
+                // pixel by (1 - strength). This matches the Flash client behaviour where the
+                // percentage slider blends between the unfiltered and fully-filtered image.
+                float red   = matrix[0]  * srcR + matrix[1]  * srcG + matrix[2]  * srcB + matrix[3]  * srcA + matrix[4];
+                float green = matrix[5]  * srcR + matrix[6]  * srcG + matrix[7]  * srcB + matrix[8]  * srcA + matrix[9];
+                float blue  = matrix[10] * srcR + matrix[11] * srcG + matrix[12] * srcB + matrix[13] * srcA + matrix[14];
 
-                int rOut = CameraRenderUtils.clampByte(red);
-                int gOut = CameraRenderUtils.clampByte(green);
-                int bOut = CameraRenderUtils.clampByte(blue);
-                int aOut = CameraRenderUtils.clampByte(a);
+                int rOut = CameraRenderUtils.clampByte(srcR * weakness + red   * strength);
+                int gOut = CameraRenderUtils.clampByte(srcG * weakness + green * strength);
+                int bOut = CameraRenderUtils.clampByte(srcB * weakness + blue  * strength);
 
-                pixels[i] = (aOut << 24) | (rOut << 16) | (gOut << 8) | bOut;
+                pixels[i] = (0xFF << 24) | (rOut << 16) | (gOut << 8) | bOut;
             }
 
             this.render.setRGB(0, 0, w, h, pixels, 0, w);
@@ -174,11 +178,14 @@ public abstract class CameraRender {
         for (CameraFilter modifier : this.data.getFilters()) {
             CameraFilters filter = CameraFilters.fromName(modifier.getName());
 
-            if (filter == null || filter.filterType != CameraFilters.FilterType.COMPOSITE) {
+            if (filter == null || (filter.filterType != CameraFilters.FilterType.COMPOSITE && filter.filterType != CameraFilters.FilterType.FRAME)) {
                 continue;
             }
 
-            File effectFile = this.imageLoader.spriteFile(modifier.getName());
+            boolean isFrame = filter.filterType == CameraFilters.FilterType.FRAME;
+            // Camera effect overlays are stored under frames.path in this deployment.
+            // Load both FRAME and COMPOSITE filters from the frames directory.
+            File effectFile = this.imageLoader.frameFile(modifier.getName());
             if (effectFile == null) {
                 continue;
             }
@@ -187,6 +194,7 @@ public abstract class CameraRender {
             try {
                 effect = ImageIO.read(effectFile);
             } catch (Exception e) {
+                LOGGER.debug("Failed to load {} '{}': {}", isFrame ? "frame" : "effect sprite", modifier.getName(), e.getMessage());
                 continue;
             }
 
@@ -194,14 +202,15 @@ public abstract class CameraRender {
                 continue;
             }
 
-            if (filter.blendMode == CameraFilters.BlendMode.HARDLIGHT) {
+            if (isFrame) {
+                this.graphics.drawImage(effect, 0, 0, null);
+            } else if (filter.blendMode == CameraFilters.BlendMode.HARDLIGHT) {
                 for (int x = 0; x < effect.getWidth(); ++x) {
                     for (int y = 0; y < effect.getHeight(); ++y) {
-                        Color color = new Color(effect.getRGB(x, y));
-
-                        float a = color.getAlpha() * (modifier.getAlpha() / 255f);
-
-                        effect.setRGB(x, y, new Color(color.getRed(), color.getGreen(), color.getBlue(), (int) a).getRGB());
+                        int rgb = effect.getRGB(x, y);
+                        int srcA = (rgb >> 24) & 0xFF;
+                        int scaledA = Math.min(255, (int) (srcA * (modifier.getAlpha() / 255f)));
+                        effect.setRGB(x, y, (scaledA << 24) | (rgb & 0x00FFFFFF));
                     }
                 }
 
@@ -209,44 +218,43 @@ public abstract class CameraRender {
             } else if (filter.blendMode == CameraFilters.BlendMode.NORMAL) {
                 this.graphics.drawImage(effect, 0, 0, null);
             } else {
-                for (int x = 0; x < effect.getWidth(); ++x) {
-                    for (int y = 0; y < effect.getHeight(); ++y) {
-                        Color color = new Color(effect.getRGB(x, y));
+                int maxX = Math.min(effect.getWidth(), this.render.getWidth());
+                int maxY = Math.min(effect.getHeight(), this.render.getHeight());
+                for (int x = 0; x < maxX; ++x) {
+                    for (int y = 0; y < maxY; ++y) {
+                        int eRgb = effect.getRGB(x, y);
+                        int eA = (eRgb >> 24) & 0xFF;
+                        int scaledA = Math.min(255, (int) (eA * (modifier.getAlpha() / 255f)));
+                        int eR = (eRgb >> 16) & 0xFF;
+                        int eG = (eRgb >> 8) & 0xFF;
+                        int eB = eRgb & 0xFF;
 
-                        float a = color.getAlpha() * (modifier.getAlpha() / 255f);
+                        int rRgb = this.render.getRGB(x, y);
+                        int rA = (rRgb >> 24) & 0xFF;
+                        int rR = (rRgb >> 16) & 0xFF;
+                        int rG = (rRgb >> 8) & 0xFF;
+                        int rB = rRgb & 0xFF;
 
-                        if (a > 255) {
-                            a = 255;
-                        }
-
-                        color = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int) a);
-
+                        int outR, outG, outB, outA;
+                        float alphaFactor = scaledA / 255f;
                         if (filter.blendMode == CameraFilters.BlendMode.MULTIPLY) {
-                            Color renderColor = new Color(this.render.getRGB(x, y));
-                            float red = (renderColor.getRed() / 255.0F) * (color.getRed() / 255.0F);
-                            float green = (renderColor.getGreen() / 255.0F) * (color.getGreen() / 255.0F);
-                            float blue = (renderColor.getBlue() / 255.0F) * (color.getBlue() / 255.0F);
-                            float newAlpha = (renderColor.getAlpha() / 255.0F) * (color.getAlpha() / 255.0F);
-
-                            this.render.setRGB(x, y, new Color(red, green, blue, newAlpha).getRGB());
-                        } else if (filter.blendMode == CameraFilters.BlendMode.OVERLAY) {
-                            Color renderColor = new Color(this.render.getRGB(x, y));
-                            float red = (renderColor.getRed()) + (color.getRed());
-                            float green = (renderColor.getGreen()) + (color.getGreen());
-                            float blue = (renderColor.getBlue()) + (color.getBlue());
-                            float newAlpha = (renderColor.getAlpha()) + (color.getAlpha());
-
-                            if (red > 255) red = 255;
-                            if (red < 0) red = 0;
-                            if (green > 255) green = 255;
-                            if (green < 0) green = 0;
-                            if (blue > 255) blue = 255;
-                            if (blue < 0) blue = 0;
-                            if (newAlpha > 255) newAlpha = 255;
-                            if (newAlpha < 0) newAlpha = 0;
-
-                            this.render.setRGB(x, y, new Color(red / 255.0F, green / 255.0F, blue / 255.0F, newAlpha / 255.0F).getRGB());
+                            int blendR = (rR * eR) / 255;
+                            int blendG = (rG * eG) / 255;
+                            int blendB = (rB * eB) / 255;
+                            outR = CameraRenderUtils.clampByte(Math.round((rR * (1f - alphaFactor)) + (blendR * alphaFactor)));
+                            outG = CameraRenderUtils.clampByte(Math.round((rG * (1f - alphaFactor)) + (blendG * alphaFactor)));
+                            outB = CameraRenderUtils.clampByte(Math.round((rB * (1f - alphaFactor)) + (blendB * alphaFactor)));
+                            outA = rA;
+                        } else { // OVERLAY
+                            int blendR = Math.min(255, Math.max(0, rR + eR));
+                            int blendG = Math.min(255, Math.max(0, rG + eG));
+                            int blendB = Math.min(255, Math.max(0, rB + eB));
+                            outR = CameraRenderUtils.clampByte(Math.round((rR * (1f - alphaFactor)) + (blendR * alphaFactor)));
+                            outG = CameraRenderUtils.clampByte(Math.round((rG * (1f - alphaFactor)) + (blendG * alphaFactor)));
+                            outB = CameraRenderUtils.clampByte(Math.round((rB * (1f - alphaFactor)) + (blendB * alphaFactor)));
+                            outA = rA;
                         }
+                        this.render.setRGB(x, y, (outA << 24) | (outR << 16) | (outG << 8) | outB);
                     }
                 }
             }

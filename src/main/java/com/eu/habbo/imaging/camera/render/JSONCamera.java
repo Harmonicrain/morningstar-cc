@@ -5,6 +5,7 @@ public class JSONCamera {
     private CameraSprite[] sprites;
     private CameraFilter[] filters;
     private int roomid;
+    private int zoom;
     private int status;
     private float timestamp;
     private int checksum;
@@ -23,6 +24,10 @@ public class JSONCamera {
 
     public int getRoomid() {
         return this.roomid;
+    }
+
+    public int getZoom() {
+        return this.zoom;
     }
 
     public int getStatus() {
