@@ -430,7 +430,7 @@ final class CameraPlaneRenderer {
                 continue;
             }
 
-            BufferedImage cell = this.imageLoader.readSprite(asset);
+            BufferedImage cell = asset.contains("//") ? this.imageLoader.readUrlImage(asset) : this.imageLoader.readSprite(asset);
             if (cell == null) {
                 continue;
             }

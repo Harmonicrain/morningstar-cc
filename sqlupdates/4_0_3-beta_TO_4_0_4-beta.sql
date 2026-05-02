@@ -59,4 +59,26 @@ INSERT INTO `emulator_settings` (`key`, `value`) VALUES
 ('builders.club.expiry.warning.seconds', '86400')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 
+-- JSON camera renderer defaults (new on json-camera branch).
+-- INSERT IGNORE preserves any operator-customised paths/URLs already set.
+INSERT IGNORE INTO `emulator_settings` (`key`, `value`) VALUES
+('camera.assets.sprites.path', './camera/sprites'),
+('camera.assets.frames.path', './camera/frames'),
+('camera.assets.binary.path', './camera/binary'),
+('camera.output.path', './camera/output'),
+('camera.output.thumbnail.path', './camera/output/thumbnails'),
+('camera.output.url', 'http://localhost/camera/'),
+('camera.allowed.image.hosts', ''),
+('camera.image.fetch.budget.ms', '8000'),
+('camera.image.fetch.connect.timeout.ms', '2000'),
+('camera.image.fetch.read.timeout.ms', '3000'),
+('camera.image.fetch.max.bytes', '2097152'),
+('camera.image.fetch.max.per.render', '30'),
+('camera.image.fetch.max.pixels', '4000000'),
+('camera.limits.compressed.bytes', '16384'),
+('camera.limits.inflated.bytes', '262144'),
+('camera.limits.filters', '16'),
+('camera.limits.planes', '64'),
+('camera.limits.sprites', '512');
+
 SET FOREIGN_KEY_CHECKS = 1;

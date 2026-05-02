@@ -177,7 +177,7 @@ final class CameraImageLoader {
             }
             ImageReader reader = readers.next();
             try {
-                reader.setInput(iis, true, true);
+                reader.setInput(iis, false, true);
                 int width = reader.getWidth(0);
                 int height = reader.getHeight(0);
                 if ((long) width * height > maxPixels) {
