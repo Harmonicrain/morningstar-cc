@@ -326,6 +326,8 @@ public class PacketManager {
 
     private void registerNavigator() throws Exception {
         this.registerHandler(Incoming.GetUserFlatCatsMessageEvent, GetUserFlatCatsMessageEvent.class);
+        this.registerHandler(Incoming.GetOfficialRoomsMessageEvent, GetOfficialRoomsMessageEvent.class);
+        this.registerHandler(Incoming.MyRecommendedRoomsMessageEvent, MyRecommendedRoomsMessageEvent.class);
         this.registerHandler(Incoming.PopularRoomsSearchMessageEvent, PopularRoomsSearchMessageEvent.class);
         this.registerHandler(Incoming.RoomsWithHighestScoreSearchMessageEvent, RoomsWithHighestScoreSearchMessageEvent.class);
         this.registerHandler(Incoming.MyRoomsSearchMessageEvent, MyRoomsSearchMessageEvent.class);

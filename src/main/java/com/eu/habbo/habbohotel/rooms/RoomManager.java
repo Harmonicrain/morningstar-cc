@@ -64,6 +64,8 @@ public class RoomManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RoomManager.class);
 
+    public static final int CATEGORY_ANY = -1;
+
     private static final int page = 0;
     //Configuration. Loaded from database & updated accordingly.
     public static int MAXIMUM_ROOMS_USER = 25;
@@ -136,9 +138,7 @@ public class RoomManager {
     }
 
     public void loadPublicRooms() {
-        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT * FROM rooms WHERE is_public = ? OR is_staff_picked = ? ORDER BY id DESC")) {
-            statement.setString(1, "1");
-            statement.setString(2, "1");
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT r.* FROM rooms r WHERE r.id IN (SELECT np.room_id FROM navigator_publics np INNER JOIN navigator_publiccats npc ON npc.id = np.public_cat_id WHERE np.visible = '1' AND npc.visible = '1') ORDER BY r.id DESC")) {
             try (ResultSet set = statement.executeQuery()) {
                 while (set.next()) {
                     Room room = new Room(set);
@@ -393,7 +393,7 @@ public class RoomManager {
     public void unloadRoomsForHabbo(Habbo habbo) {
         List<Room> roomsToDispose = new ArrayList<>();
         for (Room room : this.activeRooms.values()) {
-            if (!room.isPublicRoom() && !room.isStaffPromotedRoom() && room.getOwnerId() == habbo.getHabboInfo().getId() && room.getUserCount() == 0 && (this.roomCategories.get(room.getCategory()) == null || !this.roomCategories.get(room.getCategory()).isPublic())) {
+            if (!room.preventUncaching && room.getOwnerId() == habbo.getHabboInfo().getId() && room.getUserCount() == 0 && (this.roomCategories.get(room.getCategory()) == null || !this.roomCategories.get(room.getCategory()).isPublic())) {
                 roomsToDispose.add(room);
             }
         }
@@ -410,7 +410,7 @@ public class RoomManager {
     public void clearInactiveRooms() {
         THashSet<Room> roomsToDispose = new THashSet<>();
         for (Room room : this.activeRooms.values()) {
-            if (!room.isPublicRoom() && !room.isStaffPromotedRoom() && !Emulator.getGameServer().getGameClientManager().containsHabbo(room.getOwnerId()) && room.isPreLoaded()) {
+            if (!room.preventUncaching && !Emulator.getGameServer().getGameClientManager().containsHabbo(room.getOwnerId()) && room.isPreLoaded()) {
                 roomsToDispose.add(room);
             }
         }
@@ -1416,18 +1416,6 @@ public class RoomManager {
 
         for (Room room : this.getActiveRooms()) {
             if (room.isPromoted()) {
-                r.add(room);
-            }
-        }
-
-        return r;
-    }
-
-    public ArrayList<Room> getRoomsStaffPromoted() {
-        ArrayList<Room> r = new ArrayList<>();
-
-        for (Room room : this.getActiveRooms()) {
-            if (room.isStaffPromotedRoom()) {
                 r.add(room);
             }
         }

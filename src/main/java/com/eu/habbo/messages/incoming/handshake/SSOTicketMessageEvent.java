@@ -244,7 +244,7 @@ public class SSOTicketMessageEvent extends MessageHandler {
                     habbo.getHabboStats().hasGottenDefaultSavedSearches = true;
                     Emulator.getThreading().run(habbo.getHabboStats());
 
-                    habbo.getHabboInfo().addSavedSearch(new NavigatorSavedSearch("official-root", ""));
+                    habbo.getHabboInfo().addSavedSearch(new NavigatorSavedSearch("official_view", ""));
                     habbo.getHabboInfo().addSavedSearch(new NavigatorSavedSearch("my", ""));
                     habbo.getHabboInfo().addSavedSearch(new NavigatorSavedSearch("favorites", ""));
 

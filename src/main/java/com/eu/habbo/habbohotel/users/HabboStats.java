@@ -31,8 +31,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class HabboStats implements Runnable {
 
+    public static final int UI_FLAG_FRIEND_BAR_OPEN = 1;
+    public static final int UI_FLAG_ROOM_TOOLS_OPEN = 2;
+    public static final int UI_FLAG_NEW_NAVIGATOR = 4;
+    public static final int UI_FLAG_KNOWN_BITS = UI_FLAG_FRIEND_BAR_OPEN | UI_FLAG_ROOM_TOOLS_OPEN | UI_FLAG_NEW_NAVIGATOR;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(HabboStats.class);
     private static volatile Boolean usersSettingsHasBuildersClubLimitColumns;
+    private static volatile Boolean usersSettingsHasNewNavigatorColumn;
 
     public final TIntArrayList secretRecipes;
     public final HabboNavigatorWindowSettings navigatorWindowSettings;
@@ -74,6 +80,7 @@ public class HabboStats implements Runnable {
     public int citizenshipLevel;
     public int helpersLevel;
     public boolean perkTrade;
+    private boolean newNavigatorEnabled = true;
     public long roomEnterTimestamp;
     public AtomicInteger chatCounter = new AtomicInteger(0);
     public long lastChat;
@@ -155,8 +162,9 @@ public class HabboStats implements Runnable {
         this.muteEndTime = set.getInt("mute_end_timestamp");
         this.allowNameChange = set.getString("allow_name_change").equalsIgnoreCase("1");
         this.perkTrade = set.getString("perk_trade").equalsIgnoreCase("1");
+        this.newNavigatorEnabled = readOptionalBoolean(set, "new_navigator_enabled", true);
         this.forumPostsCount = set.getInt("forums_post_count");
-        this.uiFlags = set.getInt("ui_flags");
+        this.uiFlags = set.getInt("ui_flags") & ~UI_FLAG_NEW_NAVIGATOR;
         this.hasGottenDefaultSavedSearches = set.getInt("has_gotten_default_saved_searches") == 1;
         this.maxFriends = set.getInt("max_friends");
         this.maxRooms = set.getInt("max_rooms");
@@ -338,8 +346,10 @@ public class HabboStats implements Runnable {
 
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
             boolean hasBuildersClubLimitColumns = hasUsersSettingsBuildersClubLimitColumns(connection);
+            boolean hasNewNavigatorColumn = hasUsersSettingsNewNavigatorColumn(connection);
             String sql = "UPDATE users_settings SET achievement_score = ?, respects_received = ?, respects_given = ?, daily_respect_points = ?, block_following = ?, block_friendrequests = ?, online_time = online_time + ?, guild_id = ?, daily_pet_respect_points = ?, club_expire_timestamp = ?, login_streak = ?, rent_space_id = ?, rent_space_endtime = ?, volume_system = ?, volume_furni = ?, volume_trax = ?, block_roominvites = ?, old_chat = ?, block_camera_follow = ?, chat_color = ?, hof_points = ?, block_alerts = ?, talent_track_citizenship_level = ?, talent_track_helpers_level = ?, ignore_bots = ?, ignore_pets = ?, nux = ?, mute_end_timestamp = ?, allow_name_change = ?, perk_trade = ?, can_trade = ?, `forums_post_count` = ?, ui_flags = ?, has_gotten_default_saved_searches = ?, max_friends = ?, max_rooms = ?, last_hc_payday = ?, hc_gifts_claimed = ?"
                     + (hasBuildersClubLimitColumns ? ", builders_club_furni_limit = ?, builders_club_max_furni_limit = ?" : "")
+                    + (hasNewNavigatorColumn ? ", new_navigator_enabled = ?" : "")
                     + " WHERE user_id = ? LIMIT 1";
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setInt(1, this.achievementScore);
@@ -384,6 +394,9 @@ public class HabboStats implements Runnable {
                 if (hasBuildersClubLimitColumns) {
                     statement.setInt(parameterIndex++, this.getStoredBuildersClubFurniLimit());
                     statement.setInt(parameterIndex++, this.getStoredBuildersClubMaxFurniLimit());
+                }
+                if (hasNewNavigatorColumn) {
+                    statement.setString(parameterIndex++, this.newNavigatorEnabled ? "1" : "0");
                 }
                 statement.setInt(parameterIndex, this.habboInfo.getId());
                 
@@ -1029,6 +1042,14 @@ public class HabboStats implements Runnable {
         this.allowTrade = allowTrade;
     }
 
+    public boolean isNewNavigatorEnabled() {
+        return this.newNavigatorEnabled;
+    }
+
+    public void setNewNavigatorEnabled(boolean newNavigatorEnabled) {
+        this.newNavigatorEnabled = newNavigatorEnabled;
+    }
+
     public HabboOfferPurchase getHabboOfferPurchase(int offerId) {
         return this.offerCache.get(offerId);
     }
@@ -1040,6 +1061,15 @@ public class HabboStats implements Runnable {
     private static int readOptionalInt(ResultSet set, String column, int fallback) {
         try {
             return set.getInt(column);
+        } catch (SQLException e) {
+            return fallback;
+        }
+    }
+
+    private static boolean readOptionalBoolean(ResultSet set, String column, boolean fallback) {
+        try {
+            String value = set.getString(column);
+            return value == null ? fallback : value.equalsIgnoreCase("1");
         } catch (SQLException e) {
             return fallback;
         }
@@ -1063,6 +1093,28 @@ public class HabboStats implements Runnable {
             }
 
             usersSettingsHasBuildersClubLimitColumns = hasColumns;
+            return hasColumns;
+        }
+    }
+
+    private static boolean hasUsersSettingsNewNavigatorColumn(Connection connection) {
+        if (usersSettingsHasNewNavigatorColumn != null) {
+            return usersSettingsHasNewNavigatorColumn;
+        }
+
+        synchronized (HabboStats.class) {
+            if (usersSettingsHasNewNavigatorColumn != null) {
+                return usersSettingsHasNewNavigatorColumn;
+            }
+
+            boolean hasColumns = false;
+            try (ResultSet set = connection.getMetaData().getColumns(connection.getCatalog(), null, "users_settings", "new_navigator_enabled")) {
+                hasColumns = set.next();
+            } catch (SQLException e) {
+                LOGGER.warn("Failed to inspect users_settings for new_navigator_enabled column", e);
+            }
+
+            usersSettingsHasNewNavigatorColumn = hasColumns;
             return hasColumns;
         }
     }

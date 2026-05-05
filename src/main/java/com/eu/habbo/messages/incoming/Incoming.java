@@ -86,6 +86,7 @@ public class Incoming {
     public static final int RequestRecylerLogicEvent = 398;
     public static final int JoinHabboGroupMessageEvent = 998;
     public static final int BuildersClubQueryFurniCountMessageEvent = 2529;
+    public static final int MyRecommendedRoomsMessageEvent = 2537; // verify against the targeted client revision before changing
     public static final int GetPetInventoryEvent = 3095;
     public static final int GetRoomVisitsMessageEvent = 3526;
     public static final int ModToolWarnEvent = -1;//3763

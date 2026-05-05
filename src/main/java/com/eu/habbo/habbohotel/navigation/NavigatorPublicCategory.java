@@ -1,5 +1,6 @@
 package com.eu.habbo.habbohotel.navigation;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.rooms.Room;
 
 import java.sql.ResultSet;
@@ -12,23 +13,43 @@ public class NavigatorPublicCategory {
     public final String name;
     public final List<Room> rooms;
     public final ListMode image;
+    public final String imageUrl;
     public final int order;
 
     public NavigatorPublicCategory(ResultSet set) throws SQLException {
         this.id = set.getInt("id");
         this.name = set.getString("name");
         this.image = set.getString("image").equals("1") ? ListMode.THUMBNAILS : ListMode.LIST;
+        this.imageUrl = set.getString("image_url");
         this.order = set.getInt("order_num");
         this.rooms = new ArrayList<>();
     }
 
     public void addRoom(Room room) {
+        if (!this.rooms.contains(room)) {
+            this.rooms.add(room);
+        }
+
         room.preventUncaching = true;
-        this.rooms.add(room);
+        if (this.id == Emulator.getGameEnvironment().getNavigatorManager().officialRootCategoryId) {
+            room.setPublicRoom(true);
+        }
     }
 
     public void removeRoom(Room room) {
         this.rooms.remove(room);
-        room.preventUncaching = room.isPublicRoom();
+        if (this.id == Emulator.getGameEnvironment().getNavigatorManager().officialRootCategoryId) {
+            room.setPublicRoom(false);
+        }
+        room.preventUncaching = isInAnyPublicCategory(room);
+    }
+
+    private static boolean isInAnyPublicCategory(Room room) {
+        for (NavigatorPublicCategory category : Emulator.getGameEnvironment().getNavigatorManager().publicCategories.values()) {
+            if (category.rooms.contains(room)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

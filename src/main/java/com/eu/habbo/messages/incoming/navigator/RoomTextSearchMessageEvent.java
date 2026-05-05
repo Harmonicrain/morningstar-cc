@@ -33,7 +33,7 @@ public class RoomTextSearchMessageEvent extends MessageHandler {
             if (name.startsWith("owner:")) {
                 query = name.split("owner:")[1];
                 prefix = "owner:";
-                rooms = (ArrayList<Room>) Emulator.getGameEnvironment().getRoomManager().getRoomsForHabbo(name);
+                rooms = (ArrayList<Room>) Emulator.getGameEnvironment().getRoomManager().getRoomsForHabbo(query);
             } else if (name.startsWith("tag:")) {
                 query = name.split("tag:")[1];
                 prefix = "tag:";

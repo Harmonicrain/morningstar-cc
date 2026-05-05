@@ -13,9 +13,15 @@ public class GuestRoomSearchResultMessageComposer extends MessageComposer {
     private static final Logger LOGGER = LoggerFactory.getLogger(GuestRoomSearchResultMessageComposer.class);
 
     private final List<Room> rooms;
+    private final boolean useLegacyTail;
 
     public GuestRoomSearchResultMessageComposer(List<Room> rooms) {
+        this(rooms, true);
+    }
+
+    public GuestRoomSearchResultMessageComposer(List<Room> rooms, boolean useLegacyTail) {
         this.rooms = rooms;
+        this.useLegacyTail = useLegacyTail;
     }
 
     @Override
@@ -31,18 +37,24 @@ public class GuestRoomSearchResultMessageComposer extends MessageComposer {
             for (Room room : this.rooms) {
                 room.serialize(this.response);
             }
-            this.response.appendBoolean(true);
 
-            this.response.appendInt(0);
-            this.response.appendString("A");
-            this.response.appendString("B");
-            this.response.appendInt(1);
-            this.response.appendString("C");
-            this.response.appendString("D");
-            this.response.appendInt(1);
-            this.response.appendInt(1);
-            this.response.appendInt(1);
-            this.response.appendString("E");
+            if (this.useLegacyTail) {
+                this.response.appendBoolean(true);
+
+                this.response.appendInt(0);
+                this.response.appendString("A");
+                this.response.appendString("B");
+                this.response.appendInt(1);
+                this.response.appendString("C");
+                this.response.appendString("D");
+                this.response.appendInt(1);
+                this.response.appendInt(1);
+                this.response.appendInt(1);
+                this.response.appendString("E");
+            } else {
+                this.response.appendBoolean(false);
+            }
+
             return this.response;
         } catch (Exception e) {
             LOGGER.error("Caught exception", e);

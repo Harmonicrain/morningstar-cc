@@ -9,6 +9,10 @@ import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.rooms.GetGuestRoomResultMessageComposer;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
 public class ToggleStaffPickMessageEvent extends MessageHandler {
     @Override
     public void handle() throws Exception {
@@ -18,23 +22,46 @@ public class ToggleStaffPickMessageEvent extends MessageHandler {
             Room room = Emulator.getGameEnvironment().getRoomManager().getRoom(roomId);
 
             if (room != null) {
-                room.setStaffPromotedRoom(!room.isStaffPromotedRoom());
-                room.setNeedsUpdate(true);
+                int staffPicksCategoryId = Emulator.getConfig().getInt("hotel.navigator.staffpicks.categoryid", -1);
+                NavigatorPublicCategory publicCategory = Emulator.getGameEnvironment().getNavigatorManager().publicCategories.get(staffPicksCategoryId);
 
-                NavigatorPublicCategory publicCategory = Emulator.getGameEnvironment().getNavigatorManager().publicCategories.get(Emulator.getConfig().getInt("hotel.navigator.staffpicks.categoryid"));
-                if (room.isStaffPromotedRoom()) {
-                    Habbo habbo = Emulator.getGameEnvironment().getHabboManager().getHabbo(room.getOwnerId());
+                if (staffPicksCategoryId != -1) {
+                    boolean isStaffPicked;
 
-                    if (habbo != null) {
-                        AchievementManager.progressAchievement(habbo, Emulator.getGameEnvironment().getAchievementManager().getAchievement("Spr"));
-                    }
+                    try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
+                         PreparedStatement existsStatement = connection.prepareStatement("SELECT 1 FROM navigator_publics WHERE public_cat_id = ? AND room_id = ? AND visible = '1' LIMIT 1");
+                         PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO navigator_publics (public_cat_id, room_id, visible) VALUES (?, ?, '1') ON DUPLICATE KEY UPDATE visible = '1'");
+                         PreparedStatement deleteStatement = connection.prepareStatement("DELETE FROM navigator_publics WHERE public_cat_id = ? AND room_id = ?")) {
+                        existsStatement.setInt(1, staffPicksCategoryId);
+                        existsStatement.setInt(2, room.getId());
 
-                    if (publicCategory != null) {
-                        publicCategory.addRoom(room);
-                    }
-                } else {
-                    if (publicCategory != null) {
-                        publicCategory.removeRoom(room);
+                        try (ResultSet set = existsStatement.executeQuery()) {
+                            isStaffPicked = set.next();
+                        }
+
+                        if (isStaffPicked) {
+                            deleteStatement.setInt(1, staffPicksCategoryId);
+                            deleteStatement.setInt(2, room.getId());
+                            deleteStatement.executeUpdate();
+
+                            if (publicCategory != null) {
+                                publicCategory.removeRoom(room);
+                            }
+                        } else {
+                            insertStatement.setInt(1, staffPicksCategoryId);
+                            insertStatement.setInt(2, room.getId());
+                            insertStatement.executeUpdate();
+
+                            Habbo habbo = Emulator.getGameEnvironment().getHabboManager().getHabbo(room.getOwnerId());
+
+                            if (habbo != null) {
+                                AchievementManager.progressAchievement(habbo, Emulator.getGameEnvironment().getAchievementManager().getAchievement("Spr"));
+                            }
+
+                            if (publicCategory != null) {
+                                publicCategory.addRoom(room);
+                            }
+                        }
                     }
                 }
 

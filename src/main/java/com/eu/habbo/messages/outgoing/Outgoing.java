@@ -80,6 +80,7 @@ public class Outgoing {
     public final static int PetPlacingErrorMessageComposer = 2913;
     public final static int TradingItemListMessageComposer = 2024;
     public final static int GuestRoomSearchResultMessageComposer = 52;
+    public final static int OfficialRoomsMessageComposer = 2726;
     public final static int RoomReadyMessageComposer = 2031;
     public final static int RoomRatingMessageComposer = 482;
     public final static int DoorbellMessageComposer = 2309;
@@ -279,7 +280,6 @@ public class Outgoing {
 
     public final static int AvatarEffectExpiredMessageComposer = 2228; // PRODUCTION-201611291003-338511768
 
-    public final static int OldPublicRoomsComposer = 2726; // PRODUCTION-201611291003-338511768
     public final static int ItemStateComposer2 = 3431; // PRODUCTION-201611291003-338511768
 
     public final static int HotelWillCloseInMinutesMessageComposer = 1050; // PRODUCTION-201611291003-338511768

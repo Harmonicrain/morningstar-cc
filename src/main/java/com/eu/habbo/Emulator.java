@@ -78,14 +78,6 @@ public final class Emulator {
         Runtime.getRuntime().addShutdownHook(hook);
     }
 
-    @SuppressWarnings("resource")
-    public static void promptEnterKey(){
-        System.out.println("\n");
-        System.out.println("Press \"ENTER\" if you agree to the terms stated above...");
-        Scanner scanner = new Scanner(System.in);
-        scanner.nextLine();
-    }
-
     public static void main(String[] args) throws Exception {
         try {
             // Disable Netty's use of sun.misc.Unsafe to avoid JVM warnings
@@ -100,11 +92,7 @@ public final class Emulator {
 
             System.out.println(logo);
 
-            // Checks if this is a BETA build before allowing them to continue.
-            if (PREVIEW.toLowerCase().contains("beta")) {
-                System.out.println("Warning, this is a beta build, this means that there may be unintended consequences so make sure you take regular backups while using this build. If you notice any issues you should make an issue on the Krews Git.");
-                promptEnterKey();
-            }
+
             System.out.println("");
             LOGGER.info("Follow our development at https://git.krews.org/morningstar/Arcturus-Community, ");
             System.out.println("");

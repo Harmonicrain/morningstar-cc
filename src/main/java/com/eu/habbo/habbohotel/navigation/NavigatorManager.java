@@ -25,6 +25,7 @@ public class NavigatorManager {
     public static int MAXIMUM_RESULTS_PER_PAGE = 10;
     public static boolean CATEGORY_SORT_USING_ORDER_NUM = false;
 
+    public int officialRootCategoryId = -1;
     public final THashMap<Integer, NavigatorPublicCategory> publicCategories = new THashMap<>();
     public final ConcurrentHashMap<String, NavigatorFilterField> filterSettings = new ConcurrentHashMap<>();
     public final THashMap<String, NavigatorFilter> filters = new THashMap<>();
@@ -44,7 +45,8 @@ public class NavigatorManager {
     public void loadNavigator() {
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
             synchronized (this.publicCategories) {
-                this.publicCategories.clear();
+                this.clearPublicCategories();
+                this.officialRootCategoryId = Emulator.getConfig().getInt("hotel.navigator.officialroot.categoryid", -1);
 
                 try (Statement statement = connection.createStatement(); ResultSet set = statement.executeQuery("SELECT * FROM navigator_publiccats WHERE visible = '1' ORDER BY order_num DESC")) {
                     while (set.next()) {
@@ -109,12 +111,20 @@ public class NavigatorManager {
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);
         }
+    }
 
-        List<Room> staffPromotedRooms = Emulator.getGameEnvironment().getRoomManager().getRoomsStaffPromoted();
+    private void clearPublicCategories() {
+        List<NavigatorPublicCategory> categories = new ArrayList<>(this.publicCategories.values());
 
-        for (Room room : staffPromotedRooms) {
-            this.publicCategories.get(Emulator.getConfig().getInt("hotel.navigator.staffpicks.categoryid")).addRoom(room);
+        for (NavigatorPublicCategory category : categories) {
+            List<Room> rooms = new ArrayList<>(category.rooms);
+
+            for (Room room : rooms) {
+                category.removeRoom(room);
+            }
         }
+
+        this.publicCategories.clear();
     }
 
     public NavigatorFilterComparator comperatorForField(Method field) {
@@ -145,9 +155,6 @@ public class NavigatorManager {
                 break;
             case "with_rights":
                 rooms = Emulator.getGameEnvironment().getRoomManager().getRoomsWithRights(habbo);
-                break;
-            case "official-root":
-                rooms = Emulator.getGameEnvironment().getRoomManager().getPublicRooms();
                 break;
             case "popular":
                 rooms = Emulator.getGameEnvironment().getRoomManager().getPopularRooms(Emulator.getConfig().getInt("hotel.navigator.popular.amount"));
