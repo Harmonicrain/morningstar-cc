@@ -3,6 +3,7 @@ package com.eu.habbo.habbohotel.navigation;
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.users.Habbo;
+import com.eu.habbo.habbohotel.guilds.Guild;
 import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Method;
@@ -58,7 +59,31 @@ public abstract class NavigatorFilter {
                         NavigatorFilterComparator comparator = Emulator.getGameEnvironment().getNavigatorManager().comperatorForField(method);
 
                         if (comparator != null) {
-                            if (!this.applies(comparator, (String) o, (String) value)) {
+                            if (method.getName().equals("getTags")) {
+                                boolean matched = false;
+
+                                for (String tag : ((String) o).split(";")) {
+                                    if (this.applies(comparator, tag, (String) value)) {
+                                        matched = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!matched) {
+                                    toRemove.add(room);
+                                }
+                            } else if (method.getName().equals("getGuildName")) {
+                                String guildSearchText = (String) o;
+                                Guild guild = Emulator.getGameEnvironment().getGuildManager().getGuild(room.getGuildId());
+
+                                if (guild != null) {
+                                    guildSearchText = guildSearchText + " " + guild.getDescription();
+                                }
+
+                                if (!this.applies(comparator, guildSearchText, (String) value)) {
+                                    toRemove.add(room);
+                                }
+                            } else if (!this.applies(comparator, (String) o, (String) value)) {
                                 toRemove.add(room);
                             }
                         } else {

@@ -1032,6 +1032,19 @@ public class HabboStats implements Runnable {
         return this.ignoredUsers.contains(userId);
     }
 
+    public List<String> getIgnoredUsernames() {
+        List<String> ignoredUsernames = new ArrayList<>(this.ignoredUsers.size());
+
+        for (int ignoredUserId : this.ignoredUsers.toArray()) {
+            HabboInfo ignoredHabbo = Emulator.getGameEnvironment().getHabboManager().getHabboInfo(ignoredUserId);
+            if (ignoredHabbo != null) {
+                ignoredUsernames.add(ignoredHabbo.getUsername());
+            }
+        }
+
+        return ignoredUsernames;
+    }
+
     public boolean allowTrade() {
         if (AchievementManager.TALENTTRACK_ENABLED && RoomTrade.TRADING_REQUIRES_PERK)
             return this.perkTrade && this.allowTrade;

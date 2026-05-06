@@ -1160,7 +1160,33 @@ public class RoomManager {
             }
         }
 
+        if (rooms.size() < 25) {
+            rooms.addAll(this.getOfflineRoomsWithTag(tag));
+        }
+
         Collections.sort(rooms);
+
+        return rooms;
+    }
+
+    private ArrayList<Room> getOfflineRoomsWithTag(String tag) {
+        ArrayList<Room> rooms = new ArrayList<>();
+
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT users.username AS owner_name, rooms.* FROM rooms INNER JOIN users ON rooms.owner_id = users.id WHERE CONCAT(';', rooms.tags) LIKE CONCAT('%;', ?, ';%') ORDER BY rooms.id DESC LIMIT 25")) {
+            statement.setString(1, tag);
+            try (ResultSet set = statement.executeQuery()) {
+                while (set.next()) {
+                    if (this.activeRooms.containsKey(set.getInt("id")))
+                        continue;
+
+                    Room r = new Room(set);
+                    rooms.add(r);
+                    this.activeRooms.put(r.getId(), r);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
 
         return rooms;
     }
@@ -1172,7 +1198,7 @@ public class RoomManager {
             if (room.getGuildId() == 0)
                 continue;
 
-            if (room.getName().toLowerCase().contains(name.toLowerCase()))
+            if (room.getGuildName().toLowerCase().contains(name.toLowerCase()))
                 rooms.add(room);
         }
 
@@ -1188,7 +1214,7 @@ public class RoomManager {
     private ArrayList<Room> getOfflineGroupRoomsWithName(String name) {
         ArrayList<Room> rooms = new ArrayList<>();
 
-        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT users.username AS owner_name, rooms.* FROM rooms INNER JOIN users ON rooms.owner_id = users.id WHERE name LIKE ? AND guild_id != 0 ORDER BY id DESC LIMIT 25")) {
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT users.username AS owner_name, rooms.* FROM rooms INNER JOIN users ON rooms.owner_id = users.id INNER JOIN guilds ON rooms.guild_id = guilds.id WHERE guilds.name LIKE ? AND rooms.guild_id != 0 ORDER BY rooms.id DESC LIMIT 25")) {
             statement.setString(1, "%" + name + "%");
             try (ResultSet set = statement.executeQuery()) {
                 while (set.next()) {

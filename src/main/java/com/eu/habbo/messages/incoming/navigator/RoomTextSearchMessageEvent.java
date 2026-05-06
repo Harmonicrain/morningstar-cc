@@ -37,11 +37,11 @@ public class RoomTextSearchMessageEvent extends MessageHandler {
             } else if (name.startsWith("tag:")) {
                 query = name.split("tag:")[1];
                 prefix = "tag:";
-                rooms = Emulator.getGameEnvironment().getRoomManager().getRoomsWithTag(name);
+                rooms = Emulator.getGameEnvironment().getRoomManager().getRoomsWithTag(query);
             } else if (name.startsWith("group:")) {
                 query = name.split("group:")[1];
                 prefix = "group:";
-                rooms = Emulator.getGameEnvironment().getRoomManager().getGroupRoomsWithName(name);
+                rooms = Emulator.getGameEnvironment().getRoomManager().getGroupRoomsWithName(query);
             } else {
                 rooms = Emulator.getGameEnvironment().getRoomManager().getRoomsWithName(name);
             }
