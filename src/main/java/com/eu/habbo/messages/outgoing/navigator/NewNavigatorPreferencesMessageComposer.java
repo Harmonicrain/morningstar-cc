@@ -19,7 +19,7 @@ public class NewNavigatorPreferencesMessageComposer extends MessageComposer {
         this.response.appendInt(this.windowSettings.y);
         this.response.appendInt(this.windowSettings.width);
         this.response.appendInt(this.windowSettings.height);
-        this.response.appendBoolean(this.windowSettings.openSearches);
+        this.response.appendBoolean(!this.windowSettings.openSearches);
         this.response.appendInt(0);
         return this.response;
     }
