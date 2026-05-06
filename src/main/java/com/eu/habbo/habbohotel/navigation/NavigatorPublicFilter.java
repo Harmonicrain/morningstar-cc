@@ -22,11 +22,20 @@ public class NavigatorPublicFilter extends NavigatorFilter {
         int i = 0;
         for (NavigatorPublicCategory category : Emulator.getGameEnvironment().getNavigatorManager().publicCategories.values()) {
             if (!category.rooms.isEmpty()) {
-                resultLists.add(new SearchResultList(i, category.name, category.name, SearchAction.NONE, habbo.getHabboStats().navigatorWindowSettings.getListModeForCategory(category.name, category.image), habbo.getHabboStats().navigatorWindowSettings.getDisplayModeForCategory(category.name), category.rooms, true, showInvisible, DisplayOrder.ORDER_NUM, category.order));
+                String settingsKey = getSettingsKey(category);
+                resultLists.add(new SearchResultList(i, settingsKey, category.name, SearchAction.NONE, habbo.getHabboStats().navigatorWindowSettings.getListModeForCategory(settingsKey, category.image), habbo.getHabboStats().navigatorWindowSettings.getDisplayModeForCategory(settingsKey), category.rooms, true, showInvisible, DisplayOrder.ORDER_NUM, category.order));
                 i++;
             }
         }
 
         return resultLists;
+    }
+
+    private static String getSettingsKey(NavigatorPublicCategory category) {
+        if (category != null && category.id == Emulator.getGameEnvironment().getNavigatorManager().officialRootCategoryId) {
+            return name;
+        }
+
+        return category == null ? "" : category.name;
     }
 }

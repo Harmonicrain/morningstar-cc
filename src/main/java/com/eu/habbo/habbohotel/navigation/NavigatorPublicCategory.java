@@ -34,12 +34,18 @@ public class NavigatorPublicCategory {
         if (this.id == Emulator.getGameEnvironment().getNavigatorManager().officialRootCategoryId) {
             room.setPublicRoom(true);
         }
+        if (this.id == Emulator.getGameEnvironment().getNavigatorManager().staffPicksCategoryId) {
+            room.setStaffPicked(true);
+        }
     }
 
     public void removeRoom(Room room) {
         this.rooms.remove(room);
         if (this.id == Emulator.getGameEnvironment().getNavigatorManager().officialRootCategoryId) {
             room.setPublicRoom(false);
+        }
+        if (this.id == Emulator.getGameEnvironment().getNavigatorManager().staffPicksCategoryId) {
+            room.setStaffPicked(false);
         }
         room.preventUncaching = isInAnyPublicCategory(room);
     }

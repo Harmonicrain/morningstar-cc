@@ -20,6 +20,7 @@ public class Permission {
     public static String ACC_NOT_MIMICED = "acc_not_mimiced";
     public static String ACC_CHAT_NO_FLOOD = "acc_chat_no_flood";
     public static String ACC_STAFF_PICK = "acc_staff_pick";
+    public static String ACC_PUBLIC_PICK = "acc_public_pick";
     public static String ACC_ENTERANYROOM = "acc_enteranyroom"; //
     public static String ACC_FULLROOMS = "acc_fullrooms";
     public static String ACC_INFINITE_CREDITS = "acc_infinite_credits";

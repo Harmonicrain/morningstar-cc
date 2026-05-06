@@ -48,17 +48,7 @@ public class HabboNavigatorWindowSettings {
 
     public void insertDisplayMode(String category, ListMode listMode, DisplayMode displayMode) {
         if (!this.displayModes.containsKey(category)) {
-            try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
-                 PreparedStatement statement = connection.prepareStatement("INSERT INTO users_navigator_settings (user_id, caption, list_type, display) VALUES (?, ?, ?, ?)")) {
-                statement.setInt(1, this.userId);
-                statement.setString(2, category);
-                statement.setString(3, listMode.name().toLowerCase());
-                statement.setString(4, displayMode.name().toLowerCase());
-                statement.execute();
-            } catch (SQLException e) {
-                LOGGER.error("Caught SQL exception", e);
-            }
-
+            this.persistDisplayMode(category, listMode, displayMode);
             this.displayModes.put(category, new HabboNavigatorPersonalDisplayMode(listMode, displayMode));
         }
     }
@@ -68,6 +58,7 @@ public class HabboNavigatorWindowSettings {
 
         if (personalDisplayMode != null) {
             personalDisplayMode.displayMode = displayMode;
+            this.persistDisplayMode(category, personalDisplayMode.listMode, displayMode);
         } else {
             this.insertDisplayMode(category, ListMode.LIST, displayMode);
         }
@@ -78,8 +69,30 @@ public class HabboNavigatorWindowSettings {
 
         if (personalDisplayMode != null) {
             personalDisplayMode.listMode = listMode;
+            this.persistDisplayMode(category, listMode, personalDisplayMode.displayMode);
         } else {
             this.insertDisplayMode(category, listMode, DisplayMode.VISIBLE);
+        }
+    }
+
+    private void persistDisplayMode(String category, ListMode listMode, DisplayMode displayMode) {
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
+             PreparedStatement updateStatement = connection.prepareStatement("UPDATE users_navigator_settings SET list_type = ?, display = ? WHERE user_id = ? AND caption = ?");
+             PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO users_navigator_settings (user_id, caption, list_type, display) VALUES (?, ?, ?, ?)")) {
+            updateStatement.setString(1, listMode.name().toLowerCase());
+            updateStatement.setString(2, displayMode.name().toLowerCase());
+            updateStatement.setInt(3, this.userId);
+            updateStatement.setString(4, category);
+
+            if (updateStatement.executeUpdate() == 0) {
+                insertStatement.setInt(1, this.userId);
+                insertStatement.setString(2, category);
+                insertStatement.setString(3, listMode.name().toLowerCase());
+                insertStatement.setString(4, displayMode.name().toLowerCase());
+                insertStatement.executeUpdate();
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
         }
     }
 

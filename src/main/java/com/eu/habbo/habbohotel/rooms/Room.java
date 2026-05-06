@@ -156,6 +156,7 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   private int guild;
   private String tags;
   private volatile boolean publicRoom;
+  private volatile boolean staffPicked;
   private volatile boolean allowPets;
   private volatile boolean allowPetsEat;
   private volatile boolean allowWalkthrough;
@@ -210,6 +211,7 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     this.floorSize = set.getInt("thickness_floor");
     this.tags = set.getString("tags");
     this.publicRoom = false;
+    this.staffPicked = false;
     this.allowPets = set.getBoolean("allow_other_pets");
     this.allowPetsEat = set.getBoolean("allow_other_pets_eat");
     this.allowWalkthrough = set.getBoolean("allow_walkthrough");
@@ -1394,6 +1396,14 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
 
   public void setPublicRoom(boolean publicRoom) {
     this.publicRoom = publicRoom;
+  }
+
+  public boolean isStaffPicked() {
+    return this.staffPicked;
+  }
+
+  public void setStaffPicked(boolean staffPicked) {
+    this.staffPicked = staffPicked;
   }
 
   public boolean isAllowPets() {

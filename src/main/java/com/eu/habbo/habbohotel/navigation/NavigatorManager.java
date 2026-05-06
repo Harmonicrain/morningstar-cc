@@ -26,6 +26,7 @@ public class NavigatorManager {
     public static boolean CATEGORY_SORT_USING_ORDER_NUM = false;
 
     public int officialRootCategoryId = -1;
+    public int staffPicksCategoryId = -1;
     public final THashMap<Integer, NavigatorPublicCategory> publicCategories = new THashMap<>();
     public final ConcurrentHashMap<String, NavigatorFilterField> filterSettings = new ConcurrentHashMap<>();
     public final THashMap<String, NavigatorFilter> filters = new THashMap<>();
@@ -42,11 +43,16 @@ public class NavigatorManager {
         LOGGER.info("Navigator Manager -> Loaded! ({} MS)", System.currentTimeMillis() - millis);
     }
 
+    public void refreshNavigatorData() {
+        this.loadNavigator();
+    }
+
     public void loadNavigator() {
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
             synchronized (this.publicCategories) {
                 this.clearPublicCategories();
                 this.officialRootCategoryId = Emulator.getConfig().getInt("hotel.navigator.officialroot.categoryid", -1);
+                this.staffPicksCategoryId = Emulator.getConfig().getInt("hotel.navigator.staffpicks.categoryid", -1);
 
                 try (Statement statement = connection.createStatement(); ResultSet set = statement.executeQuery("SELECT * FROM navigator_publiccats WHERE visible = '1' ORDER BY order_num DESC")) {
                     while (set.next()) {
@@ -76,6 +82,8 @@ public class NavigatorManager {
             }
 
             synchronized (this.filterSettings) {
+                this.filterSettings.clear();
+
                 try (Statement statement = connection.createStatement(); ResultSet set = statement.executeQuery("SELECT * FROM navigator_filter")) {
                     while (set.next()) {
                         Method field = null;

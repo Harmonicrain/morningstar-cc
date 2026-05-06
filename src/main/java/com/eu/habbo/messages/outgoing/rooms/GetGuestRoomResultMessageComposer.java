@@ -1,8 +1,8 @@
 package com.eu.habbo.messages.outgoing.rooms;
 
 import com.eu.habbo.Emulator;
-import com.eu.habbo.habbohotel.navigation.NavigatorPublicCategory;
 import com.eu.habbo.habbohotel.guilds.Guild;
+import com.eu.habbo.habbohotel.permissions.Permission;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.ServerMessage;
@@ -95,6 +95,8 @@ public class GetGuestRoomResultMessageComposer extends MessageComposer {
 
         this.response.appendBoolean(this.roomForward);
         this.response.appendBoolean(this.isStaffPickedRoom()); // staffpicked
+        this.response.appendBoolean(this.isPublicRoom()); // public room
+        this.response.appendBoolean(this.habbo.hasPermission(Permission.ACC_PUBLIC_PICK)); // can public pick
         this.response.appendBoolean(this.room.hasGuild() && Emulator.getGameEnvironment().getGuildManager().getGuildMember(this.room.getGuildId(), this.habbo.getHabboInfo().getId()) != null); // is group member
         this.response.appendBoolean(this.room.isMuted()); // isroommuted
 
@@ -131,12 +133,10 @@ public class GetGuestRoomResultMessageComposer extends MessageComposer {
     }
 
     private boolean isStaffPickedRoom() {
-        int staffPicksCategoryId = Emulator.getConfig().getInt("hotel.navigator.staffpicks.categoryid", -1);
-        if (staffPicksCategoryId == -1) {
-            return false;
-        }
+        return this.room.isStaffPicked();
+    }
 
-        NavigatorPublicCategory category = Emulator.getGameEnvironment().getNavigatorManager().publicCategories.get(staffPicksCategoryId);
-        return category != null && category.rooms.contains(this.room);
+    private boolean isPublicRoom() {
+        return this.room.isPublicRoom();
     }
 }

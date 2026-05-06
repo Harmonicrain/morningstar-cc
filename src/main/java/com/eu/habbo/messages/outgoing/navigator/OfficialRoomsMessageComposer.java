@@ -1,5 +1,6 @@
 package com.eu.habbo.messages.outgoing.navigator;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.navigation.DisplayMode;
 import com.eu.habbo.habbohotel.navigation.NavigatorPublicCategory;
 import com.eu.habbo.habbohotel.users.HabboNavigatorWindowSettings;
@@ -15,6 +16,7 @@ import java.util.List;
 public class OfficialRoomsMessageComposer extends MessageComposer {
     private static final int TYPE_GUEST_ROOM = 2;
     private static final int TYPE_FOLDER = 4;
+    private static final String OFFICIAL_ROOT_SEARCH_CODE = "official_view";
 
     private final List<NavigatorPublicCategory> publicCategories;
     private final HabboNavigatorWindowSettings navigatorWindowSettings;
@@ -37,7 +39,7 @@ public class OfficialRoomsMessageComposer extends MessageComposer {
             }
 
             int categoryFolderIndex = index;
-            entries.add(OfficialRoomEntry.folder(index++, 0, category.name, "", this.getFolderImageRef(category), this.isFolderOpen(category.name)));
+            entries.add(OfficialRoomEntry.folder(index++, 0, category.name, "", this.getFolderImageRef(category), this.isFolderOpen(category)));
 
             List<Room> rooms = new ArrayList<>(category.rooms);
             Collections.sort(rooms);
@@ -58,8 +60,21 @@ public class OfficialRoomsMessageComposer extends MessageComposer {
         return this.response;
     }
 
-    private boolean isFolderOpen(String categoryName) {
-        return this.navigatorWindowSettings == null || this.navigatorWindowSettings.getDisplayModeForCategory(categoryName, DisplayMode.VISIBLE) != DisplayMode.COLLAPSED;
+    private boolean isFolderOpen(NavigatorPublicCategory category) {
+        if (this.navigatorWindowSettings == null) {
+            return true;
+        }
+
+        String settingsKey = this.getSettingsKey(category);
+        return this.navigatorWindowSettings.getDisplayModeForCategory(settingsKey, DisplayMode.VISIBLE) != DisplayMode.COLLAPSED;
+    }
+
+    private String getSettingsKey(NavigatorPublicCategory category) {
+        if (category != null && category.id == Emulator.getGameEnvironment().getNavigatorManager().officialRootCategoryId) {
+            return OFFICIAL_ROOT_SEARCH_CODE;
+        }
+
+        return category == null ? "" : category.name;
     }
 
     private String getFolderImageRef(NavigatorPublicCategory category) {

@@ -442,6 +442,7 @@ public class PacketManager {
         this.registerHandler(Incoming.GetCustomRoomFilterMessageEvent, GetCustomRoomFilterMessageEvent.class);
         this.registerHandler(Incoming.UpdateRoomFilterMessageEvent, UpdateRoomFilterMessageEvent.class);
         this.registerHandler(Incoming.ToggleStaffPickMessageEvent, ToggleStaffPickMessageEvent.class);
+        this.registerHandler(Incoming.TogglePublicRoomMessageEvent, TogglePublicRoomMessageEvent.class);
         this.registerHandler(Incoming.RoomRequestBannedUsersEvent, RoomRequestBannedUsersEvent.class);
         this.registerHandler(Incoming.GetOfficialSongIdMessageEvent, GetOfficialSongIdMessageEvent.class);
         this.registerHandler(Incoming.GetSongInfoMessageEvent, GetSongInfoMessageEvent.class);
