@@ -1,6 +1,7 @@
 package com.eu.habbo.messages.incoming.rooms;
 
 import com.eu.habbo.Emulator;
+import com.eu.habbo.habbohotel.navigation.NavigatorManager;
 import com.eu.habbo.habbohotel.navigation.NavigatorPublicCategory;
 import com.eu.habbo.habbohotel.permissions.Permission;
 import com.eu.habbo.habbohotel.rooms.Room;
@@ -20,41 +21,38 @@ public class TogglePublicRoomMessageEvent extends MessageHandler {
             Room room = Emulator.getGameEnvironment().getRoomManager().getRoom(roomId);
 
             if (room != null) {
-                int publicRootCategoryId = Emulator.getConfig().getInt("hotel.navigator.officialroot.categoryid", -1);
+                NavigatorManager navigator = Emulator.getGameEnvironment().getNavigatorManager();
+                int publicRootCategoryId = navigator.officialRootCategoryId;
 
                 if (publicRootCategoryId != -1) {
                     boolean isPublicRoom;
 
-                    try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
-                         PreparedStatement existsStatement = connection.prepareStatement("SELECT 1 FROM navigator_publics WHERE public_cat_id = ? AND room_id = ? AND visible = '1' LIMIT 1");
-                         PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO navigator_publics (public_cat_id, room_id, visible) VALUES (?, ?, '1') ON DUPLICATE KEY UPDATE visible = '1'");
-                         PreparedStatement deleteStatement = connection.prepareStatement("DELETE FROM navigator_publics WHERE public_cat_id = ? AND room_id = ?")) {
-                        existsStatement.setInt(1, publicRootCategoryId);
-                        existsStatement.setInt(2, room.getId());
+                    synchronized (navigator.publicCategories) {
+                        NavigatorPublicCategory publicCategory = navigator.publicCategories.get(publicRootCategoryId);
 
-                        try (ResultSet set = existsStatement.executeQuery()) {
-                            isPublicRoom = set.next();
-                        }
+                        if (publicCategory != null) {
+                            try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
+                                 PreparedStatement existsStatement = connection.prepareStatement("SELECT 1 FROM navigator_publics WHERE public_cat_id = ? AND room_id = ? AND visible = '1' LIMIT 1");
+                                 PreparedStatement insertStatement = connection.prepareStatement("INSERT INTO navigator_publics (public_cat_id, room_id, visible) VALUES (?, ?, '1') ON DUPLICATE KEY UPDATE visible = '1'");
+                                 PreparedStatement deleteStatement = connection.prepareStatement("DELETE FROM navigator_publics WHERE public_cat_id = ? AND room_id = ?")) {
+                                existsStatement.setInt(1, publicRootCategoryId);
+                                existsStatement.setInt(2, room.getId());
 
-                        if (isPublicRoom) {
-                            deleteStatement.setInt(1, publicRootCategoryId);
-                            deleteStatement.setInt(2, room.getId());
-                            deleteStatement.executeUpdate();
-
-                            synchronized (Emulator.getGameEnvironment().getNavigatorManager().publicCategories) {
-                                NavigatorPublicCategory publicCategory = Emulator.getGameEnvironment().getNavigatorManager().publicCategories.get(publicRootCategoryId);
-                                if (publicCategory != null) {
-                                    publicCategory.removeRoom(room);
+                                try (ResultSet set = existsStatement.executeQuery()) {
+                                    isPublicRoom = set.next();
                                 }
-                            }
-                        } else {
-                            insertStatement.setInt(1, publicRootCategoryId);
-                            insertStatement.setInt(2, room.getId());
-                            insertStatement.executeUpdate();
 
-                            synchronized (Emulator.getGameEnvironment().getNavigatorManager().publicCategories) {
-                                NavigatorPublicCategory publicCategory = Emulator.getGameEnvironment().getNavigatorManager().publicCategories.get(publicRootCategoryId);
-                                if (publicCategory != null) {
+                                if (isPublicRoom) {
+                                    deleteStatement.setInt(1, publicRootCategoryId);
+                                    deleteStatement.setInt(2, room.getId());
+                                    deleteStatement.executeUpdate();
+
+                                    publicCategory.removeRoom(room);
+                                } else {
+                                    insertStatement.setInt(1, publicRootCategoryId);
+                                    insertStatement.setInt(2, room.getId());
+                                    insertStatement.executeUpdate();
+
                                     publicCategory.addRoom(room);
                                 }
                             }
