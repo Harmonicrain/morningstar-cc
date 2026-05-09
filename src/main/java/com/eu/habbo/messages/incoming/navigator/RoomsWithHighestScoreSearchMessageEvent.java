@@ -23,6 +23,7 @@ public class RoomsWithHighestScoreSearchMessageEvent extends MessageHandler {
             rooms = filteredRooms;
         }
 
-        NavigatorMixedModeSearchHelper.send(this.client, rooms, "highest_score", "");
+        String query = category >= 0 ? String.valueOf(category) : "";
+        NavigatorMixedModeSearchHelper.send(this.client, rooms, "highest_score", query);
     }
 }
