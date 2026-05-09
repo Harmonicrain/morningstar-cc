@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -80,44 +81,43 @@ public class NavigatorManager {
                     LOGGER.error("Caught SQL exception", e);
                 }
             }
-
-            synchronized (this.filterSettings) {
-                this.filterSettings.clear();
-
-                try (Statement statement = connection.createStatement(); ResultSet set = statement.executeQuery("SELECT * FROM navigator_filter")) {
-                    while (set.next()) {
-                        Method field = null;
-                        Class<?> clazz = Room.class;
-
-                        if (set.getString("field").contains(".")) {
-                            for (String s : (set.getString("field")).split("\\.")) {
-                                try {
-                                    field = clazz.getDeclaredMethod(s);
-                                    clazz = field.getReturnType();
-                                } catch (Exception e) {
-                                    LOGGER.error("Caught exception", e);
-                                    break;
-                                }
-                            }
-                        } else {
-                            try {
-                                field = clazz.getDeclaredMethod(set.getString("field"));
-                            } catch (Exception e) {
-                                LOGGER.error("Caught exception", e);
-                                continue;
-                            }
-                        }
-
-                        if (field != null) {
-                            this.filterSettings.put(set.getString("key"), new NavigatorFilterField(set.getString("key"), field, set.getString("database_query"), NavigatorFilterComparator.valueOf(set.getString("compare").toUpperCase())));
-                        }
-                    }
-                } catch (SQLException e) {
-                    LOGGER.error("Caught SQL exception", e);
-                }
-            }
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);
+        }
+
+        this.loadFilterSettings();
+    }
+
+    private void loadFilterSettings() {
+        synchronized (this.filterSettings) {
+            this.filterSettings.clear();
+
+            this.addFilterSetting("anything", "filterAnything", NavigatorFilterComparator.CONTAINS,
+                    "SELECT rooms.*, CONCAT_WS(' ', rooms.owner_name, rooms.name, rooms.description, rooms.tags, guilds.name, guilds.description, room_promotions.title, room_promotions.description) AS whole " +
+                            "FROM rooms " +
+                            "LEFT JOIN guilds ON rooms.guild_id = guilds.id " +
+                            "LEFT JOIN room_promotions ON rooms.id = room_promotions.room_id AND room_promotions.end_timestamp >= UNIX_TIMESTAMP() " +
+                            "HAVING whole LIKE ?");
+            this.addFilterSetting("desc", "getDescription", NavigatorFilterComparator.CONTAINS,
+                    "SELECT * FROM rooms WHERE description LIKE ?");
+            this.addFilterSetting("group", "getGuildName", NavigatorFilterComparator.CONTAINS,
+                    "SELECT rooms.* FROM rooms INNER JOIN guilds ON rooms.guild_id = guilds.id WHERE CONCAT(guilds.name, guilds.description) LIKE ?");
+            this.addFilterSetting("owner", "getOwnerName", NavigatorFilterComparator.EQUALS_IGNORE_CASE,
+                    "SELECT * FROM rooms WHERE owner_name LIKE ?");
+            this.addFilterSetting("promo", "getPromotionDesc", NavigatorFilterComparator.CONTAINS,
+                    "SELECT rooms.* FROM rooms INNER JOIN room_promotions ON rooms.id = room_promotions.room_id WHERE room_promotions.end_timestamp >= UNIX_TIMESTAMP() AND CONCAT(room_promotions.title, room_promotions.description) LIKE ?");
+            this.addFilterSetting("roomname", "getName", NavigatorFilterComparator.CONTAINS,
+                    "SELECT * FROM rooms WHERE name COLLATE UTF8_GENERAL_CI LIKE ?");
+            this.addFilterSetting("tag", "getTags", NavigatorFilterComparator.EQUALS,
+                    "SELECT * FROM rooms WHERE CONCAT(';', tags) LIKE CONCAT('%;', ?, ';%')");
+        }
+    }
+
+    private void addFilterSetting(String key, String fieldName, NavigatorFilterComparator comparator, String databaseQuery) {
+        try {
+            this.filterSettings.put(key, new NavigatorFilterField(key, Room.class.getDeclaredMethod(fieldName), databaseQuery, comparator));
+        } catch (NoSuchMethodException e) {
+            LOGGER.error("Could not register navigator filter field {}", fieldName, e);
         }
     }
 
@@ -133,6 +133,42 @@ public class NavigatorManager {
         }
 
         this.publicCategories.clear();
+    }
+
+    public void removeDeletedRoom(Room room) {
+        if (room == null) {
+            return;
+        }
+
+        if (room.isPublicRoom() || room.isStaffPicked() || this.isInPublicCategory(room)) {
+            synchronized (this.publicCategories) {
+                for (NavigatorPublicCategory category : new ArrayList<>(this.publicCategories.values())) {
+                    if (category.rooms.contains(room)) {
+                        category.removeRoom(room);
+                    }
+                }
+            }
+        }
+
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
+             PreparedStatement statement = connection.prepareStatement("DELETE FROM navigator_publics WHERE room_id = ?")) {
+            statement.setInt(1, room.getId());
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
+    }
+
+    private boolean isInPublicCategory(Room room) {
+        synchronized (this.publicCategories) {
+            for (NavigatorPublicCategory category : this.publicCategories.values()) {
+                if (category.rooms.contains(room)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public NavigatorFilterComparator comperatorForField(Method field) {

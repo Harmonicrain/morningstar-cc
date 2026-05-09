@@ -39,6 +39,8 @@ public class DeleteRoomMessageEvent extends MessageHandler {
                     return;
                 }
 
+                Emulator.getGameEnvironment().getNavigatorManager().removeDeletedRoom(room);
+
                 room.ejectAll();
                 room.ejectUserFurni(room.getOwnerId());
 

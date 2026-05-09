@@ -153,9 +153,31 @@ public class RoomManager {
 
     public THashMap<Integer, List<Room>> findRooms(NavigatorFilterField filterField, String value, int category, boolean showInvisible) {
         THashMap<Integer, List<Room>> rooms = new THashMap<>();
-        String query = filterField.databaseQuery + " AND rooms.state NOT LIKE " + (showInvisible ? "''" : "'invisible'") + (category >= 0 ? "AND rooms.category = '" + category + "'" : "") + "  ORDER BY rooms.users, rooms.id DESC LIMIT " + (page * NavigatorManager.MAXIMUM_RESULTS_PER_PAGE) + "" + ((page * NavigatorManager.MAXIMUM_RESULTS_PER_PAGE) + NavigatorManager.MAXIMUM_RESULTS_PER_PAGE);
-        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, (filterField.comparator == NavigatorFilterComparator.EQUALS ? value : "%" + value + "%"));
+        StringBuilder queryBuilder = new StringBuilder("SELECT rooms.* FROM (")
+                .append(filterField.databaseQuery)
+                .append(") rooms WHERE rooms.state NOT LIKE ?");
+
+        if (category >= 0) {
+            queryBuilder.append(" AND rooms.category = ?");
+        }
+
+        queryBuilder.append(" ORDER BY rooms.users, rooms.id DESC LIMIT ?, ?");
+
+        int offset = page * NavigatorManager.MAXIMUM_RESULTS_PER_PAGE;
+        int count = NavigatorManager.MAXIMUM_RESULTS_PER_PAGE;
+
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement(queryBuilder.toString())) {
+            int index = 1;
+            statement.setString(index++, this.getNavigatorFilterQueryValue(filterField, value));
+            statement.setString(index++, (showInvisible ? "" : "invisible"));
+
+            if (category >= 0) {
+                statement.setInt(index++, category);
+            }
+
+            statement.setInt(index++, offset);
+            statement.setInt(index, count);
+
             try (ResultSet set = statement.executeQuery()) {
                 while (set.next()) {
                     Room room = this.activeRooms.get(set.getInt("id"));
@@ -177,6 +199,14 @@ public class RoomManager {
         }
 
         return rooms;
+    }
+
+    private String getNavigatorFilterQueryValue(NavigatorFilterField filterField, String value) {
+        if (filterField.comparator == NavigatorFilterComparator.CONTAINS) {
+            return "%" + value + "%";
+        }
+
+        return value;
     }
 
     public RoomCategory getCategory(int id) {
@@ -256,10 +286,21 @@ public class RoomManager {
     //TODO Move to HabboInfo class.
     public List<Room> getRoomsForHabbo(Habbo habbo) {
         List<Room> rooms = new ArrayList<>();
-        for (Room room : this.activeRooms.values()) {
-            if (room.getOwnerId() == habbo.getHabboInfo().getId())
-                rooms.add(room);
+
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT id FROM rooms WHERE owner_id = ? ORDER BY id DESC")) {
+            statement.setInt(1, habbo.getHabboInfo().getId());
+            try (ResultSet set = statement.executeQuery()) {
+                while (set.next()) {
+                    Room room = this.loadRoom(set.getInt("id"));
+                    if (room != null) {
+                        rooms.add(room);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
         }
+
         rooms.sort(Room.SORT_ID);
         return rooms;
     }
@@ -1431,10 +1472,6 @@ public class RoomManager {
         }
 
         return rooms;
-    }
-
-    public ArrayList<Room> getRoomsInGroup(Habbo habbo) {
-        return new ArrayList<>();
     }
 
     public ArrayList<Room> getRoomsPromoted() {

@@ -1579,8 +1579,23 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   }
 
   public String[] filterAnything() {
-    return new String[] { this.getOwnerName(), this.getGuildName(), this.getDescription(),
-        this.getPromotionDesc() };
+    String guildDescription = "";
+    if (this.hasGuild()) {
+      Guild guild = Emulator.getGameEnvironment().getGuildManager().getGuild(this.guild);
+      if (guild != null) {
+        guildDescription = guild.getDescription();
+      }
+    }
+
+    return new String[] {
+        this.getOwnerName(),
+        this.getName(),
+        this.getDescription(),
+        this.getTags(),
+        this.getGuildName(),
+        guildDescription,
+        this.getPromotionDesc()
+    };
   }
 
   public long getCycleTimestamp() {

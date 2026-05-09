@@ -90,14 +90,20 @@ public abstract class NavigatorFilter {
                             toRemove.add(room);
                         }
                     } else if (o instanceof String[]) {
-                        for (String s : (String[]) o) {
-                            NavigatorFilterComparator comparator = Emulator.getGameEnvironment().getNavigatorManager().comperatorForField(method);
+                        boolean matched = false;
+                        NavigatorFilterComparator comparator = Emulator.getGameEnvironment().getNavigatorManager().comperatorForField(method);
 
-                            if (comparator != null) {
-                                if (!this.applies(comparator, s, (String) value)) {
-                                    toRemove.add(room);
+                        if (comparator != null) {
+                            for (String s : (String[]) o) {
+                                if (this.applies(comparator, s, (String) value)) {
+                                    matched = true;
+                                    break;
                                 }
                             }
+                        }
+
+                        if (!matched) {
+                            toRemove.add(room);
                         }
                     } else {
                         if (o != value) {

@@ -43,7 +43,7 @@ public class NewNavigatorSearchEvent extends MessageHandler {
         NavigatorFilterField field = Emulator.getGameEnvironment().getNavigatorManager().filterSettings.get(filterField);
         if (filter != null) {
             if (query.contains(":")) {
-                String[] parts = query.split(":");
+                String[] parts = query.split(":", 2);
 
                 if (parts.length > 1) {
                     filterField = parts[0];

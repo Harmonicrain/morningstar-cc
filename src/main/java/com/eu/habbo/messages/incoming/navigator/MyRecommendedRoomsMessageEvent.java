@@ -4,7 +4,6 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomManager;
 import com.eu.habbo.messages.incoming.MessageHandler;
-import com.eu.habbo.messages.outgoing.navigator.GuestRoomSearchResultMessageComposer;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,6 +26,6 @@ public class MyRecommendedRoomsMessageEvent extends MessageHandler {
         if (rooms.size() > MAX_RECOMMENDATIONS) {
             rooms = rooms.subList(0, MAX_RECOMMENDATIONS);
         }
-        this.client.sendResponse(new GuestRoomSearchResultMessageComposer(rooms, false));
+        NavigatorMixedModeSearchHelper.send(this.client, rooms, "recommended", "");
     }
 }

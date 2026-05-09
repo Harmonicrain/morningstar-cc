@@ -31,4 +31,11 @@ WHERE `caption` = 'Public Rooms';
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_official_view_navigator_settings`;
 
+INSERT IGNORE INTO `emulator_settings` (`key`, `value`) VALUES
+('navigator.legacy.search.ad.enabled', '0'),
+('navigator.legacy.search.ad.room_id', '0'),
+('navigator.legacy.search.ad.title', ''),
+('navigator.legacy.search.ad.description', ''),
+('navigator.legacy.search.ad.image', '');
+
 SET FOREIGN_KEY_CHECKS = 1;

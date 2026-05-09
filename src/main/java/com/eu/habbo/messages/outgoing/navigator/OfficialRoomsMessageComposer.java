@@ -14,8 +14,6 @@ import java.util.Collections;
 import java.util.List;
 
 public class OfficialRoomsMessageComposer extends MessageComposer {
-    private static final int TYPE_GUEST_ROOM = 2;
-    private static final int TYPE_FOLDER = 4;
     private static final String OFFICIAL_ROOT_SEARCH_CODE = "official_view";
 
     private final List<NavigatorPublicCategory> publicCategories;
@@ -112,7 +110,7 @@ public class OfficialRoomsMessageComposer extends MessageComposer {
             return new RoomEntry(index, parentIndex, room);
         }
 
-        final void serialize(ServerMessage message) {
+        void serialize(ServerMessage message) {
             message.appendInt(this.index);
             message.appendString(this.popupCaption);
             message.appendString(this.popupDescription);
@@ -134,25 +132,35 @@ public class OfficialRoomsMessageComposer extends MessageComposer {
         private final boolean open;
 
         FolderEntry(int index, int parentIndex, String caption, String description, String picRef, boolean open) {
-            super(index, parentIndex, caption, description, picRef, 0, TYPE_FOLDER);
+            super(index, parentIndex, caption, description, picRef, 0, OfficialRoomEntryDataSerializer.TYPE_FOLDER);
             this.open = open;
         }
 
         @Override boolean showDetails() { return false; }
         @Override String picText() { return ""; }
-        @Override void serializeTrailer(ServerMessage message) { message.appendBoolean(this.open); }
+        @Override void serializeTrailer(ServerMessage message) { }
+
+        @Override
+        final void serialize(ServerMessage message) {
+            OfficialRoomEntryDataSerializer.serializeFolder(message, this.index, this.parentIndex, this.popupCaption, this.popupDescription, this.picRef, this.open);
+        }
     }
 
     private static final class RoomEntry extends OfficialRoomEntry {
         private final Room room;
 
         RoomEntry(int index, int parentIndex, Room room) {
-            super(index, parentIndex, room.getName(), room.getDescription(), "", room.getUserCount(), TYPE_GUEST_ROOM);
+            super(index, parentIndex, room.getName(), room.getDescription(), "", room.getUserCount(), OfficialRoomEntryDataSerializer.TYPE_GUEST_ROOM);
             this.room = room;
         }
 
         @Override boolean showDetails() { return true; }
         @Override String picText() { return ""; }
-        @Override void serializeTrailer(ServerMessage message) { this.room.serialize(message); }
+        @Override void serializeTrailer(ServerMessage message) { }
+
+        @Override
+        final void serialize(ServerMessage message) {
+            OfficialRoomEntryDataSerializer.serializeGuestRoom(message, this.index, this.parentIndex, this.room, this.popupCaption, this.popupDescription, this.picRef);
+        }
     }
 }
