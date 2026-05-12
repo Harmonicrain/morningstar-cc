@@ -47,9 +47,10 @@ public class GetForumsListMessageEvent extends MessageHandler {
     private THashSet<Guild> getActiveForums() {
         THashSet<Guild> guilds = new THashSet<Guild>();
 
-        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT `guilds`.`id`, SUM(`guilds_forums_threads`.`posts_count`) AS `post_count` " +
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT `guilds`.`id`, COUNT(`guilds_forums_comments`.`id`) AS `post_count` " +
                 "FROM `guilds_forums_threads` " +
                 "LEFT JOIN `guilds` ON `guilds`.`id` = `guilds_forums_threads`.`guild_id` " +
+                "LEFT JOIN `guilds_forums_comments` ON `guilds_forums_comments`.`thread_id` = `guilds_forums_threads`.`id` " +
                 "WHERE `guilds`.`read_forum` = 'EVERYONE' AND `guilds_forums_threads`.`created_at` > ? " +
                 "GROUP BY `guilds`.`id` " +
                 "ORDER BY `post_count` DESC LIMIT 100")) {

@@ -33,7 +33,7 @@ public class GetMessagesMessageEvent extends MessageHandler {
             return;
         }
         GuildMember member = Emulator.getGameEnvironment().getGuildManager().getGuildMember(guildId, this.client.getHabbo().getHabboInfo().getId());
-        boolean isGuildAdministrator = (guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || member.getRank().equals(GuildRank.ADMIN));
+        boolean isGuildAdministrator = guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || (member != null && member.getRank().equals(GuildRank.ADMIN));
 
         if (thread.getState() != ForumThreadState.HIDDEN_BY_GUILD_ADMIN || hasStaffPermissions || isGuildAdministrator) {
             this.client.sendResponse(new ThreadMessagesMessageComposer(guildId, threadId, index, thread.getComments(limit, index)));

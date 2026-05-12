@@ -2,6 +2,7 @@ package com.eu.habbo.messages.outgoing.guilds.forums;
 
 import com.eu.habbo.habbohotel.guilds.Guild;
 import com.eu.habbo.habbohotel.guilds.forums.ForumThread;
+import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.MessageComposer;
 import com.eu.habbo.messages.outgoing.Outgoing;
@@ -14,10 +15,12 @@ import java.util.Iterator;
 
 public class GuildForumThreadsMessageComposer extends MessageComposer {
     public final Guild guild;
+    public final Habbo habbo;
     public final int index;
 
-    public GuildForumThreadsMessageComposer(Guild guild, int index) {
+    public GuildForumThreadsMessageComposer(Guild guild, Habbo habbo, int index) {
         this.guild = guild;
+        this.habbo = habbo;
         this.index = index;
     }
 
@@ -35,12 +38,13 @@ public class GuildForumThreadsMessageComposer extends MessageComposer {
         Collections.reverse(threads);
 
         Iterator<ForumThread> it = threads.iterator();
-        int count = Math.min(threads.size(), 20);
+        int count = Math.min(Math.max(threads.size() - this.index, 0), 20);
 
         this.response.init(Outgoing.GuildForumThreadsMessageComposer);
         this.response.appendInt(this.guild.getId());
         this.response.appendInt(this.index);
         this.response.appendInt(count);
+        int lastSeenAt = ForumDataMessageComposer.getForumLastSeenAt(this.habbo, this.guild.getId());
 
         for (int i = 0; i < index; i++) {
             if (!it.hasNext())
@@ -53,7 +57,7 @@ public class GuildForumThreadsMessageComposer extends MessageComposer {
             if (!it.hasNext())
                 break;
 
-            it.next().serialize(this.response);
+            it.next().serialize(this.response, lastSeenAt);
         }
 
         return this.response;

@@ -365,6 +365,24 @@ public class TraxManager implements Disposable {
         return trax;
     }
 
+    public int getSoundMachineSyncCountMs() {
+        if (!this.isPlaying()) {
+            return 0;
+        }
+
+        int syncSeconds = this.timePlaying();
+
+        for (int i = 0; i < this.playingIndex && i < this.songs.size(); i++) {
+            SoundTrack track = Emulator.getGameEnvironment().getItemManager().getSoundTrack(this.songs.get(i).getSongId());
+
+            if (track != null) {
+                syncSeconds += track.getLength();
+            }
+        }
+
+        return syncSeconds * 1000;
+    }
+
     public List<InteractionMusicDisc> myList(Habbo habbo) {
         return habbo.getInventory().getItemsComponent().getItems().valueCollection().stream()
                 .filter(i -> i instanceof InteractionMusicDisc && i.getRoomId() == 0)

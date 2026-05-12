@@ -29,6 +29,7 @@ public class ForwardUser extends RCONMessage<ForwardUser.ForwardUserJSON> {
             } else {
                 this.status = RCONMessage.ROOM_NOT_FOUND;
             }
+            return;
         }
 
         this.status = RCONMessage.HABBO_NOT_FOUND;

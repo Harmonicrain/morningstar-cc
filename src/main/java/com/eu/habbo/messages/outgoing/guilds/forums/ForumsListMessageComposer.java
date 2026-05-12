@@ -31,7 +31,7 @@ public class ForumsListMessageComposer extends MessageComposer {
         this.response.appendInt(this.index);
 
         Iterator<Guild> it = guilds.iterator();
-        int count = Math.min(guilds.size(), 20);
+        int count = Math.min(Math.max(guilds.size() - this.index, 0), 20);
 
         this.response.appendInt(count);
 

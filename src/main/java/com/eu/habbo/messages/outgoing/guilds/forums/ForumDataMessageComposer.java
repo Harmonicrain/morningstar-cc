@@ -8,6 +8,7 @@ import com.eu.habbo.habbohotel.guilds.forums.ForumThread;
 import com.eu.habbo.habbohotel.guilds.forums.ForumThreadComment;
 import com.eu.habbo.habbohotel.permissions.Permission;
 import com.eu.habbo.habbohotel.users.Habbo;
+import com.eu.habbo.habbohotel.users.HabboInfo;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.MessageComposer;
 import com.eu.habbo.messages.outgoing.Outgoing;
@@ -36,7 +37,7 @@ public class ForumDataMessageComposer extends MessageComposer {
     public static void serializeForumData(ServerMessage response, Guild guild, Habbo habbo) {
 
         final THashSet<ForumThread> forumThreads = ForumThread.getByGuildId(guild.getId());
-        int lastSeenAt = 0;
+        int lastSeenAt = getForumLastSeenAt(habbo, guild.getId());
 
         int totalComments = 0;
         int newComments = 0;
@@ -46,7 +47,6 @@ public class ForumDataMessageComposer extends MessageComposer {
         synchronized (forumThreads) {
             for (ForumThread thread : forumThreads) {
                 totalThreads++;
-                totalComments += thread.getPostsCount();
 
                 ForumThreadComment comment = thread.getLastComment();
                 if (comment != null && (lastComment == null || lastComment.getCreatedAt() < comment.getCreatedAt())) {
@@ -56,26 +56,18 @@ public class ForumDataMessageComposer extends MessageComposer {
         }
 
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement(
-                "SELECT COUNT(*) " +
+                "SELECT COUNT(B.`id`) AS total_comments, SUM(CASE WHEN B.`created_at` > ? THEN 1 ELSE 0 END) AS unread_comments " +
                         "FROM guilds_forums_threads A " +
-                        "JOIN ( " +
-                        "SELECT * " +
-                        "FROM `guilds_forums_comments` " +
-                        "WHERE `id` IN ( " +
-                        "SELECT id " +
-                        "FROM `guilds_forums_comments` B " +
-                        "ORDER BY B.`id` ASC " +
-                        ") " +
-                        "ORDER BY `id` DESC " +
-                        ") B ON A.`id` = B.`thread_id` " +
-                        "WHERE A.`guild_id` = ? AND B.`created_at` > ?"
+                        "LEFT JOIN guilds_forums_comments B ON A.`id` = B.`thread_id` " +
+                        "WHERE A.`guild_id` = ?"
         )) {
-            statement.setInt(1, guild.getId());
-            statement.setInt(2, lastSeenAt);
+            statement.setInt(1, lastSeenAt);
+            statement.setInt(2, guild.getId());
 
             ResultSet set = statement.executeQuery();
             while (set.next()) {
-                newComments = set.getInt(1);
+                totalComments = set.getInt("total_comments");
+                newComments = set.getInt("unread_comments");
             }
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);
@@ -93,10 +85,35 @@ public class ForumDataMessageComposer extends MessageComposer {
         response.appendInt(totalComments); //Total comments
         response.appendInt(newComments); //Unread comments
 
+        HabboInfo lastAuthor = lastComment != null ? Emulator.getGameEnvironment().getHabboManager().getHabboInfo(lastComment.getUserId()) : null;
+
         response.appendInt(lastComment != null ? lastComment.getThreadId() : -1);
         response.appendInt(lastComment != null ? lastComment.getUserId() : -1);
-        response.appendString(lastComment != null && lastComment.getHabbo() != null ? lastComment.getHabbo().getHabboInfo().getUsername() : "");
+        response.appendString(lastAuthor != null ? lastAuthor.getUsername() : "");
         response.appendInt(lastComment != null ? Emulator.getIntUnixTimestamp() - lastComment.getCreatedAt() : 0);
+    }
+
+    public static int getForumLastSeenAt(Habbo habbo, int guildId) {
+        if (habbo == null) {
+            return 0;
+        }
+
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement(
+                "SELECT COALESCE(MAX(`timestamp`), 0) AS last_seen_at FROM guild_forum_views WHERE user_id = ? AND guild_id = ?"
+        )) {
+            statement.setInt(1, habbo.getHabboInfo().getId());
+            statement.setInt(2, guildId);
+
+            try (ResultSet set = statement.executeQuery()) {
+                if (set.next()) {
+                    return set.getInt("last_seen_at");
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
+
+        return 0;
     }
 
     @Override

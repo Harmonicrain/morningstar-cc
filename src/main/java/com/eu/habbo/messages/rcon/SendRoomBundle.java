@@ -19,17 +19,26 @@ public class SendRoomBundle extends RCONMessage<SendRoomBundle.JSON> {
             Habbo habbo = Emulator.getGameEnvironment().getHabboManager().getHabbo(json.user_id);
             CatalogPage page = Emulator.getGameEnvironment().getCatalogManager().getCatalogPage(json.catalog_page);
 
-            if ((page instanceof RoomBundleLayout)) {
-                if (habbo != null) {
-                    ((RoomBundleLayout) page).buyRoom(habbo);
-                } else {
-                    HabboInfo info = HabboManager.getOfflineHabboInfo(json.user_id);
+            if (!(page instanceof RoomBundleLayout)) {
+                this.status = RCONMessage.STATUS_ERROR;
+                this.message = "Catalog page is not a room bundle layout";
+                return;
+            }
 
-                    if (info != null) {
-                        ((RoomBundleLayout) page).buyRoom(null, json.user_id, info.getUsername());
-                    }
+            if (habbo != null) {
+                ((RoomBundleLayout) page).buyRoom(habbo);
+            } else {
+                HabboInfo info = HabboManager.getOfflineHabboInfo(json.user_id);
+
+                if (info != null) {
+                    ((RoomBundleLayout) page).buyRoom(null, json.user_id, info.getUsername());
+                } else {
+                    this.status = RCONMessage.HABBO_NOT_FOUND;
                 }
             }
+        } else {
+            this.status = RCONMessage.STATUS_ERROR;
+            this.message = "Invalid catalog_page or user_id";
         }
     }
 

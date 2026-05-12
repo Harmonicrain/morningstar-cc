@@ -19,6 +19,8 @@ public class ChangeRoomOwner extends RCONMessage<ChangeRoomOwner.JSON> {
             room.setNeedsUpdate(true);
             room.save();
             Emulator.getGameEnvironment().getRoomManager().unloadRoom(room);
+        } else {
+            this.status = RCONMessage.ROOM_NOT_FOUND;
         }
     }
 

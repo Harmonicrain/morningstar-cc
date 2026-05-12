@@ -1001,6 +1001,8 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
       } catch (Exception e) {
         LOGGER.error("Caught exception", e);
       }
+
+      Emulator.getGameEnvironment().getRoomPollManager().onRoomUnload(this);
     }
 
     Emulator.getPluginManager().fireEvent(new RoomUnloadedEvent(this));

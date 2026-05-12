@@ -42,6 +42,7 @@ import com.eu.habbo.messages.incoming.navigator.*;
 import com.eu.habbo.messages.incoming.polls.AnswerPollEvent;
 import com.eu.habbo.messages.incoming.polls.CancelPollEvent;
 import com.eu.habbo.messages.incoming.polls.GetPollDataEvent;
+import com.eu.habbo.messages.incoming.polls.infobus.VotePollCounterEvent;
 import com.eu.habbo.messages.incoming.rooms.*;
 import com.eu.habbo.messages.incoming.rooms.bots.RemoveBotFromFlatMessageEvent;
 import com.eu.habbo.messages.incoming.rooms.bots.PlaceBotMessageEvent;
@@ -451,6 +452,7 @@ public class PacketManager {
         this.registerHandler(Incoming.GetNowPlayingMessageEvent, GetNowPlayingMessageEvent.class);
         this.registerHandler(Incoming.GetUserSongDisksMessageEvent, GetUserSongDisksMessageEvent.class);
         this.registerHandler(Incoming.GetJukeboxPlayListMessageEvent, GetJukeboxPlayListMessageEvent.class);
+        this.registerHandler(Incoming.GetSoundMachinePlayListMessageEvent, GetSoundMachinePlayListMessageEvent.class);
         this.registerHandler(Incoming.AddSpamWallPostItMessageEvent, AddSpamWallPostItMessageEvent.class);
         this.registerHandler(Incoming.GetRoomAdPurchaseInfoEvent, GetRoomAdPurchaseInfoEvent.class);
         this.registerHandler(Incoming.PurchaseRoomAdMessageEvent, PurchaseRoomAdMessageEvent.class);
@@ -474,6 +476,7 @@ public class PacketManager {
         this.registerHandler(Incoming.CancelPollEvent, CancelPollEvent.class);
         this.registerHandler(Incoming.GetPollDataEvent, GetPollDataEvent.class);
         this.registerHandler(Incoming.AnswerPollEvent, AnswerPollEvent.class);
+        this.registerHandler(Incoming.VotePollCounterEvent, VotePollCounterEvent.class);
     }
 
     void registerModTool() throws Exception {
@@ -553,6 +556,7 @@ public class PacketManager {
         this.registerHandler(Incoming.ModerateMessageMessageEvent, ModerateMessageMessageEvent.class);
         this.registerHandler(Incoming.ModerateThreadMessageEvent, ModerateThreadMessageEvent.class);
         this.registerHandler(Incoming.UpdateThreadMessageEvent, UpdateThreadMessageEvent.class);
+        this.registerHandler(Incoming.GuildForumMarkAsReadEvent, GuildForumMarkAsReadEvent.class);
         this.registerHandler(Incoming.GetHabboGroupBadgesMessageEvent, GetHabboGroupBadgesMessageEvent.class);
 
 //        this.registerHandler(Incoming.GetForumStatsMessageEvent,              ModerateMessageMessageEvent.class);

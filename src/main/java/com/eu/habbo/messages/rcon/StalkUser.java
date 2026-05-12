@@ -44,6 +44,9 @@ public class StalkUser extends RCONMessage<StalkUser.StalkUserJSON> {
             if (this.status == 0) {
                 habbo.getClient().sendResponse(new RoomForwardMessageComposer(target.getHabboInfo().getCurrentRoom().getId()));
             }
+        } else {
+            this.status = HABBO_NOT_FOUND;
+            this.message = "offline";
         }
     }
 

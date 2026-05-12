@@ -32,15 +32,15 @@ public class ModerateThreadMessageEvent extends MessageHandler {
             return;
         }
 
-        GuildMember member = Emulator.getGameEnvironment().getGuildManager().getGuildMember(guildId, this.client.getHabbo().getHabboInfo().getId());
         boolean hasStaffPerms = this.client.getHabbo().hasPermission(Permission.ACC_MODTOOL_TICKET_Q); // check for if they have staff perm
-        boolean isGuildAdmin = (guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || member.getRank().equals(GuildRank.ADMIN));
-
+        GuildMember member = Emulator.getGameEnvironment().getGuildManager().getGuildMember(guildId, this.client.getHabbo().getHabboInfo().getId());
 
         if (member == null) {
             this.client.sendResponse(new ErrorReportMessageComposer(401));
             return;
         }
+
+        boolean isGuildAdmin = (guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || member.getRank().equals(GuildRank.ADMIN));
         if (!isGuildAdmin && !hasStaffPerms) {
             this.client.sendResponse(new ErrorReportMessageComposer(403));
             return;
@@ -60,6 +60,6 @@ public class ModerateThreadMessageEvent extends MessageHandler {
         }
 
         this.client.sendResponse(new PostThreadMessageMessageComposer(thread));
-        this.client.sendResponse(new GuildForumThreadsMessageComposer(guild, 0));
+        this.client.sendResponse(new GuildForumThreadsMessageComposer(guild, this.client.getHabbo(), 0));
     }
 }

@@ -3,6 +3,7 @@ package com.eu.habbo.habbohotel.guilds.forums;
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.guilds.Guild;
 import com.eu.habbo.habbohotel.users.Habbo;
+import com.eu.habbo.habbohotel.users.HabboInfo;
 import com.eu.habbo.messages.ISerialize;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.plugin.events.guilds.forums.GuildForumThreadBeforeCreated;
@@ -18,6 +19,16 @@ import java.util.*;
 public class ForumThread implements Runnable, ISerialize {
     private static final Logger LOGGER = LoggerFactory.getLogger(ForumThread.class);
 
+    private static final String LAST_COMMENT_JOIN =
+            "LEFT JOIN (" +
+                    "SELECT C.* " +
+                    "FROM guilds_forums_comments C " +
+                    "INNER JOIN (" +
+                    "SELECT thread_id, MAX(id) AS id " +
+                    "FROM guilds_forums_comments " +
+                    "GROUP BY thread_id" +
+                    ") L ON L.id = C.id" +
+                    ") B ON A.id = B.thread_id ";
 
     private final static THashMap<Integer, THashSet<ForumThread>> guildThreadsCache = new THashMap<>();
     private final static THashMap<Integer, ForumThread> forumThreadsCache = new THashMap<>();
@@ -135,19 +146,9 @@ public class ForumThread implements Runnable, ISerialize {
 
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT A.*, B.`id` AS `last_comment_id` " +
                 "FROM guilds_forums_threads A " +
-                "JOIN (" +
-                "SELECT * " +
-                "FROM `guilds_forums_comments` " +
-                "WHERE `id` IN (" +
-                "SELECT MAX(id) " +
-                "FROM `guilds_forums_comments` B " +
-                "GROUP BY `thread_id` AND B.`id` " +
-                "ORDER BY B.`id` " +
-                ") " +
-                "ORDER BY `id` DESC " +
-                ") B ON A.`id` = B.`thread_id` " +
+                LAST_COMMENT_JOIN +
                 "WHERE A.`guild_id` = ? " +
-                "ORDER BY A.`pinned` DESC, B.`created_at` DESC "
+                "ORDER BY A.`pinned` DESC, COALESCE(B.`created_at`, A.`updated_at`) DESC "
         )) {
             statement.setInt(1, guildId);
 
@@ -176,19 +177,9 @@ public class ForumThread implements Runnable, ISerialize {
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement(
                 "SELECT A.*, B.`id` AS `last_comment_id` " +
                         "FROM guilds_forums_threads A " +
-                        "JOIN (" +
-                        "SELECT * " +
-                        "FROM `guilds_forums_comments` " +
-                        "WHERE `id` IN (" +
-                        "SELECT MAX(id) " +
-                        "FROM `guilds_forums_comments` B " +
-                        "GROUP BY `thread_id` AND b.`id`" +
-                        "ORDER BY B.`id` " +
-                        ") " +
-                        "ORDER BY `id` DESC " +
-                        ") B ON A.`id` = B.`thread_id` " +
+                        LAST_COMMENT_JOIN +
                         "WHERE A.`id` = ? " +
-                        "ORDER BY A.`pinned` DESC, B.`created_at` DESC " +
+                        "ORDER BY A.`pinned` DESC, COALESCE(B.`created_at`, A.`updated_at`) DESC " +
                         "LIMIT 1"
         )) {
             statement.setInt(1, threadId);
@@ -402,20 +393,26 @@ public class ForumThread implements Runnable, ISerialize {
 
     @Override
     public void serialize(ServerMessage message) {
-        Habbo opener = Emulator.getGameEnvironment().getHabboManager().getHabbo(this.openerId);
-        Habbo admin = Emulator.getGameEnvironment().getHabboManager().getHabbo(this.adminId);
+        this.serialize(message, 0);
+    }
+
+    public void serialize(ServerMessage message, int lastSeenAt) {
+        HabboInfo opener = Emulator.getGameEnvironment().getHabboManager().getHabboInfo(this.openerId);
+        HabboInfo admin = Emulator.getGameEnvironment().getHabboManager().getHabboInfo(this.adminId);
 
         Collection<ForumThreadComment> comments = this.getComments();
-        int lastSeenAt = 0;
         int totalComments = comments.size();
         int newComments = 0;
         ForumThreadComment lastComment = this.lastComment;
 
+        for (ForumThreadComment comment : comments) {
+            if (comment.getCreatedAt() > lastSeenAt) {
+                newComments++;
+            }
+        }
+
         if (lastComment == null) {
             for (ForumThreadComment comment : comments) {
-                if (comment.getCreatedAt() > lastSeenAt) {
-                    newComments++;
-                }
                 if (lastComment == null || lastComment.getCreatedAt() < comment.getCreatedAt()) {
                     lastComment = comment;
                 }
@@ -423,12 +420,12 @@ public class ForumThread implements Runnable, ISerialize {
             this.lastComment = lastComment;
         }
 
-        Habbo lastAuthor = lastComment != null ? lastComment.getHabbo() : null;
+        HabboInfo lastAuthor = lastComment != null ? Emulator.getGameEnvironment().getHabboManager().getHabboInfo(lastComment.getUserId()) : null;
 
         int nowTimestamp = Emulator.getIntUnixTimestamp();
         message.appendInt(this.threadId);
         message.appendInt(this.openerId);
-        message.appendString(opener != null ? opener.getHabboInfo().getUsername() : "");
+        message.appendString(opener != null ? opener.getUsername() : "");
         message.appendString(this.subject);
         message.appendBoolean(this.pinned);
         message.appendBoolean(this.locked);
@@ -437,12 +434,12 @@ public class ForumThread implements Runnable, ISerialize {
         message.appendInt(newComments); // unread comments
         message.appendInt(1);
 
-        message.appendInt(lastAuthor != null ? lastAuthor.getHabboInfo().getId() : -1);
-        message.appendString(lastAuthor != null ? lastAuthor.getHabboInfo().getUsername() : "");
+        message.appendInt(lastAuthor != null ? lastAuthor.getId() : -1);
+        message.appendString(lastAuthor != null ? lastAuthor.getUsername() : "");
         message.appendInt(nowTimestamp - (lastComment != null ? lastComment.getCreatedAt() : this.updatedAt));
         message.appendByte(this.state.getStateId());
         message.appendInt(this.adminId);
-        message.appendString(admin != null ? admin.getHabboInfo().getUsername() : "");
+        message.appendString(admin != null ? admin.getUsername() : "");
         message.appendInt(this.threadId);
     }
 

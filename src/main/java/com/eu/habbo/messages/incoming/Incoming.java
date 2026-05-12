@@ -30,6 +30,7 @@ public class Incoming {
     public static final int RemoveOwnRoomRightsRoomMessageEvent = 3182;
     public static final int RejectMembershipRequestMessageEvent = 1894;
     public static final int AnswerPollEvent = 3505;
+    public static final int VotePollCounterEvent = 6200;
     public static final int SetActivatedBadgesEvent = 644;
     public static final int RateFlatMessageEvent = 3582;
     public static final int SignMessageEvent = 1975;
@@ -262,6 +263,7 @@ public class Incoming {
     public static final int GetNowPlayingMessageEvent = 1325;
     public static final int GetUserSongDisksMessageEvent = 2304;
     public static final int GetJukeboxPlayListMessageEvent = 1435;
+    public static final int GetSoundMachinePlayListMessageEvent = 3498;
     public static final int RoomUserMuteMessageEvent = 3485;
     //public static final int JukeBoxEventThree = 3846;
     public static final int DeleteRoomMessageEvent = 532;

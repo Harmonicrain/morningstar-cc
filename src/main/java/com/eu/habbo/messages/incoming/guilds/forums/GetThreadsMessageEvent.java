@@ -21,6 +21,6 @@ public class GetThreadsMessageEvent extends MessageHandler {
         }
 
         this.client.sendResponse(new ForumDataMessageComposer(guild, this.client.getHabbo()));
-        this.client.sendResponse(new GuildForumThreadsMessageComposer(guild, index));
+        this.client.sendResponse(new GuildForumThreadsMessageComposer(guild, this.client.getHabbo(), index));
     }
 }

@@ -44,6 +44,9 @@ public class FriendRequest extends RCONMessage<FriendRequest.JSON> {
                     }
                 }
             }
+        } else {
+            this.status = RCONMessage.STATUS_ERROR;
+            this.message = "Friend request already exists";
         }
     }
 

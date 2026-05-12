@@ -16,6 +16,8 @@ public class AlertUser extends RCONMessage<AlertUser.JSONAlertUser> {
 
         if (habbo != null) {
             habbo.alert(object.message);
+            this.status = RCONMessage.STATUS_OK;
+            return;
         }
 
         this.status = RCONMessage.HABBO_NOT_FOUND;

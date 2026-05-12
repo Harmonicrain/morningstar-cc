@@ -40,7 +40,7 @@ public class UpdateThreadMessageEvent extends MessageHandler {
 
         boolean isAdmin = (guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || member.getRank().type < GuildRank.MEMBER.type);
 
-        if ((guild.canModForum() == SettingsState.OWNER && guild.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() && !isStaff) || (guild.canModForum() == SettingsState.ADMINS && !isAdmin && !isStaff)) {
+        if ((guild.canModForum() == SettingsState.OWNER && guild.getOwnerId() != this.client.getHabbo().getHabboInfo().getId() && !isStaff) || (guild.canModForum() == SettingsState.ADMINS && !isAdmin && !isStaff)) {
             this.client.sendResponse(new ErrorReportMessageComposer(403));
             return;
         }
@@ -63,7 +63,7 @@ public class UpdateThreadMessageEvent extends MessageHandler {
         this.client.sendResponse(new ThreadUpdatedMessageComposer(guild, thread, this.client.getHabbo(), isPinned, isLocked));
 
         if (pinChanged) {
-            this.client.sendResponse(new GuildForumThreadsMessageComposer(guild, 0));
+            this.client.sendResponse(new GuildForumThreadsMessageComposer(guild, this.client.getHabbo(), 0));
         }
     }
 }

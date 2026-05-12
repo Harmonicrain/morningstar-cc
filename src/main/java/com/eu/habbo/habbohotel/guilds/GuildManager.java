@@ -635,29 +635,47 @@ public class GuildManager {
     }
 
     public boolean hasViewedForum(int userId, int guildId) {
-        return this.views.stream()
-                .anyMatch(v -> v.getUserId() == userId && v.getGuildId() == guildId && v.getTimestamp() > (Emulator.getIntUnixTimestamp() - 7 * 24 * 60 * 60));
+        int cutoff = Emulator.getIntUnixTimestamp() - 7 * 24 * 60 * 60;
+        synchronized (this.views) {
+            return this.views.stream()
+                    .anyMatch(v -> v.getUserId() == userId && v.getGuildId() == guildId && v.getTimestamp() > cutoff);
+        }
     }
 
     public void addView(int userId, int guildId) {
         ForumView view = new ForumView(userId, guildId, Emulator.getIntUnixTimestamp());
 
-        this.views.add(view);
+        synchronized (this.views) {
+            this.views.removeIf(v -> v.getUserId() == userId && v.getGuildId() == guildId);
+            this.views.add(view);
+        }
 
-        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("INSERT INTO `guild_forum_views`(`user_id`, `guild_id`, `timestamp`) VALUES (?, ?, ?)")) {
-            statement.setInt(1, view.getUserId());
-            statement.setInt(2, view.getGuildId());
-            statement.setInt(3, view.getTimestamp());
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
+            try (PreparedStatement delete = connection.prepareStatement("DELETE FROM `guild_forum_views` WHERE `user_id` = ? AND `guild_id` = ?")) {
+                delete.setInt(1, view.getUserId());
+                delete.setInt(2, view.getGuildId());
+                delete.executeUpdate();
+            }
 
-            statement.execute();
+            try (PreparedStatement insert = connection.prepareStatement("INSERT INTO `guild_forum_views`(`user_id`, `guild_id`, `timestamp`) VALUES (?, ?, ?)")) {
+                insert.setInt(1, view.getUserId());
+                insert.setInt(2, view.getGuildId());
+                insert.setInt(3, view.getTimestamp());
+                insert.executeUpdate();
+            }
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);
         }
     }
 
     public Set<Guild> getMostViewed() {
-        return this.views.stream()
-                .filter(v -> v.getTimestamp() > (Emulator.getIntUnixTimestamp() - 7 * 24 * 60 * 60))
+        int cutoff = Emulator.getIntUnixTimestamp() - 7 * 24 * 60 * 60;
+        List<ForumView> snapshot;
+        synchronized (this.views) {
+            snapshot = new ArrayList<>(this.views);
+        }
+        return snapshot.stream()
+                .filter(v -> v.getTimestamp() > cutoff)
                 .collect(Collectors.groupingBy(ForumView::getGuildId))
                 .entrySet()
                 .stream()
