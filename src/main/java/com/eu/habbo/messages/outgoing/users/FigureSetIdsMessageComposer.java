@@ -7,14 +7,21 @@ import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.MessageComposer;
 import com.eu.habbo.messages.outgoing.Outgoing;
 import gnu.trove.procedure.TIntProcedure;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 
 public class FigureSetIdsMessageComposer extends MessageComposer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(FigureSetIdsMessageComposer.class);
     private final ArrayList<Integer> idList = new ArrayList<>();
     private final ArrayList<String> nameList = new ArrayList<>();
 
     public FigureSetIdsMessageComposer(Habbo habbo) {
+        LOGGER.debug("[FigureSetIds] Building for user {} (id={}), clothing count={}",
+            habbo.getHabboInfo().getUsername(), habbo.getHabboInfo().getId(),
+            habbo.getInventory().getWardrobeComponent().getClothing().size());
+
         habbo.getInventory().getWardrobeComponent().getClothing().forEach(new TIntProcedure() {
             @Override
             public boolean execute(int value) {
@@ -26,11 +33,15 @@ public class FigureSetIdsMessageComposer extends MessageComposer {
                     }
 
                     FigureSetIdsMessageComposer.this.nameList.add(item.name);
+                } else {
+                    LOGGER.warn("[FigureSetIds] clothing_id={} NOT FOUND in CatalogManager.clothing!", value);
                 }
 
                 return true;
             }
         });
+
+        LOGGER.debug("[FigureSetIds] Sending {} setIds={}, names={}", this.idList.size(), this.idList, this.nameList);
     }
 
     @Override

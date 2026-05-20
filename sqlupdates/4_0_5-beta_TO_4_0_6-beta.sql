@@ -8,6 +8,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 ALTER TABLE `permissions`
     ADD COLUMN IF NOT EXISTS `acc_public_pick` ENUM('0','1') NOT NULL DEFAULT '0' AFTER `acc_staff_pick`;
 
+ALTER TABLE `permissions`
+    ADD COLUMN IF NOT EXISTS `cmd_room_poll` ENUM('0','1') NOT NULL DEFAULT '0' AFTER `cmd_roommute`;
+
 DROP TEMPORARY TABLE IF EXISTS `tmp_official_view_navigator_settings`;
 
 CREATE TEMPORARY TABLE `tmp_official_view_navigator_settings` AS
@@ -37,5 +40,14 @@ INSERT IGNORE INTO `emulator_settings` (`key`, `value`) VALUES
 ('navigator.legacy.search.ad.title', ''),
 ('navigator.legacy.search.ad.description', ''),
 ('navigator.legacy.search.ad.image', '');
+
+UPDATE `emulator_texts`
+SET `value` = TRIM(BOTH ';' FROM REPLACE(REPLACE(CONCAT(';', `value`, ';'), ';roompoll;', ';'), ';room_poll;', ';'))
+WHERE `key` = 'commands.keys.cmd_word_quiz'
+  AND CONCAT(';', `value`, ';') REGEXP ';roompoll;|;room_poll;';
+
+INSERT IGNORE INTO `emulator_texts` (`key`, `value`) VALUES
+('commands.keys.cmd_room_poll', 'roompoll;room_poll'),
+('commands.description.cmd_room_poll', ':roompoll <seconds> <question>;<choice1>;<choice2>;...');
 
 SET FOREIGN_KEY_CHECKS = 1;

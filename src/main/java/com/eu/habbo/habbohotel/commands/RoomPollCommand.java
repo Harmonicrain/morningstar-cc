@@ -11,7 +11,7 @@ import java.util.List;
 public class RoomPollCommand extends Command {
 
     public RoomPollCommand() {
-        super("cmd_room_poll", new String[]{"roompoll"});
+        super("cmd_room_poll", Emulator.getTexts().getValue("commands.keys.cmd_room_poll").split(";"));
     }
 
     @Override
