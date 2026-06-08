@@ -79,7 +79,7 @@ public class InteractionGymEquipment extends InteractionEffectTile implements IC
 
             if (habbo != null) {
                 int timestamp = Emulator.getIntUnixTimestamp();
-                if (timestamp - this.startTime >= 120) {
+                if (timestamp - this.startTime >= 60) {
                     String achievement = this.achievementName();
 
                     if (!achievement.isEmpty()) {
