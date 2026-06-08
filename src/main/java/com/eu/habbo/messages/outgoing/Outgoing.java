@@ -519,6 +519,7 @@ public class Outgoing {
     public final static int CompetitionVotingInfoMessageComposer = 3506;
     public final static int IdentityAccountsMessageComposer = 3523;
     public final static int DisconnectReasonMessageComposer = 4000;
+    public final static int FurniDataReloadMessageComposer = 4001;
     public final static int LimitedOfferAppearingNextMessageComposer = 44;
     public final static int SecondsUntilMessageComposer = 3926;
     public final static int BotSkillListUpdateMessageComposer = 69;

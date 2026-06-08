@@ -279,6 +279,7 @@ public class CommandHandler {
         addCommand(new UpdateCalendarCommand());
         addCommand(new UpdateCatalogCommand());
         addCommand(new UpdateConfigCommand());
+        addCommand(new UpdateFurniDataCommand());
         addCommand(new UpdateGuildPartsCommand());
         addCommand(new UpdateHotelViewCommand());
         addCommand(new UpdateItemsCommand());
