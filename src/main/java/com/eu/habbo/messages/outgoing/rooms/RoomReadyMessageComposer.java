@@ -1,5 +1,6 @@
 package com.eu.habbo.messages.outgoing.rooms;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.MessageComposer;
@@ -17,6 +18,7 @@ public class RoomReadyMessageComposer extends MessageComposer {
         this.response.init(Outgoing.RoomReadyMessageComposer);
         this.response.appendString(this.room.getLayout().getName());
         this.response.appendInt(this.room.getId());
+        this.response.appendBoolean(Emulator.getGameEnvironment().getRoomManager().isPublicModel(this.room.getLayout().getName()));
         return this.response;
     }
 

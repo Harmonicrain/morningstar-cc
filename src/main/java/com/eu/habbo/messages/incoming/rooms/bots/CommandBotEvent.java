@@ -34,6 +34,9 @@ public class CommandBotEvent extends MessageHandler {
             if (bot == null)
                 return;
 
+            if ("public_room".equals(bot.getType()))
+                return;
+
             int settingId = this.packet.readInt();
 
             switch (settingId) {

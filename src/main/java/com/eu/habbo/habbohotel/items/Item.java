@@ -44,6 +44,46 @@ public class Item implements ISerialize {
         this.load(set);
     }
 
+    private Item() {
+        // In-memory BaseItem with safe defaults; never registered in ItemManager.items.
+    }
+
+    /**
+     * Builds an in-memory synthetic BaseItem for public-room collision objects, without a ResultSet
+     * and without registering in any cache. Used by RoomItemManager.injectPublicItems().
+     */
+    public static Item createPublicSpaceItem(String sprite, boolean allowWalk, boolean allowSit,
+                                             boolean allowLay, boolean allowStack,
+                                             double stackHeight, int width, int length) {
+        Item i = new Item();
+        i.id = 0;                       // never used as a cache key; HabboItem carries the real (negative) id
+        i.spriteId = -1;
+        i.name = "public_" + sprite;
+        i.fullName = i.name;
+        i.type = FurnitureType.FLOOR;
+        i.width = (short) Math.max(1, width);
+        i.length = (short) Math.max(1, length);
+        i.height = stackHeight > 0 ? stackHeight : 1e-6;
+        i.allowWalk = allowWalk;
+        i.allowSit = allowSit;
+        i.allowLay = allowLay;
+        i.allowStack = allowStack;
+        i.allowGift = false;
+        i.allowTrade = false;
+        i.allowInventoryStack = false;
+        i.allowRecyle = false;
+        i.allowMarketplace = false;
+        i.effectM = 0;
+        i.effectF = 0;
+        i.clothingOnWalk = "";
+        i.customParams = "";
+        i.stateCount = 0;
+        i.multiHeights = new double[0];
+        i.rotations = 4;
+        i.interactionType = Emulator.getGameEnvironment().getItemManager().getItemInteraction("default");
+        return i;
+    }
+
     public static boolean isPet(Item item) {
         return item.getName().toLowerCase().startsWith("a0 pet");
     }

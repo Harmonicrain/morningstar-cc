@@ -448,7 +448,7 @@ public class RoomUnitManager {
         this.currentBots.clear();
 
         try (PreparedStatement statement = connection.prepareStatement(
-            "SELECT users.username AS owner_name, bots.* FROM bots INNER JOIN users ON bots.user_id = users.id WHERE room_id = ?")) {
+            "SELECT users.username AS owner_name, bots.* FROM bots LEFT JOIN users ON bots.user_id = users.id WHERE room_id = ?")) {
             statement.setInt(1, this.room.getId());
             try (ResultSet set = statement.executeQuery()) {
                 while (set.next()) {

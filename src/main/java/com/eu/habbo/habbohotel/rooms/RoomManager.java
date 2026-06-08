@@ -74,6 +74,8 @@ public class RoomManager {
     public static boolean SHOW_PUBLIC_IN_POPULAR_TAB = false;
     private final THashMap<Integer, RoomCategory> roomCategories;
     private final List<String> mapNames;
+    private volatile THashSet<String> publicModels;
+    private volatile THashMap<String, List<PublicItem>> publicItems;
     private final ConcurrentHashMap<Integer, Room> activeRooms;
     private final ArrayList<Class<? extends Game>> gameTypes;
 
@@ -81,9 +83,12 @@ public class RoomManager {
         long millis = System.currentTimeMillis();
         this.roomCategories = new THashMap<>();
         this.mapNames = new ArrayList<>();
+        this.publicModels = new THashSet<>();
+        this.publicItems = new THashMap<>();
         this.activeRooms = new ConcurrentHashMap<>();
         this.loadRoomCategories();
         this.loadRoomModels();
+        this.loadPublicItems();
 
         this.gameTypes = new ArrayList<>();
 
@@ -99,13 +104,65 @@ public class RoomManager {
     }
 
     public void loadRoomModels() {
-        this.mapNames.clear();
+        List<String> loadedMapNames = new ArrayList<>();
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); Statement statement = connection.createStatement(); ResultSet set = statement.executeQuery("SELECT * FROM room_models")) {
             while (set.next()) {
-                this.mapNames.add(set.getString("name"));
+                loadedMapNames.add(set.getString("name"));
             }
+            this.mapNames.clear();
+            this.mapNames.addAll(loadedMapNames);
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);
+        }
+    }
+
+    public boolean isPublicModel(String name) {
+        return name != null && this.publicModels.contains(name);
+    }
+
+    public void loadPublicItems() {
+        THashMap<String, List<PublicItem>> loadedItems = new THashMap<>();
+        THashSet<String> loadedPublicModels = new THashSet<>();
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT * FROM public_items ORDER BY room_model, id");
+             ResultSet set = statement.executeQuery()) {
+            while (set.next()) {
+                String model = set.getString("room_model");
+                loadedPublicModels.add(model);
+                if (!loadedItems.containsKey(model)) {
+                    loadedItems.put(model, new ArrayList<>());
+                }
+
+                loadedItems.get(model).add(new PublicItem(set));
+            }
+
+            // Atomic publish: swap the references so concurrent readers (rooms loading on the pool
+            // thread while /updatenavigator re-runs this) always see a complete, consistent snapshot.
+            // Trove maps are not thread-safe, so an in-place clear()+putAll() could be observed mid-way.
+            this.publicItems = loadedItems;
+            this.publicModels = loadedPublicModels;
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
+    }
+
+    public List<PublicItem> getPublicItems(String roomModel) {
+        List<PublicItem> items = this.publicItems.get(roomModel);
+        if (items == null) {
+            return Collections.emptyList();
+        }
+
+        return items;
+    }
+
+    public void refreshActivePublicRoomItems() {
+        for (Room room : this.activeRooms.values()) {
+            if (room == null || room.getLayout() == null || !room.isLoaded()) {
+                continue;
+            }
+
+            String modelName = room.getLayout().getName();
+            room.refreshPublicItems(this.isPublicModel(modelName) ? this.getPublicItems(modelName) : Collections.emptyList());
         }
     }
 
@@ -887,6 +944,10 @@ public class RoomManager {
 
             habbo.getClient().sendResponse(new ObjectsMessageComposer(room.getFurniOwnerNames(), floorItems));
             floorItems.clear();
+        }
+
+        if (this.isPublicModel(room.getLayout().getName())) {
+            habbo.getClient().sendResponse(new PublicRoomObjectsMessageComposer(room, this.getPublicItems(room.getLayout().getName())));
         }
 
         if (!room.getCurrentPets().isEmpty()) {

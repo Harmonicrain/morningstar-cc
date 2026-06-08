@@ -11,6 +11,9 @@ import com.eu.habbo.messages.outgoing.Outgoing;
 import java.util.Collection;
 
 public class UsersMessageComposer extends MessageComposer {
+    private static final int USER_TYPE_BOT = 3;
+    private static final int USER_TYPE_RENTABLE_BOT = 4;
+
     private Habbo habbo;
     private Collection<Habbo> habbos;
     private Bot bot;
@@ -95,60 +98,47 @@ public class UsersMessageComposer extends MessageComposer {
             }
         } else if (this.bot != null) {
             this.response.appendInt(1);
-            this.response.appendInt(0 - this.bot.getId());
-            this.response.appendString(this.bot.getName());
-            this.response.appendString(this.bot.getMotto());
-            this.response.appendString(this.bot.getFigure());
-            this.response.appendInt(this.bot.getRoomUnit().getId());
-            this.response.appendInt(this.bot.getRoomUnit().getX());
-            this.response.appendInt(this.bot.getRoomUnit().getY());
-            this.response.appendString(this.bot.getRoomUnit().getZ() + "");
-            this.response.appendInt(this.bot.getRoomUnit().getBodyRotation().getValue());
-            this.response.appendInt(4);
-            this.response.appendString(this.bot.getGender().name().toUpperCase());
-            this.response.appendInt(this.bot.getOwnerId());
-            this.response.appendString(this.bot.getOwnerName());
-            this.response.appendInt(10);
-            this.response.appendShort(0);
-            this.response.appendShort(1);
-            this.response.appendShort(2);
-            this.response.appendShort(3);
-            this.response.appendShort(4);
-            this.response.appendShort(5);
-            this.response.appendShort(6);
-            this.response.appendShort(7);
-            this.response.appendShort(8);
-            this.response.appendShort(9);
+            this.composeBot(this.bot);
         } else if (this.bots != null) {
             this.response.appendInt(this.bots.size());
             for (Bot bot : this.bots) {
-                this.response.appendInt(0 - bot.getId());
-                this.response.appendString(bot.getName());
-                this.response.appendString(bot.getMotto());
-                this.response.appendString(bot.getFigure());
-                this.response.appendInt(bot.getRoomUnit().getId());
-                this.response.appendInt(bot.getRoomUnit().getX());
-                this.response.appendInt(bot.getRoomUnit().getY());
-                this.response.appendString(bot.getRoomUnit().getZ() + "");
-                this.response.appendInt(bot.getRoomUnit().getBodyRotation().getValue());
-                this.response.appendInt(4);
-                this.response.appendString(bot.getGender().name().toUpperCase());
-                this.response.appendInt(bot.getOwnerId());
-                this.response.appendString(bot.getOwnerName());
-                this.response.appendInt(10);
-                this.response.appendShort(0);
-                this.response.appendShort(1);
-                this.response.appendShort(2);
-                this.response.appendShort(3);
-                this.response.appendShort(4);
-                this.response.appendShort(5);
-                this.response.appendShort(6);
-                this.response.appendShort(7);
-                this.response.appendShort(8);
-                this.response.appendShort(9);
+                this.composeBot(bot);
             }
         }
         return this.response;
+    }
+
+    private void composeBot(Bot bot) {
+        this.response.appendInt(0 - bot.getId());
+        this.response.appendString(bot.getName());
+        this.response.appendString(bot.getMotto());
+        this.response.appendString(bot.getFigure());
+        this.response.appendInt(bot.getRoomUnit().getId());
+        this.response.appendInt(bot.getRoomUnit().getX());
+        this.response.appendInt(bot.getRoomUnit().getY());
+        this.response.appendString(bot.getRoomUnit().getZ() + "");
+        this.response.appendInt(bot.getRoomUnit().getBodyRotation().getValue());
+
+        if ("public_room".equals(bot.getType())) {
+            this.response.appendInt(USER_TYPE_BOT);
+            return;
+        }
+
+        this.response.appendInt(USER_TYPE_RENTABLE_BOT);
+        this.response.appendString(bot.getGender().name().toUpperCase());
+        this.response.appendInt(bot.getOwnerId());
+        this.response.appendString(bot.getOwnerName());
+        this.response.appendInt(10);
+        this.response.appendShort(0);
+        this.response.appendShort(1);
+        this.response.appendShort(2);
+        this.response.appendShort(3);
+        this.response.appendShort(4);
+        this.response.appendShort(5);
+        this.response.appendShort(6);
+        this.response.appendShort(7);
+        this.response.appendShort(8);
+        this.response.appendShort(9);
     }
 
     public Habbo getHabbo() {

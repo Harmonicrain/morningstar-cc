@@ -305,6 +305,7 @@ public class Outgoing {
     public final static int QuestionMessageComposer = 2665; // PRODUCTION-201611291003-338511768
     public final static int StartRoomPollMessageComposer = 5200;
     public final static int RoomPollResultMessageComposer = 5201;
+    public final static int PublicRoomObjectsMessageComposer = 5202;
     public final static int YouAreNotControllerMessageComposer = 2392; // PRODUCTION-201611291003-338511768
     public final static int GuildEditFailedMessageComposer = 3988; // PRODUCTION-201611291003-338511768
     public final static int MiniMailNewMessageMessageComposer = 1911; // PRODUCTION-201611291003-338511768

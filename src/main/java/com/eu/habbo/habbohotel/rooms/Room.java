@@ -536,6 +536,19 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
         LOGGER.error("Error waiting for items to load", e);
       }
 
+      // Inject public-room collision objects before the heightmap is computed, so the heightmap
+      // sweep naturally includes them (no manual tileCache rebuild needed). Gated on the same
+      // model-based condition used when sending PublicRoomObjectsMessageComposer.
+      try {
+        RoomManager roomManager = Emulator.getGameEnvironment().getRoomManager();
+        String layoutName = this.getLayout() != null ? this.getLayout().getName() : null;
+        if (layoutName != null && roomManager.isPublicModel(layoutName)) {
+          this.itemManager.injectPublicItems(roomManager.getPublicItems(layoutName));
+        }
+      } catch (Exception e) {
+        LOGGER.error("Caught exception injecting public items", e);
+      }
+
       // Phase 3: Load heightmap after items are loaded (depends on items for stack
       // heights)
       try {
@@ -640,6 +653,12 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     }
   }
 
+  public synchronized void refreshPublicItems(List<PublicItem> publicItems) {
+    this.itemManager.injectPublicItems(publicItems);
+    this.tileCache.clear();
+    this.loadHeightmap();
+  }
+
   private synchronized void loadItems(Connection connection) {
     this.itemManager.loadItems(connection);
   }
@@ -652,7 +671,7 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     this.unitManager.clearBots();
 
     try (PreparedStatement statement = connection.prepareStatement(
-        "SELECT users.username AS owner_name, bots.* FROM bots INNER JOIN users ON bots.user_id = users.id WHERE room_id = ?")) {
+        "SELECT users.username AS owner_name, bots.* FROM bots LEFT JOIN users ON bots.user_id = users.id WHERE room_id = ?")) {
       statement.setInt(1, this.id);
       try (ResultSet set = statement.executeQuery()) {
         while (set.next()) {

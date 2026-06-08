@@ -86,6 +86,9 @@ public class RoomItemManager {
     // Tile cache for item lookups
     public final ConcurrentHashMap<RoomTile, THashSet<HabboItem>> tileCache;
 
+    // Number of synthetic public-room collision objects currently injected (excluded from itemCount)
+    private volatile int publicSpaceItemCount = 0;
+
     // Builder's Club virtual ID mapping
     private static final int BC_VISIBLE_ID_BASE = 0x7FFF0000;
     private final ConcurrentHashMap<Integer, Integer> bcVisibleIdByRealId = new ConcurrentHashMap<>();
@@ -299,7 +302,7 @@ public class RoomItemManager {
      * Gets the total item count.
      */
     public int itemCount() {
-        return this.roomItems.size();
+        return this.roomItems.size() - this.publicSpaceItemCount;
     }
 
     /**
@@ -316,7 +319,8 @@ public class RoomItemManager {
                 break;
             }
 
-            if (iterator.value().getBaseItem().getType() == FurnitureType.FLOOR) {
+            if (iterator.value().getBaseItem().getType() == FurnitureType.FLOOR
+                    && !iterator.value().isPublicSpaceObject()) {
                 items.add(iterator.value());
             }
         }
@@ -338,7 +342,8 @@ public class RoomItemManager {
                 break;
             }
 
-            if (iterator.value().getBaseItem().getType() == FurnitureType.WALL) {
+            if (iterator.value().getBaseItem().getType() == FurnitureType.WALL
+                    && !iterator.value().isPublicSpaceObject()) {
                 items.add(iterator.value());
             }
         }
@@ -654,6 +659,77 @@ public class RoomItemManager {
     }
 
     // ==================== ITEM MANIPULATION ====================
+
+    /**
+     * Injects public-room collision objects (from public_items) as synthetic, non-persistent
+     * HabboItems so the existing walk/sit/stack/height/pathfinding logic treats them like floor
+     * furniture. Builds fresh instances per room (HabboItem is mutable — never share across rooms)
+     * and uses negative ids that cannot collide with real positive auto-increment ids. Uses a direct
+     * put, bypassing addHabboItem() to avoid broadcasting and the owner-name lookup.
+     *
+     * Removal and re-insertion happen under a single lock so a concurrent reader never observes the
+     * room mid-refresh with its collision objects missing.
+     */
+    public void injectPublicItems(List<PublicItem> publicItems) {
+        synchronized (this.roomItems) {
+            this.removePublicItemsLocked();
+
+            int injected = 0;
+            if (publicItems != null) {
+                int nextId = -1;
+                for (PublicItem p : publicItems) {
+                    if (!p.hasBehaviour()) {
+                        continue; // visual-only -> not a collision object
+                    }
+
+                    Item base = Item.createPublicSpaceItem(p.getSprite(),
+                            p.allowWalk(), p.allowSit(), p.allowLay(), p.allowStack(),
+                            p.getTopHeight(), p.getWidth(), p.getLength());
+
+                    InteractionPublicItem item = new InteractionPublicItem(nextId--, base);
+                    item.setX((short) p.getX());
+                    item.setY((short) p.getY());
+                    item.setZ(p.getZ());
+                    item.setRotation(p.getRotation());
+                    item.setRoomId(this.room.getId());
+
+                    this.roomItems.put(item.getId(), item);
+                    injected++;
+                }
+            }
+
+            this.publicSpaceItemCount = injected;
+        }
+
+        this.tileCache.clear();
+    }
+
+    public void removePublicItems() {
+        synchronized (this.roomItems) {
+            this.removePublicItemsLocked();
+        }
+
+        this.tileCache.clear();
+    }
+
+    // Removes synthetic public-room objects. Caller must hold the this.roomItems monitor.
+    private void removePublicItemsLocked() {
+        TIntObjectIterator<HabboItem> iterator = this.roomItems.iterator();
+        for (int i = this.roomItems.size(); i-- > 0;) {
+            try {
+                iterator.advance();
+            } catch (Exception e) {
+                break;
+            }
+
+            HabboItem item = iterator.value();
+            if (item != null && item.isPublicSpaceObject()) {
+                iterator.remove();
+            }
+        }
+
+        this.publicSpaceItemCount = 0;
+    }
 
     /**
      * Adds an item to the room.
@@ -1014,6 +1090,10 @@ public class RoomItemManager {
             return;
         }
 
+        if (item.isPublicSpaceObject()) {
+            return; // synthetic public-room objects are never picked up / ejected
+        }
+
         if (Emulator.getPluginManager().isRegistered(FurniturePickedUpEvent.class, true)) {
             FurniturePickedUpEvent event = Emulator.getPluginManager()
                     .fireEvent(new FurniturePickedUpEvent(item, picker));
@@ -1055,6 +1135,10 @@ public class RoomItemManager {
     public void pickUpBuildersClubItem(HabboItem item, Habbo picker) {
         if (item == null || !item.isBuildersClub()) {
             return;
+        }
+
+        if (item.isPublicSpaceObject()) {
+            return; // synthetic public-room objects are never picked up / ejected
         }
 
         if (Emulator.getPluginManager().isRegistered(FurniturePickedUpEvent.class, true)) {
@@ -1632,6 +1716,10 @@ public class RoomItemManager {
      */
     public FurnitureMovementError moveFurniTo(HabboItem item, RoomTile tile, int rotation, Habbo actor,
             boolean sendUpdates, boolean checkForUnits) {
+        if (item.isPublicSpaceObject()) {
+            return FurnitureMovementError.NO_RIGHTS; // public-room objects are immovable, even for staff
+        }
+
         RoomLayout layout = this.room.getLayout();
         RoomTile oldLocation = layout.getTile(item.getX(), item.getY());
 

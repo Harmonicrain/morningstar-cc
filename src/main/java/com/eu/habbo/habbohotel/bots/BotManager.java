@@ -41,6 +41,7 @@ public class BotManager {
         addBotDefinition("generic", Bot.class);
         addBotDefinition("bartender", ButlerBot.class);
         addBotDefinition("visitor_log", VisitorBot.class);
+        addBotDefinition("public_room", PublicRoomBot.class);
 
         this.reload();
 
@@ -168,6 +169,10 @@ public class BotManager {
     }
 
     public void pickUpBot(Bot bot, Habbo habbo) {
+        if (bot == null || "public_room".equals(bot.getType())) {
+            return;
+        }
+
         HabboInfo receiverInfo = habbo == null ? Emulator.getGameEnvironment().getHabboManager().getHabboInfo(bot.getOwnerId()) : habbo.getHabboInfo();
 
         if (bot != null) {

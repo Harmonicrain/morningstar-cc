@@ -85,7 +85,8 @@ public class Bot implements Runnable {
         this.figure = set.getString("figure");
         this.gender = HabboGender.valueOf(set.getString("gender"));
         this.ownerId = set.getInt("user_id");
-        this.ownerName = set.getString("owner_name");
+        String loadedOwnerName = set.getString("owner_name");
+        this.ownerName = loadedOwnerName == null || loadedOwnerName.isBlank() ? "Hotel" : loadedOwnerName;
         this.chatAuto = set.getString("chat_auto").equals("1");
         this.chatRandom = set.getString("chat_random").equals("1");
         this.chatDelay = set.getShort("chat_delay");

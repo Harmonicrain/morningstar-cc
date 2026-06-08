@@ -22,6 +22,9 @@ public class GetBotCommandConfigurationDataEvent extends MessageHandler {
             if (bot == null)
                 return;
 
+            if ("public_room".equals(bot.getType()))
+                return;
+
             this.client.sendResponse(new BotCommandConfigurationMessageComposer(bot, this.packet.readInt()));
         }
     }

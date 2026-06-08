@@ -280,6 +280,10 @@ public abstract class HabboItem implements Runnable, IEventTriggers {
         return this.baseItem.getRotations();
     }
 
+    public boolean isPublicSpaceObject() {
+        return false;
+    }
+
     @Override
     public void run() {
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
