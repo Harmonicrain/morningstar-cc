@@ -15,8 +15,12 @@ import gnu.trove.set.hash.THashSet;
 import java.util.*;
 
 public class UpdateFloorPropertiesMessageEvent extends MessageHandler {
-    public static int MAXIMUM_FLOORPLAN_WIDTH_LENGTH = 64;
-    public static int MAXIMUM_FLOORPLAN_SIZE = 64 * 64;
+    private static final int DEFAULT_MAXIMUM_FLOORPLAN_WIDTH_LENGTH = 100;
+    private static final int DEFAULT_MAXIMUM_FLOORPLAN_SIZE = 10000;
+    private static final int DEFAULT_BUILDERS_MAXIMUM_FLOORPLAN_SIZE = 10000;
+    private static final String MAX_WIDTH_LENGTH_CONFIG = "hotel.floorplan.max.widthlength";
+    private static final String MAX_TOTAL_AREA_CONFIG = "hotel.floorplan.max.totalarea";
+    private static final String MAX_BUILDERS_TOTAL_AREA_CONFIG = "hotel.floorplan.max.totalarea.builders";
 
     @Override
     public void handle() throws Exception {
@@ -51,12 +55,16 @@ public class UpdateFloorPropertiesMessageEvent extends MessageHandler {
                     errors.add("${notification.floorplan_editor.error.message.effective_height_is_0}");
                 }
 
-                if (map.length() > MAXIMUM_FLOORPLAN_SIZE) {
+                int maximumFloorplanWidthLength = Emulator.getConfig().getInt(MAX_WIDTH_LENGTH_CONFIG, DEFAULT_MAXIMUM_FLOORPLAN_WIDTH_LENGTH);
+                int maximumFloorplanSize = maximumFloorplanSize();
+                int floorplanArea = firstRowSize * mapRows.length;
+
+                if (floorplanArea > maximumFloorplanSize) {
                     errors.add("${notification.floorplan_editor.error.message.too_large_area}");
                 }
 
-                if (mapRows.length > MAXIMUM_FLOORPLAN_WIDTH_LENGTH) errors.add("${notification.floorplan_editor.error.message.too_large_height}");
-                else if (Arrays.stream(mapRows).anyMatch(l -> l.length() > MAXIMUM_FLOORPLAN_WIDTH_LENGTH || l.length() == 0)) errors.add("${notification.floorplan_editor.error.message.too_large_width}");
+                if (mapRows.length > maximumFloorplanWidthLength) errors.add("${notification.floorplan_editor.error.message.too_large_height}");
+                else if (Arrays.stream(mapRows).anyMatch(l -> l.length() > maximumFloorplanWidthLength || l.length() == 0)) errors.add("${notification.floorplan_editor.error.message.too_large_width}");
 
                 if (errors.length() > 0) {
                     this.client.sendResponse(new NotificationDialogMessageComposer(BubbleAlertKeys.FLOORPLAN_EDITOR_ERROR.key, errors.toString()));
@@ -179,5 +187,13 @@ public class UpdateFloorPropertiesMessageEvent extends MessageHandler {
                 }
             }
         }
+    }
+
+    private int maximumFloorplanSize() {
+        if (this.client.getHabbo().getHabboStats().hasEffectiveBuildersClub()) {
+            return Emulator.getConfig().getInt(MAX_BUILDERS_TOTAL_AREA_CONFIG, DEFAULT_BUILDERS_MAXIMUM_FLOORPLAN_SIZE);
+        }
+
+        return Emulator.getConfig().getInt(MAX_TOTAL_AREA_CONFIG, DEFAULT_MAXIMUM_FLOORPLAN_SIZE);
     }
 }

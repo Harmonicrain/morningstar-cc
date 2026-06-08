@@ -32,7 +32,6 @@ import com.eu.habbo.messages.PacketManager;
 import com.eu.habbo.messages.incoming.camera.PublishPhotoMessageEvent;
 import com.eu.habbo.messages.incoming.camera.PurchasePhotoMessageEvent;
 import com.eu.habbo.messages.incoming.catalog.ApproveNameMessageEvent;
-import com.eu.habbo.messages.incoming.floorplaneditor.UpdateFloorPropertiesMessageEvent;
 import com.eu.habbo.messages.incoming.hotelview.GetLimitedOfferAppearingNextEvent;
 import com.eu.habbo.messages.incoming.rooms.promotions.PurchaseRoomAdMessageEvent;
 import com.eu.habbo.messages.incoming.users.CheckUserNameMessageEvent;
@@ -153,11 +152,6 @@ public class PluginManager {
                 .replace("<br>", "<br/>").replace("<br />", "<br/>").replace("\\r", "\r").replace("\\n", "\n")
                 .replace("\\t", "\t");
         Room.PREFIX_FORMAT = Emulator.getConfig().getValue("room.chat.prefix.format");
-        UpdateFloorPropertiesMessageEvent.MAXIMUM_FLOORPLAN_WIDTH_LENGTH = Emulator.getConfig()
-                .getInt("hotel.floorplan.max.widthlength");
-        UpdateFloorPropertiesMessageEvent.MAXIMUM_FLOORPLAN_SIZE = Emulator.getConfig()
-                .getInt("hotel.floorplan.max.totalarea");
-
         GetLimitedOfferAppearingNextEvent.ENABLED = Emulator.getConfig().getBoolean("hotel.view.ltdcountdown.enabled");
         GetLimitedOfferAppearingNextEvent.TIMESTAMP = Emulator.getConfig().getInt("hotel.view.ltdcountdown.timestamp");
         GetLimitedOfferAppearingNextEvent.ITEM_ID = Emulator.getConfig().getInt("hotel.view.ltdcountdown.itemid");
