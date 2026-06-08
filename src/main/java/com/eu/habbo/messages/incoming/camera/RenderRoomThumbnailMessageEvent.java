@@ -1,13 +1,26 @@
 package com.eu.habbo.messages.incoming.camera;
 
 import com.eu.habbo.Emulator;
+import com.eu.habbo.habbohotel.rooms.Room;
+import com.eu.habbo.imaging.camera.CameraRenderRequest;
 import com.eu.habbo.messages.incoming.MessageHandler;
-import com.eu.habbo.messages.outgoing.camera.ThumbnailStatusMessageComposer;
-import com.eu.habbo.networking.camera.CameraClient;
-import com.eu.habbo.networking.camera.messages.outgoing.CameraRenderImageComposer;
 import com.eu.habbo.util.crypto.ZIP;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.eu.habbo.messages.outgoing.camera.ThumbnailStatusMessageComposer;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class RenderRoomThumbnailMessageEvent extends MessageHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RenderRoomThumbnailMessageEvent.class);
+
+    @Override
+    public int getRatelimit() {
+        return 3000;
+    }
+
     @Override
     public void handle() throws Exception {
         if (!this.client.getHabbo().hasPermission("acc_camera")) {
@@ -15,23 +28,51 @@ public class RenderRoomThumbnailMessageEvent extends MessageHandler {
             return;
         }
 
-        if (!this.client.getHabbo().getHabboInfo().getCurrentRoom().isOwner(this.client.getHabbo()))
-            return;
-
-        if (CameraClient.isLoggedIn) {
-            this.packet.getBuffer().readFloat();
-            byte[] data = this.packet.getBuffer().readBytes(this.packet.getBuffer().readableBytes()).array();
-            String content = new String(ZIP.inflate(data));
-
-            CameraRenderImageComposer composer = new CameraRenderImageComposer(this.client.getHabbo().getHabboInfo().getId(), this.client.getHabbo().getHabboInfo().getCurrentRoom().getBackgroundTonerColor().getRGB(), 110, 110, content);
-
-            this.client.getHabbo().getHabboInfo().setPhotoJSON(Emulator.getConfig().getValue("camera.extradata").replace("%timestamp%", composer.timestamp + ""));
-            this.client.getHabbo().getHabboInfo().setPhotoTimestamp(composer.timestamp);
-
-            Emulator.getCameraClient().sendMessage(composer);
-        } else {
-            this.client.sendResponse(new ThumbnailStatusMessageComposer());
+        if (Emulator.getCameraRenderManager() == null) {
             this.client.getHabbo().alert(Emulator.getTexts().getValue("camera.disabled"));
+            return;
         }
+
+        Room currentRoom = this.client.getHabbo().getHabboInfo().getCurrentRoom();
+        if (currentRoom == null) {
+            return;
+        }
+
+        if (!currentRoom.isOwner(this.client.getHabbo())) {
+            return;
+        }
+
+        this.packet.getBuffer().readFloat(); // consumes the 4-byte ByteArray length prefix from the wire protocol
+
+        String username = this.client.getHabbo().getHabboInfo().getUsername();
+        int userId = this.client.getHabbo().getHabboInfo().getId();
+
+        int compressedLen = this.packet.getBuffer().readableBytes();
+        int maxCompressed = Emulator.getConfig().getInt("camera.limits.compressed.bytes", 16384);
+        if (compressedLen > maxCompressed) {
+            LOGGER.warn("Thumbnail request rejected (compressed payload too large): user={} userId={} size={} limit={}", username, userId, compressedLen, maxCompressed);
+            this.client.sendResponse(new ThumbnailStatusMessageComposer());
+            return;
+        }
+
+        byte[] data = this.packet.getBuffer().readBytes(compressedLen).array();
+
+        int maxInflated = Emulator.getConfig().getInt("camera.limits.inflated.bytes", 262144);
+        byte[] inflated;
+        try {
+            inflated = ZIP.inflate(data, maxInflated);
+        } catch (IOException e) {
+            LOGGER.warn("Thumbnail request rejected (inflate overflow): user={} userId={} compressedLen={} limit={} detail={}", username, userId, compressedLen, maxInflated, e.getMessage());
+            this.client.sendResponse(new ThumbnailStatusMessageComposer());
+            return;
+        }
+        String content = new String(inflated, StandardCharsets.UTF_8);
+
+        int backgroundColor = currentRoom.getBackgroundTonerColor().getRGB();
+        String wallPaint = currentRoom.getWallPaint();
+        int roomId = currentRoom.getId();
+
+        Emulator.getCameraRenderManager().renderThumbnailAsync(
+                CameraRenderRequest.forThumbnail(userId, username, roomId, backgroundColor, wallPaint, content));
     }
 }
