@@ -107,7 +107,22 @@ public abstract class InteractionWiredEffect extends InteractionWired implements
      */
     @Override
     public abstract void execute(WiredContext ctx);
-    
+
+    /**
+     * Legacy execute path (pre-WiredContext). The engine calls
+     * {@link #execute(WiredContext)} for effect execution; this legacy method is
+     * only retained for the old {@link InteractionWired} abstract contract.
+     *
+     * Provided here as a concrete no-op default so NEW effects only need to
+     * implement {@link #execute(WiredContext)}. Existing effects still override
+     * this until they are individually migrated. Without this default, every new
+     * effect would fail to compile (unimplemented abstract from InteractionWired).
+     */
+    @Override
+    public boolean execute(RoomUnit roomUnit, Room room, Object[] stuff) {
+        return false;
+    }
+
     /**
      * Returns whether this effect requires an actor (user) to execute.
      */

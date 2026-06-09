@@ -3,6 +3,8 @@ package com.eu.habbo.habbohotel.items.interactions;
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsNew;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.messages.ClientMessage;
@@ -242,5 +244,67 @@ public abstract class InteractionWired extends InteractionDefault {
 
         settings.setStuffTypeSelectionCode(packet.readInt());
         return settings;
+    }
+
+    /**
+     * Wired 2.0 save reader — matches the new client composer write order
+     * (see wired-port-plan.md "New Server Read Order"). Does NOT read the legacy
+     * stuffTypeSelectionCode (removed from 2.0). Type-specific block is driven by
+     * {@code category}: EFFECT->delay, CONDITION->quantifierCode,
+     * SELECTOR->isFilter+isInvert; others have no type-specific field.
+     */
+    public static WiredSettingsNew readSettingsNew(ClientMessage packet, WiredCategoryType category)
+    {
+        // Common prefix
+        int[] intParams = readCountedInts(packet);
+        String stringParam = packet.readString();
+        int[] furniIds = readCountedInts(packet);
+
+        // Type-specific block
+        int delay = 0;
+        int quantifierCode = 0;
+        boolean isFilter = false;
+        boolean isInvert = false;
+        switch (category) {
+            case EFFECT:
+                delay = packet.readInt();
+                break;
+            case CONDITION:
+                quantifierCode = packet.readInt();
+                break;
+            case SELECTOR:
+                isFilter = packet.readBoolean();
+                isInvert = packet.readBoolean();
+                break;
+            default:
+                break; // TRIGGER, ADDON, VARIABLE: no type-specific field
+        }
+
+        // Common suffix
+        int[] furniSourceTypes = readCountedInts(packet);
+        int[] userSourceTypes = readCountedInts(packet);
+        String[] variableIds = readCountedStrings(packet);
+        int[] furniIds2 = readCountedInts(packet);
+
+        return new WiredSettingsNew(intParams, stringParam, furniIds, furniIds2, variableIds,
+                furniSourceTypes, userSourceTypes, delay, quantifierCode, isFilter, isInvert);
+    }
+
+    private static int[] readCountedInts(ClientMessage packet) {
+        int count = packet.readInt();
+        int[] out = new int[Math.max(count, 0)];
+        for (int i = 0; i < count; i++) {
+            out[i] = packet.readInt();
+        }
+        return out;
+    }
+
+    private static String[] readCountedStrings(ClientMessage packet) {
+        int count = packet.readInt();
+        String[] out = new String[Math.max(count, 0)];
+        for (int i = 0; i < count; i++) {
+            out[i] = packet.readString();
+        }
+        return out;
     }
 }

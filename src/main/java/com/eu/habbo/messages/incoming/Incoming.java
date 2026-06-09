@@ -168,6 +168,27 @@ public class Incoming {
     public static final int GetMemberGuildItemCountMessageEvent = 3593;
     public static final int KickMemberMessageEvent = 593;
     public static final int UpdateConditionMessageEvent = 3203;
+
+    // ===== Wired 2.0 — local collision-free incoming map (client->server). May refs in comments. =====
+    public static final int OpenAckMessageEvent = 7003;                 // May 3084 (reuses clean OpenMessageComposer 768)
+    public static final int UpdateSelectorMessageEvent = 7000;          // May 1155
+    public static final int UpdateAddonMessageEvent = 7001;             // May 3709
+    public static final int UpdateVariableMessageEvent = 7002;          // May 1802
+    public static final int WiredClickUserMessageEvent = 7004;          // May 2769
+    public static final int RequestAllVariablesHashMessageEvent = 7005; // May 2908
+    public static final int RequestVariablesDiffMessageEvent = 7006;    // May 3130
+    public static final int OpenWiredMenuMessageEvent = 7007;           // May 515
+    public static final int WiredMenuInspectSearchMessageEvent = 7008;  // May 2343
+    public static final int ManageWiredVariableMessageEvent = 7009;     // May 249
+    public static final int WiredMenuRefreshMessageEvent = 7010;        // May 597
+    public static final int UpdateWiredPermissionsMessageEvent = 7011;  // May 2557
+    public static final int InspectWiredObjectMessageEvent = 7012;      // May 1216
+    public static final int WiredMenuMarker7013MessageEvent = 7013;     // May 2178
+    public static final int WiredRoomLoggingToggleMessageEvent = 7014;  // May 70
+    public static final int WiredMenuMarker7015MessageEvent = 7015;     // May 2246
+    public static final int WiredMenuComplexInspectMessageEvent = 7016; // May 2032
+    // ===== end Wired 2.0 incoming =====
+
     public static final int LookToMessageEvent = 3301;
     public static final int RoomDimmerChangeStateMessageEvent = 2296;
     public static final int RoomDimmerGetPresetsMessageEvent = 2813;

@@ -162,6 +162,25 @@ public class Outgoing {
     public final static int MarketPlaceOwnOffersMessageComposer = 3884; // PRODUCTION-201611291003-338511768
     public final static int YouAreOwnerMessageComposer = 339; // PRODUCTION-201611291003-338511768
     public final static int WiredConditionDataMessageComposer = 1108; // PRODUCTION-201611291003-338511768
+
+    // ===== Wired 2.0 — local collision-free outgoing map (server->client). May refs in comments. =====
+    public final static int WiredSelectorDataMessageComposer = 7100;   // May 3735
+    public final static int WiredAddonDataMessageComposer = 7101;      // May 2431
+    public final static int WiredVariableDataMessageComposer = 7102;   // May 3573
+    public final static int WiredEnvironmentMessageComposer = 7103;    // May 36
+    public final static int WiredClickUserResponseMessageComposer = 7104; // May 1215
+    public final static int WiredClickSettingsMessageComposer = 7105;  // May 1322
+    public final static int WiredAllVariablesHashMessageComposer = 7106; // May 3007
+    public final static int WiredAllVariablesDiffMessageComposer = 7107; // May 3348
+    public final static int WiredMenuInitMessageComposer = 7108;       // May parser §_-c1q§
+    public final static int WiredMenuListMessageComposer = 7109;       // May parser §_-71n§
+    public final static int WiredMenuSingleValueMessageComposer = 7110;// May parser §_-71V§
+    public final static int WiredMenuMarker7111MessageComposer = 7111; // May parser §_-5c§
+    public final static int WiredMenuMarker7112MessageComposer = 7112; // May parser §_-G3§
+    public final static int WiredMenuMarker7113MessageComposer = 7113; // May parser §_-nT§
+    public final static int WiredMenuHashCountMessageComposer = 7114;  // May parser §_-jM§
+    // ===== end Wired 2.0 outgoing =====
+
     public final static int ModeratorUserInfoMessageComposer = 2866; // PRODUCTION-201611291003-338511768
     public final static int WardrobeMessageComposer = 3315; // PRODUCTION-201611291003-338511768
     public final static int PetExperienceMessageComposer = 2156; // PRODUCTION-201611291003-338511768
