@@ -145,6 +145,26 @@ public class WiredEffectGiveReward extends InteractionWiredEffect {
         }
     }
 
+    // Wired 2.0 getters. furniLimit carries the reward count; rewards are packed into
+    // stringParam; no stuffIds. The legacy 5th int (limit>0) rode the dropped
+    // stuffTypeSelectionCode slot and is not carried in 2.0.
+    @Override
+    protected int getMaxFurniSelection() { return this.rewardItems.size(); }
+
+    @Override
+    protected String getWiredStringParam() {
+        StringBuilder s = new StringBuilder();
+        for (WiredGiveRewardItem item : this.rewardItems) {
+            s.append(item.wiredString()).append(";");
+        }
+        return s.toString();
+    }
+
+    @Override
+    protected int[] getWiredIntParams() {
+        return new int[]{ this.rewardTime, this.uniqueRewards ? 1 : 0, this.limit, this.limitationInterval };
+    }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);

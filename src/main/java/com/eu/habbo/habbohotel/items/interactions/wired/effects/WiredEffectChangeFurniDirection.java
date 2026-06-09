@@ -212,6 +212,18 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
         return type;
     }
 
+    // Wired 2.0 getters (items keyed in a Map; keys are live HabboItems)
+    @Override
+    protected java.util.Collection<HabboItem> getSelectedItems() { return this.items.keySet(); }
+
+    @Override
+    protected boolean supportsFurniPicking() { return true; }
+
+    @Override
+    protected int[] getWiredIntParams() {
+        return new int[]{ this.startRotation != null ? this.startRotation.getValue() : 0, this.blockedAction };
+    }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);

@@ -258,8 +258,8 @@ public abstract class InteractionWired extends InteractionDefault {
         WiredCategoryType category = getWiredCategory();
 
         message.appendInt(getMaxFurniSelection());            // furniLimit
-        appendItems(message, getSelectedItems());             // stuffIds
-        appendItems(message, getSelectedItems2());            // stuffIds2
+        appendVisibleIds(message, getSelectedItemVisibleIds());  // stuffIds
+        appendVisibleIds(message, getSelectedItem2VisibleIds()); // stuffIds2
         message.appendInt(this.getBaseItem().getSpriteId());  // stuffTypeId
         message.appendInt(this.getRoomVisibleId());           // id
         message.appendString(getWiredStringParam());          // stringParam
@@ -291,10 +291,26 @@ public abstract class InteractionWired extends InteractionDefault {
         message.appendInt(0);                                 // defaultIntParams count
     }
 
-    private void appendItems(ServerMessage message, Collection<HabboItem> items) {
-        message.appendInt(items.size());
+    /** Room-visible ids of the primary furni selection. Custom classes (settings-
+     *  backed items with id fallback) override this directly. */
+    protected int[] getSelectedItemVisibleIds() { return toVisibleIds(getSelectedItems()); }
+
+    /** Room-visible ids of the secondary furni selection (stuffIds2). */
+    protected int[] getSelectedItem2VisibleIds() { return toVisibleIds(getSelectedItems2()); }
+
+    private int[] toVisibleIds(Collection<HabboItem> items) {
+        int[] ids = new int[items.size()];
+        int i = 0;
         for (HabboItem item : items) {
-            message.appendInt(item.getRoomVisibleId());
+            ids[i++] = item.getRoomVisibleId();
+        }
+        return ids;
+    }
+
+    private void appendVisibleIds(ServerMessage message, int[] ids) {
+        message.appendInt(ids.length);
+        for (int id : ids) {
+            message.appendInt(id);
         }
     }
 

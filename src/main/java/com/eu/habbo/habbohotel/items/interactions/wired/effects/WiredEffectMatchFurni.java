@@ -167,6 +167,24 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
         return type;
     }
 
+    // Wired 2.0 getters (settings-backed items; resolve via room, fall back to raw item_id)
+    @Override
+    protected int[] getSelectedItemVisibleIds() {
+        Room room = Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId());
+        int[] ids = new int[this.settings.size()];
+        int i = 0;
+        for (WiredMatchFurniSetting setting : this.settings) {
+            HabboItem item = room != null ? room.getHabboItemByDatabaseId(setting.item_id) : null;
+            ids[i++] = item != null ? item.getRoomVisibleId() : setting.item_id;
+        }
+        return ids;
+    }
+
+    @Override
+    protected int[] getWiredIntParams() {
+        return new int[]{ this.state ? 1 : 0, this.direction ? 1 : 0, this.position ? 1 : 0 };
+    }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         this.refresh();
