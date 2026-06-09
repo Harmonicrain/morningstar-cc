@@ -31,35 +31,16 @@ public class UpdateActionMessageEvent extends MessageHandler {
                     if (effect == null)
                         throw new WiredSaveException(String.format("Wired effect with item id %s not found in room", itemId));
 
-                    Optional<Method> saveMethod = Arrays.stream(effect.getClass().getMethods()).filter(x -> x.getName().equals("saveData")).findFirst();
-
-                    if(saveMethod.isPresent()) {
-                        if(saveMethod.get().getParameterTypes()[0] == WiredSettings.class) {
-                            WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.EFFECT).toLegacy();
-                            if (effect.saveData(settings, this.client)) {
-                                this.client.sendResponse(new WiredSavedMessageComposer());
-                                effect.needsUpdate(true);
-                                Emulator.getThreading().run(effect);
-                                
-                                // Invalidate wired cache when effect is saved
-                                WiredManager.invalidateRoom(room);
-                            }
-                        }
-                        else {
-                            if ((boolean) saveMethod.get().invoke(effect, this.packet, this.client)) {
-                                this.client.sendResponse(new WiredSavedMessageComposer());
-                                effect.needsUpdate(true);
-                                Emulator.getThreading().run(effect);
-                                
-                                // Invalidate wired cache when effect is saved
-                                WiredManager.invalidateRoom(room);
-                            }
-                        }
-                    } else {
-                        this.client.sendResponse(new WiredValidationErrorMessageComposer("Save method was not found"));
+                    // Wired 2.0: deterministic dispatch (no reflection). saveData is the
+                    // typed abstract on InteractionWiredEffect (takes GameClient, may throw
+                    // WiredSaveException); settings come from the 2.0 reader bridged to legacy.
+                    WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.EFFECT).toLegacy();
+                    if (effect.saveData(settings, this.client)) {
+                        this.client.sendResponse(new WiredSavedMessageComposer());
+                        effect.needsUpdate(true);
+                        Emulator.getThreading().run(effect);
+                        WiredManager.invalidateRoom(room);
                     }
-
-
                 }
                 catch (WiredSaveException e) {
                     this.client.sendResponse(new WiredValidationErrorMessageComposer(e.getMessage()));

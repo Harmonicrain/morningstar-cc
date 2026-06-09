@@ -28,41 +28,19 @@ public class UpdateConditionMessageEvent extends MessageHandler {
                 InteractionWiredCondition condition = room.getRoomSpecialTypes().getCondition(itemId);
 
                 if (condition != null) {
+                    // Wired 2.0: deterministic dispatch (no reflection). saveData is the
+                    // typed abstract on InteractionWiredCondition; settings come from the
+                    // 2.0 reader bridged to the legacy DTO.
+                    WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.CONDITION).toLegacy();
 
-                    Optional<Method> saveMethod = Arrays.stream(condition.getClass().getMethods()).filter(x -> x.getName().equals("saveData")).findFirst();
-
-                    if(saveMethod.isPresent()) {
-                        if (saveMethod.get().getParameterTypes()[0] == WiredSettings.class) {
-                            WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.CONDITION).toLegacy();
-
-                            if (condition.saveData(settings)) {
-                                this.client.sendResponse(new WiredSavedMessageComposer());
-
-                                condition.needsUpdate(true);
-
-                                Emulator.getThreading().run(condition);
-                                
-                                // Invalidate wired cache when condition is saved
-                                WiredManager.invalidateRoom(room);
-                            } else {
-                                this.client.sendResponse(new WiredValidationErrorMessageComposer("There was an error while saving that condition"));
-                            }
-                        } else {
-                            if ((boolean) saveMethod.get().invoke(condition, this.packet)) {
-                                this.client.sendResponse(new WiredSavedMessageComposer());
-                                condition.needsUpdate(true);
-                                Emulator.getThreading().run(condition);
-                                
-                                // Invalidate wired cache when condition is saved
-                                WiredManager.invalidateRoom(room);
-                            } else {
-                                this.client.sendResponse(new WiredValidationErrorMessageComposer("There was an error while saving that condition"));
-                            }
-                        }
+                    if (condition.saveData(settings)) {
+                        this.client.sendResponse(new WiredSavedMessageComposer());
+                        condition.needsUpdate(true);
+                        Emulator.getThreading().run(condition);
+                        WiredManager.invalidateRoom(room);
                     } else {
-                        this.client.sendResponse(new WiredValidationErrorMessageComposer("Save method was not found"));
+                        this.client.sendResponse(new WiredValidationErrorMessageComposer("There was an error while saving that condition"));
                     }
-
                 }
             }
         }

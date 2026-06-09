@@ -66,6 +66,7 @@ import com.eu.habbo.messages.incoming.unknown.GetResolutionAchievementsMessageEv
 import com.eu.habbo.messages.incoming.unknown.GetBadgePointLimitsEvent;
 import com.eu.habbo.messages.incoming.users.*;
 import com.eu.habbo.messages.incoming.wired.ApplySnapshotMessageEvent;
+import com.eu.habbo.messages.incoming.wired.OpenAckMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateConditionMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateActionMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateTriggerMessageEvent;
@@ -590,6 +591,7 @@ public class PacketManager {
         this.registerHandler(Incoming.UpdateActionMessageEvent, UpdateActionMessageEvent.class);
         this.registerHandler(Incoming.UpdateConditionMessageEvent, UpdateConditionMessageEvent.class);
         this.registerHandler(Incoming.ApplySnapshotMessageEvent, ApplySnapshotMessageEvent.class);
+        this.registerHandler(Incoming.OpenAckMessageEvent, OpenAckMessageEvent.class);
     }
 
     void registerUnknown() throws Exception {

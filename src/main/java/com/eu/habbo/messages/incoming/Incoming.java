@@ -170,7 +170,7 @@ public class Incoming {
     public static final int UpdateConditionMessageEvent = 3203;
 
     // ===== Wired 2.0 — local collision-free incoming map (client->server). May refs in comments. =====
-    public static final int OpenAckMessageEvent = 7003;                 // May 3084 (reuses clean OpenMessageComposer 768)
+    public static final int OpenAckMessageEvent = 768;                  // 0x0300 — the clean client's existing wired-open ack composer
     public static final int UpdateSelectorMessageEvent = 7000;          // May 1155
     public static final int UpdateAddonMessageEvent = 7001;             // May 3709
     public static final int UpdateVariableMessageEvent = 7002;          // May 1802

@@ -11,6 +11,7 @@ import com.eu.habbo.habbohotel.wired.WiredTriggerType;
 import com.eu.habbo.habbohotel.wired.api.IWiredTrigger;
 import com.eu.habbo.habbohotel.wired.core.WiredEvent;
 import com.eu.habbo.messages.outgoing.wired.WiredTriggerDataMessageComposer;
+import com.eu.habbo.messages.outgoing.wired.OpenMessageComposer;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -47,7 +48,7 @@ public abstract class InteractionWiredTrigger extends InteractionWired implement
     public void onClick(GameClient client, Room room, Object[] objects) throws Exception {
         if (client != null) {
             if (room.hasRights(client.getHabbo())) {
-                client.sendResponse(new WiredTriggerDataMessageComposer(this, room));
+                client.sendResponse(new OpenMessageComposer(this));
                 this.activateBox(room);
             }
         }

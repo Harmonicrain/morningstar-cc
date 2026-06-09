@@ -28,40 +28,18 @@ public class UpdateTriggerMessageEvent extends MessageHandler {
                 InteractionWiredTrigger trigger = room.getRoomSpecialTypes().getTrigger(itemId);
 
                 if (trigger != null) {
+                    // Wired 2.0: deterministic dispatch (no reflection). saveData is the
+                    // typed abstract on InteractionWiredTrigger; settings come from the
+                    // 2.0 reader bridged to the legacy DTO.
+                    WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.TRIGGER).toLegacy();
 
-                    Optional<Method> saveMethod = Arrays.stream(trigger.getClass().getMethods()).filter(x -> x.getName().equals("saveData")).findFirst();
-
-                    if(saveMethod.isPresent()) {
-                        if (saveMethod.get().getParameterTypes()[0] == WiredSettings.class) {
-                            WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.TRIGGER).toLegacy();
-
-                            if (trigger.saveData(settings)) {
-                                this.client.sendResponse(new WiredSavedMessageComposer());
-
-                                trigger.needsUpdate(true);
-
-                                Emulator.getThreading().run(trigger);
-                                
-                                // Invalidate wired cache when trigger is saved
-                                WiredManager.invalidateRoom(room);
-                            } else {
-                                this.client.sendResponse(new WiredValidationErrorMessageComposer("There was an error while saving that trigger"));
-                            }
-                        } else {
-                            if ((boolean) saveMethod.get().invoke(trigger, this.packet)) {
-                                this.client.sendResponse(new WiredSavedMessageComposer());
-                                trigger.needsUpdate(true);
-                                Emulator.getThreading().run(trigger);
-                                
-                                // Invalidate wired cache when trigger is saved
-                                WiredManager.invalidateRoom(room);
-                            } else {
-                                this.client.sendResponse(new WiredValidationErrorMessageComposer("There was an error while saving that trigger"));
-                            }
-                        }
-                    }
-                    else {
-                        this.client.sendResponse(new WiredValidationErrorMessageComposer("Save method was not found"));
+                    if (trigger.saveData(settings)) {
+                        this.client.sendResponse(new WiredSavedMessageComposer());
+                        trigger.needsUpdate(true);
+                        Emulator.getThreading().run(trigger);
+                        WiredManager.invalidateRoom(room);
+                    } else {
+                        this.client.sendResponse(new WiredValidationErrorMessageComposer("There was an error while saving that trigger"));
                     }
                 }
             }
