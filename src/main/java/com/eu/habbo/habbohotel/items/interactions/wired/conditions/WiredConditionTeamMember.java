@@ -83,6 +83,10 @@ public class WiredConditionTeamMember extends InteractionWiredCondition {
         return type;
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected int[] getWiredIntParams() { return new int[]{ this.teamColor.type }; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);

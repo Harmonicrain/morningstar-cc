@@ -74,6 +74,10 @@ public class WiredConditionNotHabboCount extends InteractionWiredCondition {
         return type;
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected int[] getWiredIntParams() { return new int[]{ this.lowerLimit, this.upperLimit }; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);
