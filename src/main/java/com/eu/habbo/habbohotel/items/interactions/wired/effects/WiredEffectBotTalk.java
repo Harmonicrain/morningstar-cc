@@ -35,6 +35,12 @@ public class WiredEffectBotTalk extends InteractionWiredEffect {
         super(id, userId, item, extradata, limitedStack, limitedSells);
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected String getWiredStringParam() { return this.botName + "\t" + this.message; }
+    @Override
+    protected int[] getWiredIntParams() { return new int[]{ this.mode }; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);

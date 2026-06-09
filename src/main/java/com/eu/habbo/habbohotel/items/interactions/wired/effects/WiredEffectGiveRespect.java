@@ -34,6 +34,10 @@ public class WiredEffectGiveRespect extends InteractionWiredEffect {
         super(id, userId, item, extradata, limitedStack, limitedSells);
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected String getWiredStringParam() { return String.valueOf(this.respects); }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);

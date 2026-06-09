@@ -84,6 +84,14 @@ public class WiredEffectBotTeleport extends InteractionWiredEffect {
         Emulator.getThreading().run(new RoomUnitTeleport(roomUnit, room, tile.x, tile.y, tile.getStackHeight() + (tile.state == RoomTileState.SIT ? -0.5 : 0), roomUnit.getEffectId()), WiredManager.TELEPORT_DELAY);
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected java.util.Collection<HabboItem> getSelectedItems() { return this.items; }
+    @Override
+    protected boolean supportsFurniPicking() { return true; }
+    @Override
+    protected String getWiredStringParam() { return this.botName; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         THashSet<HabboItem> items = new THashSet<>();

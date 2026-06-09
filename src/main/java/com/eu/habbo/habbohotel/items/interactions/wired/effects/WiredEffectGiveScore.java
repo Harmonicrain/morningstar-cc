@@ -140,6 +140,10 @@ public class WiredEffectGiveScore extends InteractionWiredEffect {
         return WiredEffectGiveScore.type;
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected int[] getWiredIntParams() { return new int[]{ this.score, this.count }; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);

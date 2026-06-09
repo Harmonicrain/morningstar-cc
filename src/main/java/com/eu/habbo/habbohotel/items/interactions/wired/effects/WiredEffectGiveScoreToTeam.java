@@ -108,6 +108,10 @@ public class WiredEffectGiveScoreToTeam extends InteractionWiredEffect {
         return type;
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected int[] getWiredIntParams() { return new int[]{ this.points, this.count, this.teamColor.type }; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);

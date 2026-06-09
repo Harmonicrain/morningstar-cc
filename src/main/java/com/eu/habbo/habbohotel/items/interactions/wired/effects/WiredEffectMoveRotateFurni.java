@@ -235,6 +235,14 @@ public class WiredEffectMoveRotateFurni extends InteractionWiredEffect implement
         return type;
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected java.util.Collection<HabboItem> getSelectedItems() { return this.items; }
+    @Override
+    protected boolean supportsFurniPicking() { return true; }
+    @Override
+    protected int[] getWiredIntParams() { return new int[]{ this.direction, this.rotation }; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         List<HabboItem> itemsToRemove = new ArrayList<>();

@@ -38,6 +38,14 @@ public class WiredEffectBotWalkToFurni extends InteractionWiredEffect {
         this.items = new ArrayList<>();
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected java.util.Collection<HabboItem> getSelectedItems() { return this.items; }
+    @Override
+    protected boolean supportsFurniPicking() { return true; }
+    @Override
+    protected String getWiredStringParam() { return this.botName; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         THashSet<HabboItem> items = new THashSet<>();
