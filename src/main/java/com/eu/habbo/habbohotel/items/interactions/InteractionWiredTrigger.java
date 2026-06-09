@@ -3,6 +3,7 @@ package com.eu.habbo.habbohotel.items.interactions;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.habbohotel.users.HabboItem;
@@ -53,6 +54,12 @@ public abstract class InteractionWiredTrigger extends InteractionWired implement
     }
 
     public abstract WiredTriggerType getType();
+
+    @Override
+    protected WiredCategoryType getWiredCategory() { return WiredCategoryType.TRIGGER; }
+
+    @Override
+    protected int getWiredTypeCode() { return this.getType().code; }
 
     public abstract boolean saveData(WiredSettings settings);
 

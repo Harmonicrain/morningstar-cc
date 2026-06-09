@@ -3,6 +3,7 @@ package com.eu.habbo.habbohotel.items.interactions;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.habbohotel.wired.WiredConditionOperator;
@@ -51,6 +52,12 @@ public abstract class InteractionWiredCondition extends InteractionWired impleme
     }
 
     public abstract WiredConditionType getType();
+
+    @Override
+    protected WiredCategoryType getWiredCategory() { return WiredCategoryType.CONDITION; }
+
+    @Override
+    protected int getWiredTypeCode() { return this.getType().code; }
 
     public abstract boolean saveData(WiredSettings settings);
 

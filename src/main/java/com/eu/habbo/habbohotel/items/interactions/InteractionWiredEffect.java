@@ -4,6 +4,7 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.habbohotel.users.HabboItem;
@@ -96,6 +97,15 @@ public abstract class InteractionWiredEffect extends InteractionWired implements
     }
 
     public abstract WiredEffectType getType();
+
+    @Override
+    protected WiredCategoryType getWiredCategory() { return WiredCategoryType.EFFECT; }
+
+    @Override
+    protected int getWiredTypeCode() { return this.getType().code; }
+
+    @Override
+    protected int getWiredDelay() { return this.getDelay(); }
 
     // ========== IWiredEffect Implementation ==========
     
