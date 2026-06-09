@@ -4,6 +4,7 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWired;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredCondition;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
 import com.eu.habbo.habbohotel.permissions.Permission;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
@@ -32,7 +33,7 @@ public class UpdateConditionMessageEvent extends MessageHandler {
 
                     if(saveMethod.isPresent()) {
                         if (saveMethod.get().getParameterTypes()[0] == WiredSettings.class) {
-                            WiredSettings settings = InteractionWired.readSettings(this.packet, false);
+                            WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.CONDITION).toLegacy();
 
                             if (condition.saveData(settings)) {
                                 this.client.sendResponse(new WiredSavedMessageComposer());
