@@ -86,6 +86,11 @@ public class WiredTriggerHabboSaysKeyword extends InteractionWiredTrigger {
         return type;
     }
 
+    // Wired 2.0 getters. NOTE: legacy ignoreCase rode stuffTypeSelectionCode (dropped in 2.0);
+    // only the keyword string is carried in the new format. Revisit if the editor needs ignoreCase.
+    @Override
+    protected String getWiredStringParam() { return this.key; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);

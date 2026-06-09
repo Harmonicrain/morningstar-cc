@@ -32,6 +32,10 @@ public class WiredTriggerBotReachedHabbo extends InteractionWiredTrigger {
         return type;
     }
 
+    // Wired 2.0 getters
+    @Override
+    protected String getWiredStringParam() { return this.botName; }
+
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);
