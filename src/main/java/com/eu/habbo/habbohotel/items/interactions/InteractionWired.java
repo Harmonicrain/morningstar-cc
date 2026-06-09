@@ -2,9 +2,14 @@ package com.eu.habbo.habbohotel.items.interactions;
 
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.items.Item;
+import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsNew;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
+import com.eu.habbo.habbohotel.wired.core.WiredManager;
+
+import java.util.Collection;
+import java.util.Collections;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.messages.ClientMessage;
@@ -213,6 +218,117 @@ public abstract class InteractionWired extends InteractionDefault {
      */
     public int getUserExecutionCacheSize() {
         return this.userExecutionCache.size();
+    }
+
+    // ===== Wired 2.0 serialization (new packet format). ADDITIVE =====
+    // Not yet invoked by the data composers; the switch-over (compose via this
+    // method + drop the legacy serializeWiredData overrides) is a follow-up slice.
+    // Subclasses override only the getters for the data they carry.
+
+    /** Category drives the type-specific blocks. Mid-level bases override. */
+    protected WiredCategoryType getWiredCategory() { return WiredCategoryType.TRIGGER; }
+
+    /** Type code sent in the new packet. Mid-level bases return getType().code. */
+    protected int getWiredTypeCode() { return 0; }
+
+    protected int getMaxFurniSelection() { return WiredManager.MAXIMUM_FURNI_SELECTION; }
+    protected Collection<HabboItem> getSelectedItems() { return Collections.emptyList(); }
+    protected Collection<HabboItem> getSelectedItems2() { return Collections.emptyList(); }
+    protected String getWiredStringParam() { return ""; }
+    protected int[] getWiredIntParams() { return new int[0]; }
+    protected String[] getWiredVariableIds() { return new String[0]; }
+    protected int[] getWiredFurniSourceTypes() { return new int[0]; }
+    protected int[] getWiredUserSourceTypes() { return new int[0]; }
+    protected int getWiredDelay() { return 0; }
+    protected int getWiredQuantifierCode() { return 0; }
+    protected byte getWiredQuantifierType() { return 0; }
+    protected boolean isWiredInvert() { return false; }
+    protected boolean isWiredFilter() { return false; }
+    protected boolean isWiredAdvancedMode() { return false; }
+    protected boolean isWiredAllowWallFurni() { return false; }
+    protected boolean supportsFurniPicking() { return false; }
+    protected boolean supportsUserPicking() { return false; }
+
+    /**
+     * Writes the Wired 2.0 data payload (see wired-port-plan.md "New Server
+     * Serialization Order"). WiredContext is always 0 blocks and defaultIntParams
+     * always empty until Phase 6.
+     */
+    public void serializeWiredDataNew(ServerMessage message, Room room) {
+        WiredCategoryType category = getWiredCategory();
+
+        message.appendInt(getMaxFurniSelection());            // furniLimit
+        appendItems(message, getSelectedItems());             // stuffIds
+        appendItems(message, getSelectedItems2());            // stuffIds2
+        message.appendInt(this.getBaseItem().getSpriteId());  // stuffTypeId
+        message.appendInt(this.getRoomVisibleId());           // id
+        message.appendString(getWiredStringParam());          // stringParam
+        appendInts(message, getWiredIntParams());             // intParams
+        appendStrings(message, getWiredVariableIds());        // variableIds
+        appendInts(message, getWiredFurniSourceTypes());      // furniSourceTypes
+        appendInts(message, getWiredUserSourceTypes());       // userSourceTypes
+        message.appendInt(getWiredTypeCode());                // code
+
+        // readDefinitionSpecifics
+        switch (category) {
+            case EFFECT:    message.appendInt(getWiredDelay()); break;
+            case CONDITION: message.appendInt(getWiredQuantifierCode()); break;
+            case SELECTOR:  message.appendBoolean(isWiredFilter()); message.appendBoolean(isWiredInvert()); break;
+            default: break; // TRIGGER, ADDON, VARIABLE
+        }
+
+        message.appendBoolean(isWiredAdvancedMode());         // advancedMode
+        serializeInputSourcesConf(message);                   // InputSourcesConf
+        message.appendBoolean(isWiredAllowWallFurni());       // allowWallFurni
+
+        // readTypeSpecifics
+        if (category == WiredCategoryType.CONDITION) {
+            message.appendByte((int) getWiredQuantifierType());
+            message.appendBoolean(isWiredInvert());
+        }
+
+        message.appendInt(0);                                 // WiredContext block count (0 until Phase 6)
+        message.appendInt(0);                                 // defaultIntParams count
+    }
+
+    private void appendItems(ServerMessage message, Collection<HabboItem> items) {
+        message.appendInt(items.size());
+        for (HabboItem item : items) {
+            message.appendInt(item.getRoomVisibleId());
+        }
+    }
+
+    private void appendInts(ServerMessage message, int[] values) {
+        message.appendInt(values.length);
+        for (int v : values) {
+            message.appendInt(v);
+        }
+    }
+
+    private void appendStrings(ServerMessage message, String[] values) {
+        message.appendInt(values.length);
+        for (String s : values) {
+            message.appendString(s);
+        }
+    }
+
+    /** Default InputSourcesConf: enables the furni picker (constant 100) when the type supports it. */
+    private void serializeInputSourcesConf(ServerMessage message) {
+        if (supportsFurniPicking()) {
+            message.appendInt(1);   // allowedFurniSources outer count
+            message.appendInt(1);   // slot 0 inner count
+            message.appendInt(100); // FURNI_SOURCE_FURNI_PICKS_1
+        } else {
+            message.appendInt(0);
+        }
+        message.appendInt(0);       // allowedUserSources (none in Phase 1)
+        if (supportsFurniPicking()) {
+            message.appendInt(1);   // defaultFurniSources
+            message.appendInt(100);
+        } else {
+            message.appendInt(0);
+        }
+        message.appendInt(0);       // defaultUserSources (none in Phase 1)
     }
 
     public static WiredSettings readSettings(ClientMessage packet, boolean isEffect)
