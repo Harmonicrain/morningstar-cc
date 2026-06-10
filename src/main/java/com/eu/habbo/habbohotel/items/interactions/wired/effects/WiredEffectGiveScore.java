@@ -67,7 +67,7 @@ public class WiredEffectGiveScore extends InteractionWiredEffect {
 
                 if (map.getValue() == habbo.getHabboInfo().getId()) {
                     if (map.getKey() == gameStartTime) {
-                        if (iterator.value() < this.count) {
+                        if (this.count == 0 || iterator.value() < this.count) {
                             iterator.setValue(iterator.value() + 1);
 
                             habbo.getHabboInfo().getGamePlayer().addScore(this.score, true);
@@ -185,12 +185,12 @@ public class WiredEffectGiveScore extends InteractionWiredEffect {
 
         int score = settings.getIntParams()[0];
 
-        if(score < 1 || score > 100)
+        if(score == 0 || Math.abs(score) > 1000)
             throw new WiredSaveException("Score is invalid");
 
         int timesPerGame = settings.getIntParams()[1];
 
-        if(timesPerGame < 1 || timesPerGame > 10)
+        if(timesPerGame < 0 || timesPerGame > 10)
             throw new WiredSaveException("Times per game is invalid");
 
         int delay = settings.getDelay();

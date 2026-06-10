@@ -36,6 +36,7 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
     private final THashMap<HabboItem, WiredChangeDirectionSetting> items = new THashMap<>(0);
     private RoomUserRotation startRotation = RoomUserRotation.NORTH;
     private int blockedAction = 0;
+    private int blockOnCollision = 0;
 
     public WiredEffectChangeFurniDirection(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
@@ -140,7 +141,7 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
     @Override
     public String getWiredData() {
         ArrayList<WiredChangeDirectionSetting> settings = new ArrayList<>(this.items.values());
-        return WiredManager.getGson().toJson(new JsonData(this.startRotation, this.blockedAction, settings, this.getDelay()));
+        return WiredManager.getGson().toJson(new JsonData(this.startRotation, this.blockedAction, this.blockOnCollision, settings, this.getDelay()));
     }
 
     @Override
@@ -155,6 +156,7 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
             this.setDelay(data.delay);
             this.startRotation = data.start_direction;
             this.blockedAction = data.blocked_action;
+            this.blockOnCollision = data.block_on_collision;
 
             for(WiredChangeDirectionSetting setting : data.items) {
                 HabboItem item = room.getHabboItemByDatabaseId(setting.item_id);
@@ -204,6 +206,7 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
         this.setDelay(0);
         this.items.clear();
         this.blockedAction = 0;
+        this.blockOnCollision = 0;
         this.startRotation = RoomUserRotation.NORTH;
     }
 
@@ -221,7 +224,7 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
 
     @Override
     protected int[] getWiredIntParams() {
-        return new int[]{ this.startRotation != null ? this.startRotation.getValue() : 0, this.blockedAction };
+        return new int[]{ this.startRotation != null ? this.startRotation.getValue() : 0, this.blockedAction, this.blockOnCollision };
     }
 
     @Override
@@ -235,9 +238,10 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
         message.appendInt(this.getBaseItem().getSpriteId());
         message.appendInt(this.getRoomVisibleId());
         message.appendString("");
-        message.appendInt(2);
+        message.appendInt(3);
         message.appendInt(this.startRotation != null ? this.startRotation.getValue() : 0);
         message.appendInt(this.blockedAction);
+        message.appendInt(this.blockOnCollision);
         message.appendInt(0);
         message.appendInt(this.getType().code);
         message.appendInt(this.getDelay());
@@ -250,7 +254,7 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
 
         int startDirectionInt = settings.getIntParams()[0];
 
-        if(startDirectionInt < 0 || startDirectionInt > 7 || (startDirectionInt % 2) != 0) {
+        if(startDirectionInt < 0 || startDirectionInt > 7) {
             throw new WiredSaveException("Start direction is invalid");
         }
 
@@ -260,6 +264,12 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
 
         if(blockedActionInt < 0 || blockedActionInt > 6) {
             throw new WiredSaveException("Blocked action is invalid");
+        }
+
+        int blockOnCollision = settings.getIntParams().length > 2 ? settings.getIntParams()[2] : 0;
+
+        if(blockOnCollision < 0 || blockOnCollision > 1) {
+            throw new WiredSaveException("Block on collision is invalid");
         }
 
         int itemsCount = settings.getFurniIds().length;
@@ -289,6 +299,7 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
         this.items.putAll(newItems);
         this.startRotation = startDirection;
         this.blockedAction = blockedActionInt;
+        this.blockOnCollision = blockOnCollision;
         this.setDelay(delay);
 
         return true;
@@ -322,12 +333,14 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
     static class JsonData {
         RoomUserRotation start_direction;
         int blocked_action;
+        int block_on_collision;
         List<WiredChangeDirectionSetting> items;
         int delay;
 
-        public JsonData(RoomUserRotation start_direction, int blocked_action, List<WiredChangeDirectionSetting> items, int delay) {
+        public JsonData(RoomUserRotation start_direction, int blocked_action, int block_on_collision, List<WiredChangeDirectionSetting> items, int delay) {
             this.start_direction = start_direction;
             this.blocked_action = blocked_action;
+            this.block_on_collision = block_on_collision;
             this.items = items;
             this.delay = delay;
         }

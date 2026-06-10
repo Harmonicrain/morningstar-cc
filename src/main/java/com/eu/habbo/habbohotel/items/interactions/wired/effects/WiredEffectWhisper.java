@@ -26,6 +26,8 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
     public static final WiredEffectType type = WiredEffectType.SHOW_MESSAGE;
 
     protected String message = "";
+    private int visibility = 0;
+    private int notificationStyle = RoomChatMessageBubbles.WIRED.getType();
 
     public WiredEffectWhisper(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
@@ -40,6 +42,9 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
     protected String getWiredStringParam() { return this.message; }
 
     @Override
+    protected int[] getWiredIntParams() { return new int[]{ this.visibility, this.notificationStyle }; }
+
+    @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         message.appendBoolean(false);
         message.appendInt(0);
@@ -47,7 +52,9 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
         message.appendInt(this.getBaseItem().getSpriteId());
         message.appendInt(this.getRoomVisibleId());
         message.appendString(this.message);
-        message.appendInt(0);
+        message.appendInt(2);
+        message.appendInt(this.visibility);
+        message.appendInt(this.notificationStyle);
         message.appendInt(0);
         message.appendInt(type.code);
         message.appendInt(this.getDelay());
@@ -86,7 +93,17 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
         if(delay > Emulator.getConfig().getInt("hotel.wired.max_delay", 20))
             throw new WiredSaveException("Delay too long");
 
+        int visibility = settings.getIntParams().length > 0 ? settings.getIntParams()[0] : 0;
+        if (visibility < 0 || visibility > 1)
+            throw new WiredSaveException("Visibility is invalid");
+
+        int notificationStyle = settings.getIntParams().length > 1 ? settings.getIntParams()[1] : RoomChatMessageBubbles.WIRED.getType();
+        if (notificationStyle < 0)
+            throw new WiredSaveException("Notification style is invalid");
+
         this.message = message;
+        this.visibility = visibility;
+        this.notificationStyle = notificationStyle;
         this.setDelay(delay);
         return true;
     }
@@ -101,7 +118,13 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
 
                 if (habbo != null) {
                     String msg = this.message.replace("%user%", habbo.getHabboInfo().getUsername()).replace("%online_count%", Emulator.getGameEnvironment().getHabboManager().getOnlineCount() + "").replace("%room_count%", Emulator.getGameEnvironment().getRoomManager().getActiveRooms().size() + "");
-                    habbo.getClient().sendResponse(new WhisperMessageComposer(new RoomChatMessage(msg, habbo, habbo, RoomChatMessageBubbles.WIRED)));
+                    if (this.visibility == 0) {
+                        habbo.getClient().sendResponse(new WhisperMessageComposer(new RoomChatMessage(msg, habbo, habbo, RoomChatMessageBubbles.getBubble(this.notificationStyle))));
+                    } else {
+                        for (Habbo h : room.getHabbos()) {
+                            h.getClient().sendResponse(new WhisperMessageComposer(new RoomChatMessage(msg, h, h, RoomChatMessageBubbles.getBubble(this.notificationStyle))));
+                        }
+                    }
 
                     if (habbo.getRoomUnit().isIdle()) {
                         habbo.getRoomUnit().getRoom().unIdle(habbo);
@@ -109,7 +132,7 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
                 }
             } else {
                 for (Habbo h : room.getHabbos()) {
-                    h.getClient().sendResponse(new WhisperMessageComposer(new RoomChatMessage(this.message.replace("%user%", h.getHabboInfo().getUsername()).replace("%online_count%", Emulator.getGameEnvironment().getHabboManager().getOnlineCount() + "").replace("%room_count%", Emulator.getGameEnvironment().getRoomManager().getActiveRooms().size() + ""), h, h, RoomChatMessageBubbles.WIRED)));
+                    h.getClient().sendResponse(new WhisperMessageComposer(new RoomChatMessage(this.message.replace("%user%", h.getHabboInfo().getUsername()).replace("%online_count%", Emulator.getGameEnvironment().getHabboManager().getOnlineCount() + "").replace("%room_count%", Emulator.getGameEnvironment().getRoomManager().getActiveRooms().size() + ""), h, h, RoomChatMessageBubbles.getBubble(this.notificationStyle))));
                 }
             }
         }
@@ -123,7 +146,7 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
 
     @Override
     public String getWiredData() {
-        return WiredManager.getGson().toJson(new JsonData(this.message, this.getDelay()));
+        return WiredManager.getGson().toJson(new JsonData(this.message, this.visibility, this.notificationStyle, this.getDelay()));
     }
 
     @Override
@@ -134,6 +157,8 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
             JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
             this.setDelay(data.delay);
             this.message = data.message;
+            this.visibility = data.visibility;
+            this.notificationStyle = data.notificationStyle == 0 ? RoomChatMessageBubbles.WIRED.getType() : data.notificationStyle;
         }
         else {
             this.message = "";
@@ -150,6 +175,8 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
     @Override
     public void onPickUp() {
         this.message = "";
+        this.visibility = 0;
+        this.notificationStyle = RoomChatMessageBubbles.WIRED.getType();
         this.setDelay(0);
     }
 
@@ -165,10 +192,14 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
 
     static class JsonData {
         String message;
+        int visibility;
+        int notificationStyle;
         int delay;
 
-        public JsonData(String message, int delay) {
+        public JsonData(String message, int visibility, int notificationStyle, int delay) {
             this.message = message;
+            this.visibility = visibility;
+            this.notificationStyle = notificationStyle;
             this.delay = delay;
         }
     }

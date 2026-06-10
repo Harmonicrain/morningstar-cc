@@ -28,6 +28,7 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
     public static final WiredEffectType type = WiredEffectType.JOIN_TEAM;
 
     private GameTeamColors teamColor = GameTeamColors.RED;
+    private int teamType = 0;
 
     public WiredEffectJoinTeam(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
@@ -65,7 +66,7 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
 
     @Override
     public String getWiredData() {
-        return WiredManager.getGson().toJson(new JsonData(this.teamColor, this.getDelay()));
+        return WiredManager.getGson().toJson(new JsonData(this.teamColor, this.teamType, this.getDelay()));
     }
 
     @Override
@@ -76,6 +77,7 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
             JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
             this.setDelay(data.delay);
             this.teamColor = data.team;
+            this.teamType = data.teamType;
         }
         else {
             String[] data = set.getString("wired_data").split("\t");
@@ -95,6 +97,7 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
     @Override
     public void onPickUp() {
         this.teamColor = GameTeamColors.RED;
+        this.teamType = 0;
         this.setDelay(0);
     }
 
@@ -105,7 +108,7 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
 
     // Wired 2.0 getters
     @Override
-    protected int[] getWiredIntParams() { return new int[]{ this.teamColor.type }; }
+    protected int[] getWiredIntParams() { return new int[]{ this.teamColor.type, this.teamType }; }
 
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
@@ -115,8 +118,9 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
         message.appendInt(this.getBaseItem().getSpriteId());
         message.appendInt(this.getRoomVisibleId());
         message.appendString("");
-        message.appendInt(1);
+        message.appendInt(2);
         message.appendInt(this.teamColor.type);
+        message.appendInt(this.teamType);
         message.appendInt(0);
         message.appendInt(this.getType().code);
         message.appendInt(this.getDelay());
@@ -150,12 +154,18 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
         if(team < 1 || team > 4)
             throw new WiredSaveException("Team is invalid");
 
+        int teamType = settings.getIntParams().length > 1 ? settings.getIntParams()[1] : 0;
+
+        if(teamType < 0 || teamType > 2)
+            throw new WiredSaveException("Team type is invalid");
+
         int delay = settings.getDelay();
 
         if(delay > Emulator.getConfig().getInt("hotel.wired.max_delay", 20))
             throw new WiredSaveException("Delay too long");
 
-        this.teamColor = GameTeamColors.values()[team];
+        this.teamColor = GameTeamColors.fromType(team);
+        this.teamType = teamType;
         this.setDelay(delay);
 
         return true;
@@ -168,10 +178,12 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
 
     static class JsonData {
         GameTeamColors team;
+        int teamType;
         int delay;
 
-        public JsonData(GameTeamColors team, int delay) {
+        public JsonData(GameTeamColors team, int teamType, int delay) {
             this.team = team;
+            this.teamType = teamType;
             this.delay = delay;
         }
     }

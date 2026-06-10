@@ -42,6 +42,7 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
     public static final WiredEffectType type = WiredEffectType.TOGGLE_STATE;
 
     private final THashSet<HabboItem> items;
+    private int toggleMode = 0;
 
     private static final List<Class<? extends HabboItem>> FORBIDDEN_TYPES = new ArrayList<Class<? extends HabboItem>>() {
         {
@@ -98,6 +99,8 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
     protected java.util.Collection<HabboItem> getSelectedItems() { return this.items; }
     @Override
     protected boolean supportsFurniPicking() { return true; }
+    @Override
+    protected int[] getWiredIntParams() { return new int[]{ this.toggleMode }; }
 
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
@@ -121,7 +124,8 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
         message.appendInt(this.getBaseItem().getSpriteId());
         message.appendInt(this.getRoomVisibleId());
         message.appendString("");
-        message.appendInt(0);
+        message.appendInt(1);
+        message.appendInt(this.toggleMode);
         message.appendInt(0);
         message.appendInt(this.getType().code);
         message.appendInt(this.getDelay());
@@ -171,8 +175,13 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
         if(delay > Emulator.getConfig().getInt("hotel.wired.max_delay", 20))
             throw new WiredSaveException("Delay too long");
 
+        int toggleMode = settings.getIntParams().length > 0 ? settings.getIntParams()[0] : 0;
+        if(toggleMode < 0 || toggleMode > 1)
+            throw new WiredSaveException("Toggle mode is invalid");
+
         this.items.clear();
         this.items.addAll(newItems);
+        this.toggleMode = toggleMode;
         this.setDelay(delay);
 
         return true;
@@ -220,6 +229,7 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
     public String getWiredData() {
         return WiredManager.getGson().toJson(new JsonData(
                 this.getDelay(),
+                this.toggleMode,
                 this.items.stream().map(HabboItem::getId).collect(Collectors.toList())
         ));
     }
@@ -232,6 +242,7 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
         if (wiredData.startsWith("{")) {
             JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
             this.setDelay(data.delay);
+            this.toggleMode = data.toggleMode;
             for (Integer id: data.itemIds) {
                 HabboItem item = room.getHabboItemByDatabaseId(id);
 
@@ -268,6 +279,7 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
     @Override
     public void onPickUp() {
         this.items.clear();
+        this.toggleMode = 0;
         this.setDelay(0);
     }
 
@@ -278,10 +290,12 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
 
     static class JsonData {
         int delay;
+        int toggleMode;
         List<Integer> itemIds;
 
-        public JsonData(int delay, List<Integer> itemIds) {
+        public JsonData(int delay, int toggleMode, List<Integer> itemIds) {
             this.delay = delay;
+            this.toggleMode = toggleMode;
             this.itemIds = itemIds;
         }
     }
