@@ -53,6 +53,27 @@ public class RoomChatMessageBubbles {
     public static final RoomChatMessageBubbles UNKNOWN_44 = new RoomChatMessageBubbles(44, "UNKNOWN_44", "", true, false);
     public static final RoomChatMessageBubbles UNKNOWN_45 = new RoomChatMessageBubbles(45, "UNKNOWN_45", "", true, false);
 
+    // Wired 2.0 Show Message notification styles (May 2026 chatstyles ids).
+    public static final RoomChatMessageBubbles NOTIFICATION_RED = new RoomChatMessageBubbles(200, "NOTIFICATION_RED", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_GREEN = new RoomChatMessageBubbles(201, "NOTIFICATION_GREEN", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_BLUE = new RoomChatMessageBubbles(202, "NOTIFICATION_BLUE", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_ALERT = new RoomChatMessageBubbles(210, "NOTIFICATION_ALERT", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_INFO = new RoomChatMessageBubbles(211, "NOTIFICATION_INFO", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_WARNING = new RoomChatMessageBubbles(212, "NOTIFICATION_WARNING", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_WRONG = new RoomChatMessageBubbles(220, "NOTIFICATION_WRONG", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_WRONG_CIRCLE = new RoomChatMessageBubbles(221, "NOTIFICATION_WRONG_CIRCLE", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_CORRECT = new RoomChatMessageBubbles(222, "NOTIFICATION_CORRECT", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_CORRECT_CIRCLE = new RoomChatMessageBubbles(223, "NOTIFICATION_CORRECT_CIRCLE", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_QUESTION_MARK = new RoomChatMessageBubbles(224, "NOTIFICATION_QUESTION_MARK", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_QUESTION_MARK_CIRCLE = new RoomChatMessageBubbles(225, "NOTIFICATION_QUESTION_MARK_CIRCLE", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_ARROW_UP = new RoomChatMessageBubbles(226, "NOTIFICATION_ARROW_UP", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_ARROW_UP_CIRCLE = new RoomChatMessageBubbles(227, "NOTIFICATION_ARROW_UP_CIRCLE", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_ARROW_DOWN = new RoomChatMessageBubbles(228, "NOTIFICATION_ARROW_DOWN", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_ARROW_DOWN_CIRCLE = new RoomChatMessageBubbles(229, "NOTIFICATION_ARROW_DOWN_CIRCLE", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_SKULL = new RoomChatMessageBubbles(250, "NOTIFICATION_SKULL", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_SKULL_2 = new RoomChatMessageBubbles(251, "NOTIFICATION_SKULL_2", "", false, true);
+    public static final RoomChatMessageBubbles NOTIFICATION_MAGNIFIER = new RoomChatMessageBubbles(252, "NOTIFICATION_MAGNIFIER", "", false, true);
+
     static {
         registerBubble(NORMAL);
         registerBubble(ALERT);
@@ -100,6 +121,25 @@ public class RoomChatMessageBubbles {
         registerBubble(UNKNOWN_43);
         registerBubble(UNKNOWN_44);
         registerBubble(UNKNOWN_45);
+        registerBubble(NOTIFICATION_RED);
+        registerBubble(NOTIFICATION_GREEN);
+        registerBubble(NOTIFICATION_BLUE);
+        registerBubble(NOTIFICATION_ALERT);
+        registerBubble(NOTIFICATION_INFO);
+        registerBubble(NOTIFICATION_WARNING);
+        registerBubble(NOTIFICATION_WRONG);
+        registerBubble(NOTIFICATION_WRONG_CIRCLE);
+        registerBubble(NOTIFICATION_CORRECT);
+        registerBubble(NOTIFICATION_CORRECT_CIRCLE);
+        registerBubble(NOTIFICATION_QUESTION_MARK);
+        registerBubble(NOTIFICATION_QUESTION_MARK_CIRCLE);
+        registerBubble(NOTIFICATION_ARROW_UP);
+        registerBubble(NOTIFICATION_ARROW_UP_CIRCLE);
+        registerBubble(NOTIFICATION_ARROW_DOWN);
+        registerBubble(NOTIFICATION_ARROW_DOWN_CIRCLE);
+        registerBubble(NOTIFICATION_SKULL);
+        registerBubble(NOTIFICATION_SKULL_2);
+        registerBubble(NOTIFICATION_MAGNIFIER);
     }
 
     private final int type;
