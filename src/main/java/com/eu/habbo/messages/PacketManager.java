@@ -71,6 +71,7 @@ import com.eu.habbo.messages.incoming.wired.UpdateConditionMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateActionMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateSelectorMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateTriggerMessageEvent;
+import com.eu.habbo.messages.incoming.wired.WiredClickUserMessageEvent;
 import com.eu.habbo.plugin.EventHandler;
 import com.eu.habbo.plugin.events.emulator.EmulatorConfigUpdatedEvent;
 import gnu.trove.map.hash.THashMap;
@@ -594,6 +595,7 @@ public class PacketManager {
         this.registerHandler(Incoming.UpdateSelectorMessageEvent, UpdateSelectorMessageEvent.class);
         this.registerHandler(Incoming.ApplySnapshotMessageEvent, ApplySnapshotMessageEvent.class);
         this.registerHandler(Incoming.OpenAckMessageEvent, OpenAckMessageEvent.class);
+        this.registerHandler(Incoming.WiredClickUserMessageEvent, WiredClickUserMessageEvent.class);
     }
 
     void registerUnknown() throws Exception {

@@ -53,6 +53,17 @@ public class RoomChatMessageBubbles {
     public static final RoomChatMessageBubbles UNKNOWN_44 = new RoomChatMessageBubbles(44, "UNKNOWN_44", "", true, false);
     public static final RoomChatMessageBubbles UNKNOWN_45 = new RoomChatMessageBubbles(45, "UNKNOWN_45", "", true, false);
 
+    // Modern purchasable/event styles from the May 2026 client chatstyles XML
+    // (120-133, 1000-1026, 10000). Without these, getBubble falls back to NORMAL
+    // and selecting them in the style picker silently does nothing.
+    public static final RoomChatMessageBubbles STYLE_120 = new RoomChatMessageBubbles(120, "STYLE_120", "", true, false);
+    public static final RoomChatMessageBubbles STYLE_121 = new RoomChatMessageBubbles(121, "STYLE_121", "", true, false);
+    public static final RoomChatMessageBubbles STYLE_130 = new RoomChatMessageBubbles(130, "STYLE_130", "", true, false);
+    public static final RoomChatMessageBubbles STYLE_131 = new RoomChatMessageBubbles(131, "STYLE_131", "", true, false);
+    public static final RoomChatMessageBubbles STYLE_132 = new RoomChatMessageBubbles(132, "STYLE_132", "", true, false);
+    public static final RoomChatMessageBubbles STYLE_133 = new RoomChatMessageBubbles(133, "STYLE_133", "", true, false);
+    public static final RoomChatMessageBubbles STYLE_10000 = new RoomChatMessageBubbles(10000, "STYLE_10000", "", true, false);
+
     // Wired 2.0 Show Message notification styles (May 2026 chatstyles ids).
     public static final RoomChatMessageBubbles NOTIFICATION_RED = new RoomChatMessageBubbles(200, "NOTIFICATION_RED", "", false, true);
     public static final RoomChatMessageBubbles NOTIFICATION_GREEN = new RoomChatMessageBubbles(201, "NOTIFICATION_GREEN", "", false, true);
@@ -121,6 +132,16 @@ public class RoomChatMessageBubbles {
         registerBubble(UNKNOWN_43);
         registerBubble(UNKNOWN_44);
         registerBubble(UNKNOWN_45);
+        registerBubble(STYLE_120);
+        registerBubble(STYLE_121);
+        registerBubble(STYLE_130);
+        registerBubble(STYLE_131);
+        registerBubble(STYLE_132);
+        registerBubble(STYLE_133);
+        registerBubble(STYLE_10000);
+        for (int id = 1000; id <= 1026; id++) {
+            registerBubble(new RoomChatMessageBubbles(id, "STYLE_" + id, "", true, false));
+        }
         registerBubble(NOTIFICATION_RED);
         registerBubble(NOTIFICATION_GREEN);
         registerBubble(NOTIFICATION_BLUE);
@@ -190,8 +211,15 @@ public class RoomChatMessageBubbles {
 
     public static void removeDynamicBubbles() {
         synchronized (BUBBLES) {
-            BUBBLES.entrySet().removeIf(entry -> entry.getKey() > 45);
+            BUBBLES.entrySet().removeIf(entry -> entry.getKey() > 45 && !isWiredNotificationBubble(entry.getKey()));
         }
+    }
+
+    private static boolean isWiredNotificationBubble(int type) {
+        return (type >= 200 && type <= 202)
+                || (type >= 210 && type <= 212)
+                || (type >= 220 && type <= 229)
+                || (type >= 250 && type <= 252);
     }
 
     public static RoomChatMessageBubbles[] values() {

@@ -40,6 +40,7 @@ import com.eu.habbo.messages.outgoing.rooms.items.ItemsMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.pets.PetFigureUpdateMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.promotions.RoomPromotionMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.*;
+import com.eu.habbo.messages.outgoing.wired.WiredEnvironmentMessageComposer;
 import com.eu.habbo.messages.outgoing.users.RemainingMutePeriodMessageComposer;
 import com.eu.habbo.plugin.events.navigator.NavigatorRoomCreatedEvent;
 import com.eu.habbo.plugin.events.rooms.RoomFloorItemsLoadEvent;
@@ -844,6 +845,7 @@ public class RoomManager {
 
         habbo.getRoomUnit().setInvisible(false);
         room.addHabbo(habbo);
+        habbo.getClient().sendResponse(new WiredEnvironmentMessageComposer(room));
 
         List<Habbo> habbos = new ArrayList<>();
         if (!room.getCurrentHabbos().isEmpty()) {

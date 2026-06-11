@@ -21,6 +21,7 @@ import com.eu.habbo.messages.outgoing.catalog.PurchaseOKMessageComposer;
 import com.eu.habbo.messages.outgoing.inventory.UnseenItemsMessageComposer;
 import com.eu.habbo.messages.outgoing.inventory.FurniListInvalidateMessageComposer;
 import com.eu.habbo.messages.outgoing.users.BadgeReceivedMessageComposer;
+import com.eu.habbo.messages.outgoing.wired.WiredEnvironmentMessageComposer;
 import com.eu.habbo.messages.outgoing.wired.WiredRewardResultMessageComposer;
 import com.eu.habbo.plugin.EventHandler;
 import com.eu.habbo.plugin.events.emulator.EmulatorLoadedEvent;
@@ -519,6 +520,7 @@ public final class WiredManager {
             if (debugEnabled) {
                 LOGGER.info("[Wired] Cache invalidated for room {}", room.getId());
             }
+            room.sendComposer(new WiredEnvironmentMessageComposer(room).compose());
         }
     }
 

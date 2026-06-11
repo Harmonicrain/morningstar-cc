@@ -25,9 +25,8 @@ public class WiredTriggerUserClicksUser extends InteractionWiredTrigger {
     private static final WiredTriggerType type = WiredTriggerType.CLICK_USER;
 
     /**
-     * May intParams: [blockMenuOpen, doNotRotate]. Persisted for round-trip;
-     * blockMenuOpen needs the Phase 9 wired click-response packet to take
-     * effect client-side, doNotRotate is a rotation suppression hint.
+     * May intParams: [blockMenuOpen, doNotRotate]. doNotRotate is a client
+     * rotation suppression hint.
      */
     private int blockMenuOpen = 0;
     private int doNotRotate = 0;
@@ -83,6 +82,10 @@ public class WiredTriggerUserClicksUser extends InteractionWiredTrigger {
     // Wired 2.0 getters
     @Override
     protected int[] getWiredIntParams() { return new int[]{ this.blockMenuOpen, this.doNotRotate }; }
+
+    public boolean blocksMenuOpen() {
+        return this.blockMenuOpen == 1;
+    }
 
     @Override
     public boolean saveData(WiredSettings settings) {

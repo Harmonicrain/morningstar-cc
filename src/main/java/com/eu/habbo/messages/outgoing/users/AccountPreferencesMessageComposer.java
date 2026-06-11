@@ -30,6 +30,7 @@ public class AccountPreferencesMessageComposer extends MessageComposer {
         this.response.appendBoolean(stats.blockCameraFollow);
         this.response.appendInt(uiFlags);
         this.response.appendInt(stats.chatColor.getType());
+        this.response.appendInt(stats.chatSizePreference);
         return this.response;
     }
 
