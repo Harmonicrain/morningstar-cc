@@ -101,7 +101,7 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
             this.items.remove(item);
         }
 
-        for (HabboItem item : this.items) {
+        for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
 
             if (item == null)
                 continue;

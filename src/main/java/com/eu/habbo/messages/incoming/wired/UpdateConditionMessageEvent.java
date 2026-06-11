@@ -34,6 +34,7 @@ public class UpdateConditionMessageEvent extends MessageHandler {
                     WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.CONDITION).toLegacy();
 
                     if (condition.saveData(settings)) {
+                        condition.setWiredSourceTypes(settings.getFurniSourceTypes(), settings.getUserSourceTypes());
                         this.client.sendResponse(new WiredSavedMessageComposer());
                         condition.needsUpdate(true);
                         Emulator.getThreading().run(condition);

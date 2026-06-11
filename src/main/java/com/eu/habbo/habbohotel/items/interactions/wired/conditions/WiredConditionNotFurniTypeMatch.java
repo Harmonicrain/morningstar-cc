@@ -36,12 +36,14 @@ public class WiredConditionNotFurniTypeMatch extends InteractionWiredCondition {
     public boolean evaluate(WiredContext ctx) {
         this.refresh();
 
-        if (items.isEmpty())
+        java.util.Collection<HabboItem> targets = resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null);
+
+        if (targets.isEmpty())
             return true;
 
         HabboItem triggeringItem = ctx.sourceItem().orElse(null);
         if (triggeringItem != null) {
-            return this.items.stream().noneMatch(item -> item == triggeringItem);
+            return targets.stream().noneMatch(item -> item == triggeringItem);
         }
 
         return true;

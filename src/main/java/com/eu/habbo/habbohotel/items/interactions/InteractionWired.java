@@ -80,6 +80,13 @@ public abstract class InteractionWired extends InteractionDefault {
     private long cooldown;
     private final ConcurrentHashMap<Long, Long> userExecutionCache = new ConcurrentHashMap<>();
 
+    // Wired 2.0 advanced source settings. Generic storage so every wired type
+    // round-trips furniSourceTypes/userSourceTypes; persisted in items.wired_sources.
+    // Subclasses with their own persistence (Phase3/Phase4 bases, Teleport) override
+    // the getWired*SourceTypes getters and keep their JSON as the authority.
+    protected int[] wiredFurniSourceTypes = new int[0];
+    protected int[] wiredUserSourceTypes = new int[0];
+
     InteractionWired(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
         this.setExtradata("0");
@@ -115,13 +122,15 @@ public abstract class InteractionWired extends InteractionDefault {
                 wiredData = "";
             }
 
-            try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("UPDATE items SET wired_data = ? WHERE id = ?")) {
+            try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("UPDATE items SET wired_data = ?, wired_sources = ? WHERE id = ?")) {
                 if (this.getRoomId() != 0) {
                     statement.setString(1, wiredData);
+                    statement.setString(2, this.getWiredSourcesData());
                 } else {
                     statement.setString(1, "");
+                    statement.setString(2, "");
                 }
-                statement.setInt(2, this.getId());
+                statement.setInt(3, this.getId());
                 statement.execute();
             } catch (SQLException e) {
                 LOGGER.error("Caught SQL exception", e);
@@ -132,6 +141,8 @@ public abstract class InteractionWired extends InteractionDefault {
 
     @Override
     public void onPickUp(Room room) {
+        this.wiredFurniSourceTypes = new int[0];
+        this.wiredUserSourceTypes = new int[0];
         this.onPickUp();
     }
 
@@ -246,8 +257,23 @@ public abstract class InteractionWired extends InteractionDefault {
     protected String getWiredStringParam() { return ""; }
     protected int[] getWiredIntParams() { return new int[0]; }
     protected String[] getWiredVariableIds() { return new String[0]; }
-    protected int[] getWiredFurniSourceTypes() { return new int[0]; }
-    protected int[] getWiredUserSourceTypes() { return new int[0]; }
+    protected int[] getWiredFurniSourceTypes() {
+        int slots = getFurniSourceSlotCount();
+        int[] out = new int[slots];
+        for (int i = 0; i < slots; i++) {
+            out[i] = (i < this.wiredFurniSourceTypes.length) ? this.wiredFurniSourceTypes[i] : getDefaultFurniSourceForSlot(i);
+        }
+        return out;
+    }
+
+    protected int[] getWiredUserSourceTypes() {
+        int slots = getUserSourceSlotCount();
+        int[] out = new int[slots];
+        for (int i = 0; i < slots; i++) {
+            out[i] = (i < this.wiredUserSourceTypes.length) ? this.wiredUserSourceTypes[i] : getDefaultUserSourceForSlot(i);
+        }
+        return out;
+    }
     protected int getWiredDelay() { return 0; }
     protected int getWiredQuantifierCode() { return 0; }
     protected byte getWiredQuantifierType() { return 0; }
@@ -263,6 +289,88 @@ public abstract class InteractionWired extends InteractionDefault {
     protected int[] getAllowedUserSourcesForSlot(int slot) { return new int[] { USER_SOURCE_TRIGGERING_USER, USER_SOURCE_SELECTOR }; }
     protected int getDefaultFurniSourceForSlot(int slot) { return FURNI_SOURCE_PICKED_1; }
     protected int getDefaultUserSourceForSlot(int slot) { return USER_SOURCE_TRIGGERING_USER; }
+
+    /**
+     * Stores the saved advanced source settings, clamping each slot value to the
+     * allowed list for that slot (unknown values fall back to the slot default).
+     */
+    public void setWiredSourceTypes(int[] furniSourceTypes, int[] userSourceTypes) {
+        int furniSlots = getFurniSourceSlotCount();
+        int[] furni = new int[furniSlots];
+        for (int i = 0; i < furniSlots; i++) {
+            int requested = (furniSourceTypes != null && i < furniSourceTypes.length) ? furniSourceTypes[i] : getDefaultFurniSourceForSlot(i);
+            furni[i] = clampToAllowed(requested, getAllowedFurniSourcesForSlot(i), getDefaultFurniSourceForSlot(i));
+        }
+        int userSlots = getUserSourceSlotCount();
+        int[] users = new int[userSlots];
+        for (int i = 0; i < userSlots; i++) {
+            int requested = (userSourceTypes != null && i < userSourceTypes.length) ? userSourceTypes[i] : getDefaultUserSourceForSlot(i);
+            users[i] = clampToAllowed(requested, getAllowedUserSourcesForSlot(i), getDefaultUserSourceForSlot(i));
+        }
+        this.wiredFurniSourceTypes = furni;
+        this.wiredUserSourceTypes = users;
+    }
+
+    private static int clampToAllowed(int value, int[] allowed, int fallback) {
+        if (allowed != null) {
+            for (int a : allowed) {
+                if (a == value) {
+                    return value;
+                }
+            }
+        }
+        return fallback;
+    }
+
+    /** True when every stored slot equals its default (nothing worth persisting). */
+    private boolean wiredSourcesAreDefault() {
+        for (int i = 0; i < this.wiredFurniSourceTypes.length; i++) {
+            if (this.wiredFurniSourceTypes[i] != getDefaultFurniSourceForSlot(i)) {
+                return false;
+            }
+        }
+        for (int i = 0; i < this.wiredUserSourceTypes.length; i++) {
+            if (this.wiredUserSourceTypes[i] != getDefaultUserSourceForSlot(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Serialized form for the items.wired_sources column; empty when defaults. */
+    public String getWiredSourcesData() {
+        if (wiredSourcesAreDefault()) {
+            return "";
+        }
+        return WiredManager.getGson().toJson(new WiredSourcesData(this.wiredFurniSourceTypes, this.wiredUserSourceTypes));
+    }
+
+    /** Restores from the items.wired_sources column. Null/empty/corrupt-safe. */
+    public void loadWiredSourcesData(String data) {
+        this.wiredFurniSourceTypes = new int[0];
+        this.wiredUserSourceTypes = new int[0];
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+        try {
+            WiredSourcesData parsed = WiredManager.getGson().fromJson(data, WiredSourcesData.class);
+            if (parsed != null) {
+                setWiredSourceTypes(parsed.f, parsed.u);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to parse wired_sources for item {}: {}", this.getId(), data, e);
+        }
+    }
+
+    private static class WiredSourcesData {
+        int[] f;
+        int[] u;
+
+        WiredSourcesData(int[] f, int[] u) {
+            this.f = f;
+            this.u = u;
+        }
+    }
 
     /**
      * Writes the Wired 2.0 data payload (see wired-port-plan.md "New Server

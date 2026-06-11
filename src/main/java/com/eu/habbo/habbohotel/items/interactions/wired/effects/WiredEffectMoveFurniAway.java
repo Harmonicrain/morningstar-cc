@@ -50,7 +50,7 @@ public class WiredEffectMoveFurniAway extends InteractionWiredEffect {
 
         this.items.removeAll(items);
 
-        for (HabboItem item : this.items) {
+        for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
             if (item == null) continue;
 
             RoomTile t = room.getLayout().getTile(item.getX(), item.getY());

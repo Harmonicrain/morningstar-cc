@@ -143,7 +143,7 @@ public class WiredEffectTriggerStacks extends InteractionWiredEffect {
 
         THashSet<RoomTile> usedTiles = new THashSet<>();
 
-        for (HabboItem item : this.items) {
+        for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
             if (item == null) continue;
             
             boolean found = false;

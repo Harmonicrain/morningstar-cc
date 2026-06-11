@@ -23,7 +23,7 @@ public class WiredEffectGiveHandItem extends WiredEffectWhisper {
             int itemId = Integer.parseInt(this.message);
 
             Room room = ctx.room();
-            for (com.eu.habbo.habbohotel.rooms.RoomUnit unit : resolveUserSource(ctx, new int[0], 0)) {
+            for (com.eu.habbo.habbohotel.rooms.RoomUnit unit : resolveUserSource(ctx, this.getWiredUserSourceTypes(), 0)) {
                 Habbo habbo = room.getHabbo(unit);
 
                 if (habbo != null) {

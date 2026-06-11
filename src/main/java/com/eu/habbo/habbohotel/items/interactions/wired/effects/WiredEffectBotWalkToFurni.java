@@ -119,7 +119,7 @@ public class WiredEffectBotWalkToFurni extends InteractionWiredEffect {
         Room room = ctx.room();
         List<Bot> bots = room.getBots(this.botName);
 
-        if (this.items.isEmpty() || bots.size() != 1) {
+        if (bots.size() != 1) {
             return;
         }
 
@@ -127,7 +127,7 @@ public class WiredEffectBotWalkToFurni extends InteractionWiredEffect {
         this.items.removeIf(item -> item == null || item.getRoomId() != this.getRoomId() || Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId()).getHabboItemByDatabaseId(item.getId()) == null);
 
         // Bots shouldn't walk to the tile they are already standing on
-        List<HabboItem> possibleItems = this.items.stream()
+        List<HabboItem> possibleItems = resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null).stream()
                 .filter(item -> !room.getBotsOnItem(item).contains(bot))
                 .collect(Collectors.toList());
 

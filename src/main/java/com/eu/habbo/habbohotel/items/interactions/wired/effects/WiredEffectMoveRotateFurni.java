@@ -52,7 +52,7 @@ public class WiredEffectMoveRotateFurni extends InteractionWiredEffect implement
         this.items.removeIf(item -> Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId())
                 .getHabboItemByDatabaseId(item.getId()) == null);
 
-        for (HabboItem item : this.items) {
+        for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
             if (this.itemCooldowns.contains(item))
                 continue;
 

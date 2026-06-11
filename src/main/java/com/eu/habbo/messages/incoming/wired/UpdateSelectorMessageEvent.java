@@ -35,6 +35,7 @@ public class UpdateSelectorMessageEvent extends MessageHandler {
 
         WiredSettingsNew settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.SELECTOR);
         if (selector.saveData(settings)) {
+            selector.setWiredSourceTypes(settings.getFurniSourceTypes(), settings.getUserSourceTypes());
             this.client.sendResponse(new WiredSavedMessageComposer());
             selector.needsUpdate(true);
             Emulator.getThreading().run(selector);

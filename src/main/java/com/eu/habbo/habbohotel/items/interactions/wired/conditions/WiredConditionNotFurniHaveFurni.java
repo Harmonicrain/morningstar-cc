@@ -43,14 +43,16 @@ public class WiredConditionNotFurniHaveFurni extends InteractionWiredCondition {
 
         this.refresh();
 
-        if (this.items.isEmpty())
+        java.util.Collection<HabboItem> targets = resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null);
+
+        if (targets.isEmpty())
             return true;
 
         if (room.getLayout() == null)
             return true;
 
         if (this.all) {
-            return this.items.stream().allMatch(item -> {
+            return targets.stream().allMatch(item -> {
                 if (item == null)
                     return true;
                 RoomTile baseTile = room.getLayout().getTile(item.getX(), item.getY());
@@ -65,7 +67,7 @@ public class WiredConditionNotFurniHaveFurni extends InteractionWiredCondition {
                         .anyMatch(matchedItem -> matchedItem != item && matchedItem.getZ() >= minZ));
             });
         } else {
-            return this.items.stream().anyMatch(item -> {
+            return targets.stream().anyMatch(item -> {
                 if (item == null)
                     return true;
                 RoomTile baseTile = room.getLayout().getTile(item.getX(), item.getY());

@@ -165,7 +165,7 @@ public class RoomItemManager {
      */
     public void loadWiredData(Connection connection) {
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT id, wired_data FROM items WHERE room_id = ? AND wired_data<>''")) {
+                "SELECT id, wired_data, wired_sources FROM items WHERE room_id = ? AND (wired_data<>'' OR wired_sources<>'')")) {
             statement.setInt(1, this.room.getId());
 
             try (ResultSet set = statement.executeQuery()) {
@@ -174,7 +174,10 @@ public class RoomItemManager {
                         HabboItem item = this.getHabboItem(set.getInt("id"));
 
                         if (item instanceof InteractionWired) {
-                            ((InteractionWired) item).loadWiredData(set, this.room);
+                            if (!set.getString("wired_data").isEmpty()) {
+                                ((InteractionWired) item).loadWiredData(set, this.room);
+                            }
+                            ((InteractionWired) item).loadWiredSourcesData(set.getString("wired_sources"));
                         }
                     } catch (SQLException e) {
                         LOGGER.error("Caught SQL exception", e);

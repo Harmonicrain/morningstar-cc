@@ -21,7 +21,7 @@ public class WiredEffectAlert extends WiredEffectWhisper {
     @Override
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
-        for (com.eu.habbo.habbohotel.rooms.RoomUnit unit : resolveUserSource(ctx, new int[0], 0)) {
+        for (com.eu.habbo.habbohotel.rooms.RoomUnit unit : resolveUserSource(ctx, this.getWiredUserSourceTypes(), 0)) {
             Habbo habbo = room.getHabbo(unit);
 
             if (habbo != null) {

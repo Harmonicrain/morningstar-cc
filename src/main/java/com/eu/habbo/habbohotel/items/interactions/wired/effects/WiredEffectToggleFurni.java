@@ -193,7 +193,7 @@ public class WiredEffectToggleFurni extends InteractionWiredEffect {
         Habbo habbo = ctx.actor().map(unit -> room.getHabbo(unit)).orElse(null);
 
         THashSet<HabboItem> itemsToRemove = new THashSet<>();
-        for (HabboItem item : this.items) {
+        for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
             if (item == null || item.getRoomId() == 0 || FORBIDDEN_TYPES.stream().anyMatch(a -> a.isAssignableFrom(item.getClass()))) {
                 itemsToRemove.add(item);
                 continue;

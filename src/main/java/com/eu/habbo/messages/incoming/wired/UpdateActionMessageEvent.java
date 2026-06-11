@@ -36,6 +36,7 @@ public class UpdateActionMessageEvent extends MessageHandler {
                     // WiredSaveException); settings come from the 2.0 reader bridged to legacy.
                     WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.EFFECT).toLegacy();
                     if (effect.saveData(settings, this.client)) {
+                        effect.setWiredSourceTypes(settings.getFurniSourceTypes(), settings.getUserSourceTypes());
                         this.client.sendResponse(new WiredSavedMessageComposer());
                         effect.needsUpdate(true);
                         Emulator.getThreading().run(effect);

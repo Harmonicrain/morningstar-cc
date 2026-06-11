@@ -43,10 +43,13 @@ public class WiredConditionTriggerOnFurni extends InteractionWiredCondition {
 
         this.refresh();
 
-        if (this.items.isEmpty())
+        java.util.Collection<HabboItem> targets = resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null);
+
+        if (targets.isEmpty())
             return false;
 
-        return triggerOnFurni(roomUnit, room);
+        THashSet<HabboItem> itemsAtUser = room.getItemsAt(roomUnit.getCurrentLocation());
+        return targets.stream().anyMatch(itemsAtUser::contains);
     }
 
     @Deprecated

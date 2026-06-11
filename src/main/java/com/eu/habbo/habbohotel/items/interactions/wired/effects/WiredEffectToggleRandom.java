@@ -178,9 +178,8 @@ public class WiredEffectToggleRandom extends InteractionWiredEffect {
     @Override
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
-        THashSet<HabboItem> items = this.items;
 
-        for (HabboItem item : items) {
+        for (HabboItem item : new java.util.ArrayList<>(resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null))) {
             if (item.getRoomId() == 0 || FORBIDDEN_TYPES.stream().anyMatch(a -> a.isAssignableFrom(item.getClass()))) {
                 this.items.remove(item);
                 continue;

@@ -89,14 +89,15 @@ public class WiredEffectMoveFurniTo extends InteractionWiredEffect {
             this.items.remove(item);
         }
 
-        if (this.items.isEmpty())
+        List<HabboItem> targets = new ArrayList<>(resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null));
+        if (targets.isEmpty())
             return;
 
         Object[] stuff = ctx.legacySettings();
         if (stuff != null && stuff.length > 0) {
             for (Object object : stuff) {
                 if (object instanceof HabboItem) {
-                    HabboItem targetItem = this.items.get(Emulator.getRandom().nextInt(this.items.size()));
+                    HabboItem targetItem = targets.get(Emulator.getRandom().nextInt(targets.size()));
 
                     if (targetItem != null) {
                         int indexOffset = 0;

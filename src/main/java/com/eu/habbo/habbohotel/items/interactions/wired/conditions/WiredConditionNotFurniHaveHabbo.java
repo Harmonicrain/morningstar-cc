@@ -52,7 +52,9 @@ public class WiredConditionNotFurniHaveHabbo extends InteractionWiredCondition {
 
         this.refresh();
 
-        if (this.items.isEmpty())
+        java.util.Collection<HabboItem> targets = resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null);
+
+        if (targets.isEmpty())
             return true;
 
         if (room.getLayout() == null)
@@ -82,8 +84,8 @@ public class WiredConditionNotFurniHaveHabbo extends InteractionWiredCondition {
         };
 
         return this.all
-                ? this.items.stream().filter(item -> item != null).noneMatch(hasOccupant)
-                : this.items.stream().filter(item -> item != null).anyMatch(item -> !hasOccupant.test(item));
+                ? targets.stream().filter(item -> item != null).noneMatch(hasOccupant)
+                : targets.stream().filter(item -> item != null).anyMatch(item -> !hasOccupant.test(item));
     }
 
     @Deprecated

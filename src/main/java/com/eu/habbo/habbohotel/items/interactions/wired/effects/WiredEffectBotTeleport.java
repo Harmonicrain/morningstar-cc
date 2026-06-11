@@ -164,7 +164,9 @@ public class WiredEffectBotTeleport extends InteractionWiredEffect {
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
 
-        if (this.items.isEmpty())
+        List<HabboItem> targets = new ArrayList<>(resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null));
+
+        if (targets.isEmpty())
             return;
 
         if (room.getLayout() == null)
@@ -178,10 +180,10 @@ public class WiredEffectBotTeleport extends InteractionWiredEffect {
 
         Bot bot = bots.get(0);
 
-        int i = Emulator.getRandom().nextInt(this.items.size()) + 1;
+        int i = Emulator.getRandom().nextInt(targets.size()) + 1;
         int j = 1;
 
-        for (HabboItem item : this.items) {
+        for (HabboItem item : targets) {
             if (item.getRoomId() != 0 && item.getRoomId() == bot.getRoom().getId()) {
                 if (i == j) {
                     RoomTile tile = room.getLayout().getTile(item.getX(), item.getY());

@@ -34,6 +34,7 @@ public class UpdateTriggerMessageEvent extends MessageHandler {
                     WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.TRIGGER).toLegacy();
 
                     if (trigger.saveData(settings)) {
+                        trigger.setWiredSourceTypes(settings.getFurniSourceTypes(), settings.getUserSourceTypes());
                         this.client.sendResponse(new WiredSavedMessageComposer());
                         trigger.needsUpdate(true);
                         Emulator.getThreading().run(trigger);
