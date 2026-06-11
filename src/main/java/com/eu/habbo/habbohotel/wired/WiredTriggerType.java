@@ -15,6 +15,13 @@ public enum WiredTriggerType {
     PERIODICALLY_LONG(12),
     BOT_REACHED_STF(13),
     BOT_REACHED_AVTR(14),
+    // Wired 2.0 Phase 3 (May 2026 codes)
+    CLOCK_REACH_TIME(15),
+    CLICK_FURNI(18),
+    PERIOD_SHORT(19),
+    STUFF_STATE(20),
+    LEAVE_ROOM(23),
+    CLICK_USER(24),
     SAY_COMMAND(0),
     IDLES(11),
     UNIDLES(11),

@@ -1074,6 +1074,9 @@ public class RoomManager {
         if (habbo.getHabboInfo().getCurrentRoom() != null && habbo.getHabboInfo().getCurrentRoom() == room) {
             habbo.getRoomUnit().setPathFinderRoom(null);
 
+            // Wired 2.0 trigger 23: avatar leaves room (dispatched while still in the room).
+            com.eu.habbo.habbohotel.wired.core.WiredManager.triggerUserLeavesRoom(room, habbo.getRoomUnit());
+
             this.logExit(habbo);
             room.removeHabbo(habbo, true);
 

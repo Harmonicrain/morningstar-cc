@@ -46,7 +46,8 @@ public class WiredSettingsNew {
      * to the new DTO keep working. stuffTypeSelectionCode is gone in 2.0 -> 0.
      */
     public WiredSettings toLegacy() {
-        return new WiredSettings(this.intParams, this.stringParam, this.furniIds, 0, this.delay);
+        return new WiredSettings(this.intParams, this.stringParam, this.furniIds, this.furniIds2, this.variableIds,
+                this.furniSourceTypes, this.userSourceTypes, 0, this.delay);
     }
 
     public int[] getIntParams() { return intParams; }

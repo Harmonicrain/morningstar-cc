@@ -80,6 +80,9 @@ public final class WiredManager {
 
     /** The singleton engine instance */
     private static volatile WiredEngine engine;
+
+    /** Per-room wired clocks (Wired 2.0 Phase 3); cleared on room unload. */
+    private static final java.util.concurrent.ConcurrentHashMap<Integer, WiredRoomClock> roomClocks = new java.util.concurrent.ConcurrentHashMap<>();
     
     /** The stack index */
     private static volatile RoomWiredStackIndex stackIndex;
@@ -444,6 +447,54 @@ public final class WiredManager {
     }
 
     /**
+     * Trigger when a user clicks (uses) furniture. (Wired 2.0 trigger 18)
+     */
+    public static boolean triggerUserClicksFurni(Room room, RoomUnit user, HabboItem item) {
+        if (!isEnabled() || room == null || user == null || item == null) {
+            return false;
+        }
+
+        WiredEvent event = WiredEvents.userClicksFurni(room, user, item);
+        return handleEvent(event);
+    }
+
+    /**
+     * Trigger when a user leaves the room. (Wired 2.0 trigger 23)
+     */
+    public static boolean triggerUserLeavesRoom(Room room, RoomUnit user) {
+        if (!isEnabled() || room == null || user == null) {
+            return false;
+        }
+
+        WiredEvent event = WiredEvents.userLeavesRoom(room, user);
+        return handleEvent(event);
+    }
+
+    /**
+     * Trigger when a user clicks another user. (Wired 2.0 trigger 24)
+     */
+    public static boolean triggerUserClicksUser(Room room, RoomUnit user, RoomUnit target) {
+        if (!isEnabled() || room == null || user == null || target == null) {
+            return false;
+        }
+
+        WiredEvent event = WiredEvents.userClicksUser(room, user, target);
+        return handleEvent(event);
+    }
+
+    /**
+     * Trigger when the room wired clock advances to a new second. (Wired 2.0 trigger 15)
+     */
+    public static boolean triggerClockReached(Room room, HabboItem clockTrigger, int totalSeconds) {
+        if (!isEnabled() || room == null) {
+            return false;
+        }
+
+        WiredEvent event = WiredEvents.clockReached(room, clockTrigger, totalSeconds);
+        return handleEvent(event);
+    }
+
+    /**
      * Trigger from legacy system for parallel running.
      * This allows the new engine to run alongside the old one during migration.
      */
@@ -602,6 +653,16 @@ public final class WiredManager {
      */
     public static void unregisterRoomTickables(Room room) {
         WiredTickService.getInstance().unregisterRoom(room);
+        if (room != null) {
+            roomClocks.remove(room.getId());
+        }
+    }
+
+    /**
+     * Gets (lazily creating) the wired clock for a room. (Wired 2.0 Phase 3)
+     */
+    public static WiredRoomClock getRoomClock(Room room) {
+        return roomClocks.computeIfAbsent(room.getId(), id -> new WiredRoomClock());
     }
     
     /**

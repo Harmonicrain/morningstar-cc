@@ -94,6 +94,18 @@ public final class WiredEvent {
         /** Team loses a game */
         TEAM_LOSES(WiredTriggerType.CUSTOM),
         
+        /** User clicks (uses) furniture — Wired 2.0 trigger 18 */
+        USER_CLICKS_FURNI(WiredTriggerType.CLICK_FURNI),
+
+        /** User leaves the room — Wired 2.0 trigger 23 */
+        USER_LEAVES_ROOM(WiredTriggerType.LEAVE_ROOM),
+
+        /** User clicks another user — Wired 2.0 trigger 24 */
+        USER_CLICKS_USER(WiredTriggerType.CLICK_USER),
+
+        /** Room wired clock reached a time — Wired 2.0 trigger 15 (score = total seconds) */
+        CLOCK_REACHED(WiredTriggerType.CLOCK_REACH_TIME),
+
         /** Custom trigger type for plugins */
         CUSTOM(WiredTriggerType.CUSTOM);
 

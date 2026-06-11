@@ -9,11 +9,11 @@ import com.eu.habbo.messages.outgoing.rooms.users.AvatarEffectMessageComposer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredEffectGiveEffect extends WiredEffectPhase3Base {
-    public static final WiredEffectType type = WiredEffectType.GIVE_EFFECT;
+public class WiredEffectFreezeUser extends WiredEffectPhase3Base {
+    public static final WiredEffectType type = WiredEffectType.FREEZE_USER;
 
-    public WiredEffectGiveEffect(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }
-    public WiredEffectGiveEffect(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) { super(id, userId, item, extradata, limitedStack, limitedSells); }
+    public WiredEffectFreezeUser(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }
+    public WiredEffectFreezeUser(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) { super(id, userId, item, extradata, limitedStack, limitedSells); }
 
     @Override public WiredEffectType getType() { return type; }
     @Override public boolean requiresTriggeringUser() { return true; }
@@ -23,6 +23,7 @@ public class WiredEffectGiveEffect extends WiredEffectPhase3Base {
         RoomUnit unit = ctx.actor().orElse(null);
         if (unit == null) return;
         int effect = this.intParams.length > 0 ? this.intParams[0] : 0;
+        unit.setCanWalk(false);
         ctx.room().sendComposer(new AvatarEffectMessageComposer(unit, effect).compose());
     }
 }

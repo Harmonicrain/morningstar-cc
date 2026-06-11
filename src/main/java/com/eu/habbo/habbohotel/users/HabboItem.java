@@ -336,6 +336,9 @@ public abstract class HabboItem implements Runnable, IEventTriggers {
                 }
             }
 
+            // Wired 2.0 trigger 18: avatar clicks furni.
+            WiredManager.triggerUserClicksFurni(room, client.getHabbo().getRoomUnit(), this);
+
             if ((this.getBaseItem().getStateCount() > 1 && !(this instanceof InteractionDice))
                     || Arrays.asList(HabboItem.TOGGLING_INTERACTIONS).contains(this.getClass())
                     || (objects != null && objects.length == 1 && objects[0].equals("TOGGLE_OVERRIDE"))) {

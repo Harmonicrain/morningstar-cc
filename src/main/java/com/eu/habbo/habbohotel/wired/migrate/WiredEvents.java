@@ -315,6 +315,49 @@ public final class WiredEvents {
                 .build();
     }
 
+    // ========== Wired 2.0 Phase 3 ==========
+
+    /**
+     * Create an event for when a user clicks (uses) furniture.
+     */
+    public static WiredEvent userClicksFurni(Room room, RoomUnit user, HabboItem item) {
+        return WiredEvent.builder(WiredEvent.Type.USER_CLICKS_FURNI, room)
+                .actor(user)
+                .sourceItem(item)
+                .build();
+    }
+
+    /**
+     * Create an event for when a user leaves the room.
+     */
+    public static WiredEvent userLeavesRoom(Room room, RoomUnit user) {
+        return WiredEvent.builder(WiredEvent.Type.USER_LEAVES_ROOM, room)
+                .actor(user)
+                .build();
+    }
+
+    /**
+     * Create an event for when a user clicks another user.
+     */
+    public static WiredEvent userClicksUser(Room room, RoomUnit user, RoomUnit target) {
+        return WiredEvent.builder(WiredEvent.Type.USER_CLICKS_USER, room)
+                .actor(user)
+                .targetUnit(target)
+                .build();
+    }
+
+    /**
+     * Create an event for when the room wired clock reaches a second boundary.
+     * The total elapsed seconds travel in the score field; the polling clock
+     * trigger passes itself as the source so it only matches its own event.
+     */
+    public static WiredEvent clockReached(Room room, HabboItem clockTrigger, int totalSeconds) {
+        return WiredEvent.builder(WiredEvent.Type.CLOCK_REACHED, room)
+                .sourceItem(clockTrigger)
+                .score(totalSeconds)
+                .build();
+    }
+
     // ========== Legacy Compatibility ==========
 
     /**
