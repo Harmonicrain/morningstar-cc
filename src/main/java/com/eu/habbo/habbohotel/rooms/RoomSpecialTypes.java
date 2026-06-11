@@ -23,6 +23,7 @@ import com.eu.habbo.habbohotel.items.interactions.pets.InteractionPetTree;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredConditionType;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
+import com.eu.habbo.habbohotel.wired.WiredSelectorType;
 import com.eu.habbo.habbohotel.wired.WiredTriggerType;
 import gnu.trove.map.hash.THashMap;
 import gnu.trove.set.hash.THashSet;
@@ -53,12 +54,14 @@ public class RoomSpecialTypes {
     private final ConcurrentHashMap<WiredTriggerType, Set<InteractionWiredTrigger>> wiredTriggers;
     private final ConcurrentHashMap<WiredEffectType, Set<InteractionWiredEffect>> wiredEffects;
     private final ConcurrentHashMap<WiredConditionType, Set<InteractionWiredCondition>> wiredConditions;
+    private final ConcurrentHashMap<WiredSelectorType, Set<InteractionWiredSelector>> wiredSelectors;
     private final ConcurrentHashMap<Integer, InteractionWiredExtra> wiredExtras;
     
     // Spatial index for O(1) coordinate-based lookups of wired components
     private final ConcurrentHashMap<Long, Set<InteractionWiredTrigger>> wiredTriggersByLocation;
     private final ConcurrentHashMap<Long, Set<InteractionWiredEffect>> wiredEffectsByLocation;
     private final ConcurrentHashMap<Long, Set<InteractionWiredCondition>> wiredConditionsByLocation;
+    private final ConcurrentHashMap<Long, Set<InteractionWiredSelector>> wiredSelectorsByLocation;
     private final ConcurrentHashMap<Long, Set<InteractionWiredExtra>> wiredExtrasByLocation;
 
     private final THashMap<Integer, InteractionGameScoreboard> gameScoreboards;
@@ -81,12 +84,14 @@ public class RoomSpecialTypes {
         this.wiredTriggers = new ConcurrentHashMap<>();
         this.wiredEffects = new ConcurrentHashMap<>();
         this.wiredConditions = new ConcurrentHashMap<>();
+        this.wiredSelectors = new ConcurrentHashMap<>();
         this.wiredExtras = new ConcurrentHashMap<>();
         
         // Initialize spatial indexes
         this.wiredTriggersByLocation = new ConcurrentHashMap<>();
         this.wiredEffectsByLocation = new ConcurrentHashMap<>();
         this.wiredConditionsByLocation = new ConcurrentHashMap<>();
+        this.wiredSelectorsByLocation = new ConcurrentHashMap<>();
         this.wiredExtrasByLocation = new ConcurrentHashMap<>();
 
         this.gameScoreboards = new THashMap<>(0);
@@ -640,6 +645,85 @@ public class RoomSpecialTypes {
     }
 
 
+    public InteractionWiredSelector getSelector(int itemId) {
+        for (Set<InteractionWiredSelector> selectors : this.wiredSelectors.values()) {
+            for (InteractionWiredSelector selector : selectors) {
+                if (selector.getId() == itemId) {
+                    return selector;
+                }
+            }
+        }
+        return null;
+    }
+
+    public THashSet<InteractionWiredSelector> getSelectors() {
+        THashSet<InteractionWiredSelector> result = new THashSet<>();
+        for (Set<InteractionWiredSelector> selectors : this.wiredSelectors.values()) {
+            result.addAll(selectors);
+        }
+        return result;
+    }
+
+    public THashSet<InteractionWiredSelector> getSelectors(WiredSelectorType type) {
+        Set<InteractionWiredSelector> selectors = this.wiredSelectors.get(type);
+        if (selectors == null) {
+            return new THashSet<>(0);
+        }
+        return new THashSet<>(selectors);
+    }
+
+    public THashSet<InteractionWiredSelector> getSelectors(int x, int y) {
+        long key = coordinateKey(x, y);
+        Set<InteractionWiredSelector> selectors = this.wiredSelectorsByLocation.get(key);
+        if (selectors == null) {
+            return new THashSet<>(0);
+        }
+        return new THashSet<>(selectors);
+    }
+
+    public void addSelector(InteractionWiredSelector selector) {
+        this.wiredSelectors.computeIfAbsent(selector.getType(), k -> ConcurrentHashMap.newKeySet())
+                .add(selector);
+        long key = coordinateKey(selector.getX(), selector.getY());
+        this.wiredSelectorsByLocation.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet())
+                .add(selector);
+    }
+
+    public void removeSelector(InteractionWiredSelector selector) {
+        Set<InteractionWiredSelector> selectors = this.wiredSelectors.get(selector.getType());
+        if (selectors != null) {
+            selectors.remove(selector);
+            if (selectors.isEmpty()) {
+                this.wiredSelectors.remove(selector.getType());
+            }
+        }
+
+        long key = coordinateKey(selector.getX(), selector.getY());
+        Set<InteractionWiredSelector> locationSelectors = this.wiredSelectorsByLocation.get(key);
+        if (locationSelectors != null) {
+            locationSelectors.remove(selector);
+            if (locationSelectors.isEmpty()) {
+                this.wiredSelectorsByLocation.remove(key);
+            }
+        }
+    }
+
+    public void updateSelectorLocation(InteractionWiredSelector selector, int oldX, int oldY) {
+        long oldKey = coordinateKey(oldX, oldY);
+        Set<InteractionWiredSelector> oldLocationSelectors = this.wiredSelectorsByLocation.get(oldKey);
+        if (oldLocationSelectors != null) {
+            oldLocationSelectors.remove(selector);
+            if (oldLocationSelectors.isEmpty()) {
+                this.wiredSelectorsByLocation.remove(oldKey);
+            }
+        }
+
+        long newKey = coordinateKey(selector.getX(), selector.getY());
+        this.wiredSelectorsByLocation.computeIfAbsent(newKey, k -> ConcurrentHashMap.newKeySet())
+                .add(selector);
+    }
+
+
     /**
      * Gets all wired extras in the room.
      * @return A new set containing all extras (safe for iteration)
@@ -1008,6 +1092,8 @@ public class RoomSpecialTypes {
         this.wiredTriggers.clear();
         this.wiredEffects.clear();
         this.wiredConditions.clear();
+        this.wiredSelectors.clear();
+        this.wiredSelectorsByLocation.clear();
 
         this.gameScoreboards.clear();
         this.gameGates.clear();

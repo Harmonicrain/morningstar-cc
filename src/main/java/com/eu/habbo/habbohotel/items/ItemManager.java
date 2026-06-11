@@ -48,6 +48,7 @@ import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredBlob;
 import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredExtraOrEval;
 import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredExtraRandom;
 import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredExtraUnseen;
+import com.eu.habbo.habbohotel.items.interactions.wired.selectors.*;
 import com.eu.habbo.habbohotel.wired.highscores.WiredHighscoreManager;
 import com.eu.habbo.habbohotel.items.interactions.wired.triggers.*;
 import com.eu.habbo.habbohotel.users.Habbo;
@@ -313,6 +314,19 @@ public class ItemManager {
         this.interactionsList.add(new ItemInteraction("wf_cnd_has_altitude", WiredConditionFurniHasAltitude.class));
         this.interactionsList.add(new ItemInteraction("wf_cnd_actor_dir", WiredConditionUserDirection.class));
         this.interactionsList.add(new ItemInteraction("wf_cnd_valid_moves", WiredConditionCanPerformMove.class));
+
+        this.interactionsList.add(new ItemInteraction("wf_slc_furni_bytype", WiredSelectorFurniByType.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_furni_picks", WiredSelectorFurniChooser.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_users_bytype", WiredSelectorUsersByType.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_users_team", WiredSelectorUsersInTeam.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_furni_onfurni", WiredSelectorFurniOnFurni.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_furni_area", WiredSelectorFurniInArea.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_users_onfurni", WiredSelectorUsersOnFurni.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_users_byname", WiredSelectorUsersByName.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_users_area", WiredSelectorUsersInArea.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_users_handitem", WiredSelectorUsersWithHanditem.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_users_group", WiredSelectorUsersInGroup.class));
+        this.interactionsList.add(new ItemInteraction("wf_slc_furni_altitude", WiredSelectorFurniWithAltitude.class));
 
         this.interactionsList.add(new ItemInteraction("wf_xtra_random", WiredExtraRandom.class));
         this.interactionsList.add(new ItemInteraction("wf_xtra_unseen", WiredExtraUnseen.class));

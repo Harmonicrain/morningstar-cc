@@ -4,6 +4,7 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredCondition;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredEffect;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredExtra;
+import com.eu.habbo.habbohotel.items.interactions.InteractionWiredSelector;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredTrigger;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
@@ -242,6 +243,10 @@ public final class WiredEngine {
             debug(room, "No conditions in stack, proceeding to effects");
         }
 
+        if (stack.hasSelectors()) {
+            resolveSelectors(stack, ctx, room);
+        }
+
         // Fire plugin event (WiredStackTriggeredEvent)
         if (!fireTriggeredEvent(stack, event)) {
             debug(room, "Stack cancelled by plugin");
@@ -257,6 +262,66 @@ public final class WiredEngine {
         fireExecutedEvent(stack, event);
 
         return true;
+    }
+
+    private void resolveSelectors(WiredStack stack, WiredContext ctx, Room room) {
+        boolean usersTouched = false;
+        boolean itemsTouched = false;
+
+        for (InteractionWiredSelector selector : stack.selectors()) {
+            ctx.state().step();
+            WiredTargets resolved = selector.resolve(room, ctx);
+
+            if (selector.getType().isUser) {
+                Set<RoomUnit> users = new LinkedHashSet<>(resolved.users());
+                if (selector.isInvert()) {
+                    users = invertUsers(room, users);
+                }
+                if (selector.isFilter()) {
+                    users.retainAll(ctx.targets().users());
+                    ctx.targets().setUsers(users);
+                } else {
+                    if (!usersTouched) {
+                        ctx.targets().clearUsers();
+                    }
+                    for (RoomUnit unit : users) {
+                        ctx.targets().addUser(unit);
+                    }
+                    usersTouched = true;
+                }
+            }
+
+            if (selector.getType().isFurni) {
+                Set<HabboItem> items = new LinkedHashSet<>(resolved.items());
+                if (selector.isInvert()) {
+                    items = invertItems(room, items);
+                }
+                if (selector.isFilter()) {
+                    items.retainAll(ctx.targets().items());
+                    ctx.targets().setItems(items);
+                } else {
+                    if (!itemsTouched) {
+                        ctx.targets().clearItems();
+                    }
+                    for (HabboItem item : items) {
+                        ctx.targets().addItem(item);
+                    }
+                    itemsTouched = true;
+                }
+            }
+        }
+    }
+
+    private Set<RoomUnit> invertUsers(Room room, Set<RoomUnit> selected) {
+        Set<RoomUnit> inverted = new LinkedHashSet<>(room.getRoomUnits());
+        inverted.removeAll(selected);
+        return inverted;
+    }
+
+    private Set<HabboItem> invertItems(Room room, Set<HabboItem> selected) {
+        Set<HabboItem> inverted = new LinkedHashSet<>(room.getFloorItems());
+        inverted.removeAll(selected);
+        return inverted;
     }
 
     /**

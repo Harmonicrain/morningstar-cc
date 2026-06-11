@@ -69,6 +69,7 @@ import com.eu.habbo.messages.incoming.wired.ApplySnapshotMessageEvent;
 import com.eu.habbo.messages.incoming.wired.OpenAckMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateConditionMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateActionMessageEvent;
+import com.eu.habbo.messages.incoming.wired.UpdateSelectorMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateTriggerMessageEvent;
 import com.eu.habbo.plugin.EventHandler;
 import com.eu.habbo.plugin.events.emulator.EmulatorConfigUpdatedEvent;
@@ -590,6 +591,7 @@ public class PacketManager {
         this.registerHandler(Incoming.UpdateTriggerMessageEvent, UpdateTriggerMessageEvent.class);
         this.registerHandler(Incoming.UpdateActionMessageEvent, UpdateActionMessageEvent.class);
         this.registerHandler(Incoming.UpdateConditionMessageEvent, UpdateConditionMessageEvent.class);
+        this.registerHandler(Incoming.UpdateSelectorMessageEvent, UpdateSelectorMessageEvent.class);
         this.registerHandler(Incoming.ApplySnapshotMessageEvent, ApplySnapshotMessageEvent.class);
         this.registerHandler(Incoming.OpenAckMessageEvent, OpenAckMessageEvent.class);
     }

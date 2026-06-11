@@ -805,6 +805,9 @@ public class RoomItemManager {
             } else if (item instanceof InteractionWiredCondition) {
                 specialTypes.addCondition((InteractionWiredCondition) item);
                 isWiredItem = true;
+            } else if (item instanceof InteractionWiredSelector) {
+                specialTypes.addSelector((InteractionWiredSelector) item);
+                isWiredItem = true;
             } else if (item instanceof InteractionWiredExtra) {
                 specialTypes.addExtra((InteractionWiredExtra) item);
                 isWiredItem = true;
@@ -935,6 +938,9 @@ public class RoomItemManager {
             isWiredItem = true;
         } else if (item instanceof InteractionWiredCondition) {
             specialTypes.removeCondition((InteractionWiredCondition) item);
+            isWiredItem = true;
+        } else if (item instanceof InteractionWiredSelector) {
+            specialTypes.removeSelector((InteractionWiredSelector) item);
             isWiredItem = true;
         } else if (item instanceof InteractionWiredExtra) {
             specialTypes.removeExtra((InteractionWiredExtra) item);
@@ -1887,6 +1893,10 @@ public class RoomItemManager {
             WiredManager.invalidateRoom(this.room);
         } else if (item instanceof InteractionWiredCondition) {
             this.room.getRoomSpecialTypes().updateConditionLocation((InteractionWiredCondition) item, oldLocation.x,
+                    oldLocation.y);
+            WiredManager.invalidateRoom(this.room);
+        } else if (item instanceof InteractionWiredSelector) {
+            this.room.getRoomSpecialTypes().updateSelectorLocation((InteractionWiredSelector) item, oldLocation.x,
                     oldLocation.y);
             WiredManager.invalidateRoom(this.room);
         } else if (item instanceof InteractionWiredExtra) {

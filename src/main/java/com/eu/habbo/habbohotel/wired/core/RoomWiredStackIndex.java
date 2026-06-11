@@ -2,6 +2,7 @@ package com.eu.habbo.habbohotel.wired.core;
 
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredCondition;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredEffect;
+import com.eu.habbo.habbohotel.items.interactions.InteractionWiredSelector;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredTrigger;
 import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredExtraOrEval;
 import com.eu.habbo.habbohotel.items.interactions.wired.extra.WiredExtraRandom;
@@ -172,6 +173,9 @@ public final class RoomWiredStackIndex implements WiredStackIndex {
         THashSet<InteractionWiredEffect> rawEffects = specialTypes.getEffects(x, y);
         List<IWiredEffect> effects = collectEffects(rawEffects);
 
+        THashSet<InteractionWiredSelector> rawSelectors = specialTypes.getSelectors(x, y);
+        List<InteractionWiredSelector> selectors = collectSelectors(rawSelectors);
+
         // Check for extras
         boolean useOrMode = specialTypes.hasExtraType(x, y, WiredExtraOrEval.class);
         boolean useRandom = specialTypes.hasExtraType(x, y, WiredExtraRandom.class);
@@ -182,6 +186,7 @@ public final class RoomWiredStackIndex implements WiredStackIndex {
                 wrappedTrigger,
                 conditions,
                 effects,
+                selectors,
                 useOrMode,
                 useRandom,
                 useUnseen
@@ -216,6 +221,14 @@ public final class RoomWiredStackIndex implements WiredStackIndex {
             effects.add(effect);
         }
         return effects;
+    }
+
+    private List<InteractionWiredSelector> collectSelectors(THashSet<InteractionWiredSelector> rawSelectors) {
+        if (rawSelectors == null || rawSelectors.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return new ArrayList<>(rawSelectors);
     }
 
     /**

@@ -2,6 +2,7 @@ package com.eu.habbo.messages.incoming.wired;
 
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredCondition;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredEffect;
+import com.eu.habbo.habbohotel.items.interactions.InteractionWiredSelector;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredTrigger;
 import com.eu.habbo.habbohotel.permissions.Permission;
 import com.eu.habbo.habbohotel.rooms.Room;
@@ -9,6 +10,7 @@ import com.eu.habbo.habbohotel.rooms.RoomSpecialTypes;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.wired.WiredConditionDataMessageComposer;
 import com.eu.habbo.messages.outgoing.wired.WiredEffectDataMessageComposer;
+import com.eu.habbo.messages.outgoing.wired.WiredSelectorDataMessageComposer;
 import com.eu.habbo.messages.outgoing.wired.WiredTriggerDataMessageComposer;
 
 /**
@@ -53,6 +55,12 @@ public class OpenAckMessageEvent extends MessageHandler {
         InteractionWiredCondition condition = specialTypes.getCondition(itemId);
         if (condition != null) {
             this.client.sendResponse(new WiredConditionDataMessageComposer(condition, room));
+            return;
+        }
+
+        InteractionWiredSelector selector = specialTypes.getSelector(itemId);
+        if (selector != null) {
+            this.client.sendResponse(new WiredSelectorDataMessageComposer(selector, room));
         }
     }
 }
