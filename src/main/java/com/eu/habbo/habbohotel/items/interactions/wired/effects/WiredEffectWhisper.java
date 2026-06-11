@@ -112,8 +112,7 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
         if (this.message.length() > 0) {
-            RoomUnit roomUnit = ctx.actor().orElse(null);
-            if (roomUnit != null) {
+            for (RoomUnit roomUnit : resolveUserSource(ctx, new int[0], 0)) {
                 Habbo habbo = room.getHabbo(roomUnit);
 
                 if (habbo != null) {
@@ -129,10 +128,6 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
                     if (habbo.getRoomUnit().isIdle()) {
                         habbo.getRoomUnit().getRoom().unIdle(habbo);
                     }
-                }
-            } else {
-                for (Habbo h : room.getHabbos()) {
-                    h.getClient().sendResponse(new WhisperMessageComposer(new RoomChatMessage(this.message.replace("%user%", h.getHabboInfo().getUsername()).replace("%online_count%", Emulator.getGameEnvironment().getHabboManager().getOnlineCount() + "").replace("%room_count%", Emulator.getGameEnvironment().getRoomManager().getActiveRooms().size() + ""), h, h, RoomChatMessageBubbles.getBubble(this.notificationStyle))));
                 }
             }
         }
@@ -187,6 +182,16 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
 
     @Override
     public boolean requiresTriggeringUser() {
+        return true;
+    }
+
+    @Override
+    protected boolean supportsUserPicking() {
+        return true;
+    }
+
+    @Override
+    protected boolean isWiredAdvancedMode() {
         return true;
     }
 

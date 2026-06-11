@@ -70,20 +70,18 @@ public class WiredEffectMuteHabbo extends InteractionWiredEffect {
 
     @Override
     public void execute(WiredContext ctx) {
-        RoomUnit roomUnit = ctx.actor().orElse(null);
-        if (roomUnit == null)
-            return;
-
         Room room = ctx.room();
-        Habbo habbo = room.getHabbo(roomUnit);
+        for (RoomUnit roomUnit : resolveUserSource(ctx, new int[0], 0)) {
+            Habbo habbo = room.getHabbo(roomUnit);
 
-        if (habbo != null) {
-            if (room.hasRights(habbo))
-                return;
+            if (habbo != null) {
+                if (room.hasRights(habbo))
+                    continue;
 
-            room.muteHabbo(habbo, 60);
+                room.muteHabbo(habbo, this.length);
 
-            habbo.getClient().sendResponse(new WhisperMessageComposer(new RoomChatMessage(this.message.replace("%user%", habbo.getHabboInfo().getUsername()).replace("%online_count%", Emulator.getGameEnvironment().getHabboManager().getOnlineCount() + "").replace("%room_count%", Emulator.getGameEnvironment().getRoomManager().getActiveRooms().size() + ""), habbo, habbo, RoomChatMessageBubbles.WIRED)));
+                habbo.getClient().sendResponse(new WhisperMessageComposer(new RoomChatMessage(this.message.replace("%user%", habbo.getHabboInfo().getUsername()).replace("%online_count%", Emulator.getGameEnvironment().getHabboManager().getOnlineCount() + "").replace("%room_count%", Emulator.getGameEnvironment().getRoomManager().getActiveRooms().size() + ""), habbo, habbo, RoomChatMessageBubbles.WIRED)));
+            }
         }
     }
 
@@ -139,6 +137,11 @@ public class WiredEffectMuteHabbo extends InteractionWiredEffect {
 
     @Override
     public boolean requiresTriggeringUser() {
+        return true;
+    }
+
+    @Override
+    protected boolean supportsUserPicking() {
         return true;
     }
 

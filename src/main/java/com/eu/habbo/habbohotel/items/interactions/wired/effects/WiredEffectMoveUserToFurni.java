@@ -19,13 +19,16 @@ public class WiredEffectMoveUserToFurni extends WiredEffectPhase3Base {
     @Override public WiredEffectType getType() { return type; }
     @Override public boolean requiresTriggeringUser() { return true; }
     @Override protected boolean supportsFurniPickingWhenEmpty() { return true; }
+    @Override protected boolean supportsUserPicking() { return true; }
 
     @Override
     public void execute(WiredContext ctx) {
-        RoomUnit unit = ctx.actor().orElse(null);
-        if (unit == null || this.items.isEmpty()) return;
-        HabboItem target = this.items.get(0);
+        HabboItem target = sourceItems(ctx).stream().findFirst().orElse(null);
+        if (target == null) return;
         RoomTile tile = ctx.room().getLayout().getTile(target.getX(), target.getY());
-        if (tile != null) unit.setGoalLocation(tile);
+        if (tile == null) return;
+        for (RoomUnit unit : sourceUsers(ctx)) {
+            unit.setGoalLocation(tile);
+        }
     }
 }

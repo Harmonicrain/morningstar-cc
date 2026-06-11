@@ -7,7 +7,9 @@ import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsNew;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
+import com.eu.habbo.habbohotel.wired.core.WiredContext;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import com.eu.habbo.habbohotel.rooms.Room;
@@ -56,6 +58,13 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class InteractionWired extends InteractionDefault {
     private static final Logger LOGGER = LoggerFactory.getLogger(InteractionWired.class);
+    protected static final int FURNI_SOURCE_TRIGGERING_ITEM = 0;
+    protected static final int USER_SOURCE_TRIGGERING_USER = 0;
+    protected static final int FURNI_SOURCE_PICKED_1 = 100;
+    protected static final int FURNI_SOURCE_PICKED_2 = 101;
+    protected static final int FURNI_SOURCE_DUAL_MODE = 110;
+    protected static final int FURNI_SOURCE_SELECTOR = 200;
+    protected static final int USER_SOURCE_SELECTOR = 200;
     
     /**
      * Maximum number of entries in the user execution cache to prevent memory leaks.
@@ -248,6 +257,12 @@ public abstract class InteractionWired extends InteractionDefault {
     protected boolean isWiredAllowWallFurni() { return false; }
     protected boolean supportsFurniPicking() { return false; }
     protected boolean supportsUserPicking() { return false; }
+    protected int getFurniSourceSlotCount() { return supportsFurniPicking() ? 1 : 0; }
+    protected int getUserSourceSlotCount() { return supportsUserPicking() ? 1 : 0; }
+    protected int[] getAllowedFurniSourcesForSlot(int slot) { return new int[] { FURNI_SOURCE_PICKED_1, FURNI_SOURCE_SELECTOR }; }
+    protected int[] getAllowedUserSourcesForSlot(int slot) { return new int[] { USER_SOURCE_TRIGGERING_USER, USER_SOURCE_SELECTOR }; }
+    protected int getDefaultFurniSourceForSlot(int slot) { return FURNI_SOURCE_PICKED_1; }
+    protected int getDefaultUserSourceForSlot(int slot) { return USER_SOURCE_TRIGGERING_USER; }
 
     /**
      * Writes the Wired 2.0 data payload (see wired-port-plan.md "New Server
@@ -328,23 +343,65 @@ public abstract class InteractionWired extends InteractionDefault {
         }
     }
 
-    /** Default InputSourcesConf: enables the furni picker (constant 100) when the type supports it. */
+    /** Default InputSourcesConf: exposes picked furni plus selector/current targets for source-aware wired. */
     private void serializeInputSourcesConf(ServerMessage message) {
-        if (supportsFurniPicking()) {
-            message.appendInt(1);   // allowedFurniSources outer count
-            message.appendInt(1);   // slot 0 inner count
-            message.appendInt(100); // FURNI_SOURCE_FURNI_PICKS_1
-        } else {
-            message.appendInt(0);
+        int furniSlots = getFurniSourceSlotCount();
+        message.appendInt(furniSlots);
+        for (int i = 0; i < furniSlots; i++) {
+            appendInts(message, getAllowedFurniSourcesForSlot(i));
         }
-        message.appendInt(0);       // allowedUserSources (none in Phase 1)
-        if (supportsFurniPicking()) {
-            message.appendInt(1);   // defaultFurniSources
-            message.appendInt(100);
-        } else {
-            message.appendInt(0);
+
+        int userSlots = getUserSourceSlotCount();
+        message.appendInt(userSlots);
+        for (int i = 0; i < userSlots; i++) {
+            appendInts(message, getAllowedUserSourcesForSlot(i));
         }
-        message.appendInt(0);       // defaultUserSources (none in Phase 1)
+
+        message.appendInt(furniSlots);
+        for (int i = 0; i < furniSlots; i++) {
+            message.appendInt(getDefaultFurniSourceForSlot(i));
+        }
+
+        message.appendInt(userSlots);
+        for (int i = 0; i < userSlots; i++) {
+            message.appendInt(getDefaultUserSourceForSlot(i));
+        }
+    }
+
+    protected Collection<HabboItem> resolveFurniSource(WiredContext ctx, int[] sourceTypes, int slot,
+                                                       Collection<HabboItem> pickedItems,
+                                                       Collection<HabboItem> pickedItems2) {
+        int source = getSourceType(sourceTypes, slot, getDefaultFurniSourceForSlot(slot));
+        switch (source) {
+            case FURNI_SOURCE_TRIGGERING_ITEM:
+                return ctx.sourceItem().map(Collections::singletonList).orElse(Collections.emptyList());
+            case FURNI_SOURCE_SELECTOR:
+                return new ArrayList<>(ctx.targets().items());
+            case FURNI_SOURCE_PICKED_2:
+                return pickedItems2 != null ? pickedItems2 : Collections.emptyList();
+            case FURNI_SOURCE_PICKED_1:
+            case FURNI_SOURCE_DUAL_MODE:
+            default:
+                return pickedItems != null ? pickedItems : Collections.emptyList();
+        }
+    }
+
+    protected Collection<RoomUnit> resolveUserSource(WiredContext ctx, int[] sourceTypes, int slot) {
+        int source = getSourceType(sourceTypes, slot, getDefaultUserSourceForSlot(slot));
+        switch (source) {
+            case USER_SOURCE_SELECTOR:
+                return new ArrayList<>(ctx.targets().users());
+            case USER_SOURCE_TRIGGERING_USER:
+            default:
+                return ctx.actor().map(Collections::singletonList).orElse(Collections.emptyList());
+        }
+    }
+
+    private int getSourceType(int[] sourceTypes, int slot, int defaultValue) {
+        if (sourceTypes == null || slot < 0 || slot >= sourceTypes.length) {
+            return defaultValue;
+        }
+        return sourceTypes[slot];
     }
 
     public static WiredSettings readSettings(ClientMessage packet, boolean isEffect)

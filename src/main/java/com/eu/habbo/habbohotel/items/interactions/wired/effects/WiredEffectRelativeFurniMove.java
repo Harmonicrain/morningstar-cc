@@ -24,7 +24,7 @@ public class WiredEffectRelativeFurniMove extends WiredEffectPhase3Base {
         Room room = ctx.room();
         int dx = this.intParams.length > 0 ? this.intParams[0] : 0;
         int dy = this.intParams.length > 1 ? this.intParams[1] : 0;
-        for (HabboItem item : this.items) {
+        for (HabboItem item : sourceItems(ctx)) {
             RoomTile tile = room.getLayout().getTile((short) (item.getX() + dx), (short) (item.getY() + dy));
             if (tile != null) {
                 room.moveFurniTo(item, tile, item.getRotation(), null, true, false);

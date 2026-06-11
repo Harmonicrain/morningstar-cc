@@ -20,21 +20,22 @@ public class WiredEffectMoveUser extends WiredEffectPhase3Base {
 
     @Override public WiredEffectType getType() { return type; }
     @Override public boolean requiresTriggeringUser() { return true; }
+    @Override protected boolean supportsUserPicking() { return true; }
 
     @Override
     public void execute(WiredContext ctx) {
-        RoomUnit unit = ctx.actor().orElse(null);
         Room room = ctx.room();
-        if (unit == null) return;
         int move = this.intParams.length > 0 ? this.intParams[0] : -1;
         int rotate = this.intParams.length > 1 ? this.intParams[1] : -1;
-        if (rotate >= 0 && rotate < 8) {
-            unit.setRotation(RoomUserRotation.fromValue(rotate));
-            room.sendComposer(new UserUpdateMessageComposer(unit).compose());
-        }
-        if (move >= 0 && move < 8) {
-            RoomTile tile = room.getLayout().getTileInFront(unit.getCurrentLocation(), move, 0);
-            if (tile != null) unit.setGoalLocation(tile);
+        for (RoomUnit unit : sourceUsers(ctx)) {
+            if (rotate >= 0 && rotate < 8) {
+                unit.setRotation(RoomUserRotation.fromValue(rotate));
+                room.sendComposer(new UserUpdateMessageComposer(unit).compose());
+            }
+            if (move >= 0 && move < 8) {
+                RoomTile tile = room.getLayout().getTileInFront(unit.getCurrentLocation(), move, 0);
+                if (tile != null) unit.setGoalLocation(tile);
+            }
         }
     }
 }

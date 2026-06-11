@@ -17,12 +17,13 @@ public class WiredEffectUnfreezeUser extends WiredEffectPhase3Base {
 
     @Override public WiredEffectType getType() { return type; }
     @Override public boolean requiresTriggeringUser() { return true; }
+    @Override protected boolean supportsUserPicking() { return true; }
 
     @Override
     public void execute(WiredContext ctx) {
-        RoomUnit unit = ctx.actor().orElse(null);
-        if (unit == null) return;
-        unit.setCanWalk(true);
-        ctx.room().sendComposer(new AvatarEffectMessageComposer(unit, 0).compose());
+        for (RoomUnit unit : sourceUsers(ctx)) {
+            unit.setCanWalk(true);
+            ctx.room().sendComposer(new AvatarEffectMessageComposer(unit, 0).compose());
+        }
     }
 }

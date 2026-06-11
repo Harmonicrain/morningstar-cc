@@ -41,19 +41,21 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
     @Override
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
-        Habbo habbo = ctx.actor().map(room::getHabbo).orElse(null);
+        for (RoomUnit unit : resolveUserSource(ctx, new int[0], 0)) {
+            Habbo habbo = room.getHabbo(unit);
 
-        if (habbo != null) {
-            WiredGame game = (WiredGame) room.getGameOrCreate(WiredGame.class);
+            if (habbo != null) {
+                WiredGame game = (WiredGame) room.getGameOrCreate(WiredGame.class);
 
-            if (habbo.getHabboInfo().getGamePlayer() != null && habbo.getHabboInfo().getCurrentGame() != null && (habbo.getHabboInfo().getCurrentGame() != WiredGame.class || (habbo.getHabboInfo().getCurrentGame() == WiredGame.class && habbo.getHabboInfo().getGamePlayer().getTeamColor() != this.teamColor))) {
-                // remove from current game
-                Game currentGame = room.getGame(habbo.getHabboInfo().getCurrentGame());
-                currentGame.removeHabbo(habbo);
-            }
+                if (habbo.getHabboInfo().getGamePlayer() != null && habbo.getHabboInfo().getCurrentGame() != null && (habbo.getHabboInfo().getCurrentGame() != WiredGame.class || (habbo.getHabboInfo().getCurrentGame() == WiredGame.class && habbo.getHabboInfo().getGamePlayer().getTeamColor() != this.teamColor))) {
+                    // remove from current game
+                    Game currentGame = room.getGame(habbo.getHabboInfo().getCurrentGame());
+                    currentGame.removeHabbo(habbo);
+                }
 
-            if(habbo.getHabboInfo().getGamePlayer() == null) {
-                game.addHabbo(habbo, this.teamColor);
+                if(habbo.getHabboInfo().getGamePlayer() == null) {
+                    game.addHabbo(habbo, this.teamColor);
+                }
             }
         }
     }
@@ -173,6 +175,11 @@ public class WiredEffectJoinTeam extends InteractionWiredEffect {
 
     @Override
     public boolean requiresTriggeringUser() {
+        return true;
+    }
+
+    @Override
+    protected boolean supportsUserPicking() {
         return true;
     }
 

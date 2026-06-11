@@ -7,6 +7,7 @@ import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.messages.ServerMessage;
 
@@ -21,6 +22,9 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
     protected final List<HabboItem> items = new ArrayList<>();
     protected int[] intParams = new int[0];
     protected String stringParam = "";
+    protected int[] furniSourceTypes = new int[0];
+    protected int[] userSourceTypes = new int[0];
+    protected String[] variableIds = new String[0];
 
     protected WiredConditionPhase3Base(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
@@ -44,6 +48,9 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
 
         this.intParams = settings.getIntParams() != null ? settings.getIntParams() : new int[0];
         this.stringParam = settings.getStringParam() != null ? settings.getStringParam() : "";
+        this.furniSourceTypes = settings.getFurniSourceTypes() != null ? settings.getFurniSourceTypes() : new int[0];
+        this.userSourceTypes = settings.getUserSourceTypes() != null ? settings.getUserSourceTypes() : new int[0];
+        this.variableIds = settings.getVariableIds() != null ? settings.getVariableIds() : new String[0];
         this.items.clear();
         if (settings.getFurniIds() != null) {
             for (int visibleId : settings.getFurniIds()) {
@@ -62,7 +69,10 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         return WiredManager.getGson().toJson(new JsonData(
                 this.intParams,
                 this.stringParam,
-                this.items.stream().map(HabboItem::getId).collect(Collectors.toList())));
+                this.items.stream().map(HabboItem::getId).collect(Collectors.toList()),
+                this.furniSourceTypes,
+                this.userSourceTypes,
+                this.variableIds));
     }
 
     @Override
@@ -70,6 +80,9 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         this.items.clear();
         this.intParams = new int[0];
         this.stringParam = "";
+        this.furniSourceTypes = new int[0];
+        this.userSourceTypes = new int[0];
+        this.variableIds = new String[0];
         String wiredData = set.getString("wired_data");
         if (wiredData == null || !wiredData.startsWith("{")) {
             return;
@@ -78,6 +91,9 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
         this.intParams = data.intParams != null ? data.intParams : new int[0];
         this.stringParam = data.stringParam != null ? data.stringParam : "";
+        this.furniSourceTypes = data.furniSourceTypes != null ? data.furniSourceTypes : new int[0];
+        this.userSourceTypes = data.userSourceTypes != null ? data.userSourceTypes : new int[0];
+        this.variableIds = data.variableIds != null ? data.variableIds : new String[0];
         if (data.itemIds != null) {
             for (Integer id : data.itemIds) {
                 HabboItem item = room.getHabboItemByDatabaseId(id);
@@ -93,6 +109,9 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         this.items.clear();
         this.intParams = new int[0];
         this.stringParam = "";
+        this.furniSourceTypes = new int[0];
+        this.userSourceTypes = new int[0];
+        this.variableIds = new String[0];
     }
 
     @Deprecated
@@ -117,12 +136,40 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
     }
 
     @Override
+    protected int[] getWiredFurniSourceTypes() {
+        return this.furniSourceTypes;
+    }
+
+    @Override
+    protected int[] getWiredUserSourceTypes() {
+        return this.userSourceTypes;
+    }
+
+    @Override
+    protected String[] getWiredVariableIds() {
+        return this.variableIds;
+    }
+
+    @Override
     protected boolean supportsFurniPicking() {
         return !this.items.isEmpty() || supportsFurniPickingWhenEmpty();
     }
 
     protected boolean supportsFurniPickingWhenEmpty() {
         return false;
+    }
+
+    @Override
+    protected boolean isWiredAdvancedMode() {
+        return getFurniSourceSlotCount() > 0 || getUserSourceSlotCount() > 0;
+    }
+
+    protected Collection<HabboItem> sourceItems(WiredContext ctx) {
+        return resolveFurniSource(ctx, this.furniSourceTypes, 0, this.items, null);
+    }
+
+    protected Collection<RoomUnit> sourceUsers(WiredContext ctx) {
+        return resolveUserSource(ctx, this.userSourceTypes, 0);
     }
 
     protected boolean compare(int lhs, int rhs, int operator) {
@@ -141,11 +188,18 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         int[] intParams;
         String stringParam;
         List<Integer> itemIds;
+        int[] furniSourceTypes;
+        int[] userSourceTypes;
+        String[] variableIds;
 
-        JsonData(int[] intParams, String stringParam, List<Integer> itemIds) {
+        JsonData(int[] intParams, String stringParam, List<Integer> itemIds,
+                 int[] furniSourceTypes, int[] userSourceTypes, String[] variableIds) {
             this.intParams = intParams;
             this.stringParam = stringParam;
             this.itemIds = itemIds;
+            this.furniSourceTypes = furniSourceTypes;
+            this.userSourceTypes = userSourceTypes;
+            this.variableIds = variableIds;
         }
     }
 }

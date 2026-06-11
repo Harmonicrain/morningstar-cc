@@ -38,6 +38,8 @@ public class WiredEffectTeleport extends InteractionWiredEffect {
     public static final WiredEffectType type = WiredEffectType.TELEPORT;
 
     protected List<HabboItem> items;
+    protected int[] furniSourceTypes = new int[0];
+    protected int[] userSourceTypes = new int[0];
 
     public WiredEffectTeleport(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
@@ -116,50 +118,20 @@ public class WiredEffectTeleport extends InteractionWiredEffect {
     protected java.util.Collection<HabboItem> getSelectedItems() { return this.items; }
     @Override
     protected boolean supportsFurniPicking() { return true; }
+    @Override
+    protected boolean supportsUserPicking() { return true; }
+    @Override
+    protected boolean isWiredAdvancedMode() { return true; }
+    @Override
+    protected int[] getWiredFurniSourceTypes() { return this.furniSourceTypes; }
+    @Override
+    protected int[] getWiredUserSourceTypes() { return this.userSourceTypes; }
 
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
-        THashSet<HabboItem> items = new THashSet<>();
-
-        for (HabboItem item : this.items) {
-            if (item.getRoomId() != this.getRoomId() || Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId()).getHabboItemByDatabaseId(item.getId()) == null)
-                items.add(item);
-        }
-
-        for (HabboItem item : items) {
-            this.items.remove(item);
-        }
-        message.appendBoolean(false);
-        message.appendInt(WiredManager.MAXIMUM_FURNI_SELECTION);
-        message.appendInt(this.items.size());
-        for (HabboItem item : this.items)
-            message.appendInt(item.getRoomVisibleId());
-
-        message.appendInt(this.getBaseItem().getSpriteId());
-        message.appendInt(this.getRoomVisibleId());
-        message.appendString("");
-        message.appendInt(0);
-        message.appendInt(0);
-        message.appendInt(this.getType().code);
-        message.appendInt(this.getDelay());
-        if (this.requiresTriggeringUser()) {
-            List<Integer> invalidTriggers = new ArrayList<>();
-            room.getRoomSpecialTypes().getTriggers(this.getX(), this.getY()).forEach(new TObjectProcedure<InteractionWiredTrigger>() {
-                @Override
-                public boolean execute(InteractionWiredTrigger object) {
-                    if (!object.isTriggeredByRoomUnit()) {
-                        invalidTriggers.add(object.getId());
-                    }
-                    return true;
-                }
-            });
-            message.appendInt(invalidTriggers.size());
-            for (Integer i : invalidTriggers) {
-                message.appendInt(i);
-            }
-        } else {
-            message.appendInt(0);
-        }
+        this.items.removeIf(item -> item == null || item.getRoomId() != this.getRoomId()
+                || Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId()).getHabboItemByDatabaseId(item.getId()) == null);
+        this.serializeWiredDataNew(message, room);
     }
 
     @Override
@@ -189,6 +161,8 @@ public class WiredEffectTeleport extends InteractionWiredEffect {
 
         this.items.clear();
         this.items.addAll(newItems);
+        this.furniSourceTypes = settings.getFurniSourceTypes() != null ? settings.getFurniSourceTypes() : new int[0];
+        this.userSourceTypes = settings.getUserSourceTypes() != null ? settings.getUserSourceTypes() : new int[0];
         this.setDelay(delay);
 
         return true;
@@ -197,24 +171,25 @@ public class WiredEffectTeleport extends InteractionWiredEffect {
     @Override
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
-        RoomUnit roomUnit = ctx.actor().orElse(null);
-        
-        if (roomUnit == null || room == null || room.getLayout() == null) {
+        if (room == null || room.getLayout() == null) {
             return;
         }
         
         this.items.removeIf(item -> item == null || item.getRoomId() != this.getRoomId()
                 || Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId()).getHabboItemByDatabaseId(item.getId()) == null);
 
-        if (!this.items.isEmpty()) {
-            int i = Emulator.getRandom().nextInt(this.items.size());
-            HabboItem item = this.items.get(i);
+        List<HabboItem> sourceItems = new ArrayList<>(resolveFurniSource(ctx, this.furniSourceTypes, 0, this.items, null));
+        if (!sourceItems.isEmpty()) {
+            int i = Emulator.getRandom().nextInt(sourceItems.size());
+            HabboItem item = sourceItems.get(i);
             
             if (item == null) return;
 
             RoomTile tile = room.getLayout().getTile(item.getX(), item.getY());
             if (tile != null) {
-                teleportUnitToTile(roomUnit, tile);
+                for (RoomUnit roomUnit : resolveUserSource(ctx, this.userSourceTypes, 0)) {
+                    teleportUnitToTile(roomUnit, tile);
+                }
             }
         }
     }
@@ -229,7 +204,9 @@ public class WiredEffectTeleport extends InteractionWiredEffect {
     public String getWiredData() {
         return WiredManager.getGson().toJson(new JsonData(
             this.getDelay(),
-            this.items.stream().map(HabboItem::getId).collect(Collectors.toList())
+            this.items.stream().map(HabboItem::getId).collect(Collectors.toList()),
+            this.furniSourceTypes,
+            this.userSourceTypes
         ));
     }
 
@@ -241,6 +218,8 @@ public class WiredEffectTeleport extends InteractionWiredEffect {
         if (wiredData.startsWith("{")) {
             JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
             this.setDelay(data.delay);
+            this.furniSourceTypes = data.furniSourceTypes != null ? data.furniSourceTypes : new int[0];
+            this.userSourceTypes = data.userSourceTypes != null ? data.userSourceTypes : new int[0];
             for (Integer id: data.itemIds) {
                 HabboItem item = room.getHabboItemByDatabaseId(id);
                 if (item != null) {
@@ -269,6 +248,8 @@ public class WiredEffectTeleport extends InteractionWiredEffect {
     @Override
     public void onPickUp() {
         this.items.clear();
+        this.furniSourceTypes = new int[0];
+        this.userSourceTypes = new int[0];
         this.setDelay(0);
     }
 
@@ -290,10 +271,14 @@ public class WiredEffectTeleport extends InteractionWiredEffect {
     static class JsonData {
         int delay;
         List<Integer> itemIds;
+        int[] furniSourceTypes;
+        int[] userSourceTypes;
 
-        public JsonData(int delay, List<Integer> itemIds) {
+        public JsonData(int delay, List<Integer> itemIds, int[] furniSourceTypes, int[] userSourceTypes) {
             this.delay = delay;
             this.itemIds = itemIds;
+            this.furniSourceTypes = furniSourceTypes;
+            this.userSourceTypes = userSourceTypes;
         }
     }
 }

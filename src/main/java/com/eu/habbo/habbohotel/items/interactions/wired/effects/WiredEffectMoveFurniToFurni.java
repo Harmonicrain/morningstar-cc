@@ -18,15 +18,17 @@ public class WiredEffectMoveFurniToFurni extends WiredEffectPhase3Base {
 
     @Override public WiredEffectType getType() { return type; }
     @Override protected boolean supportsFurniPickingWhenEmpty() { return true; }
+    @Override protected int getFurniSourceSlotCount() { return 2; }
+    @Override protected int getDefaultFurniSourceForSlot(int slot) { return slot == 1 ? FURNI_SOURCE_PICKED_2 : FURNI_SOURCE_PICKED_1; }
 
     @Override
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
-        if (this.items2.isEmpty()) return;
-        HabboItem target = this.items2.get(0);
+        HabboItem target = sourceItems(ctx, 1).stream().findFirst().orElse(null);
+        if (target == null) return;
         RoomTile tile = room.getLayout().getTile(target.getX(), target.getY());
         if (tile == null) return;
-        for (HabboItem item : this.items) {
+        for (HabboItem item : sourceItems(ctx, 0)) {
             if (item != target) {
                 room.moveFurniTo(item, tile, item.getRotation(), null, true, false);
             }

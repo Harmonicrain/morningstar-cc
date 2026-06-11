@@ -22,9 +22,8 @@ public class WiredEffectRemoveFurni extends WiredEffectPhase3Base {
     @Override
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
-        for (HabboItem item : this.items.toArray(new HabboItem[0])) {
+        for (HabboItem item : sourceItems(ctx).toArray(new HabboItem[0])) {
             room.pickUpItem(item, Emulator.getGameEnvironment().getHabboManager().getHabbo(item.getUserId()));
         }
-        this.items.clear();
     }
 }

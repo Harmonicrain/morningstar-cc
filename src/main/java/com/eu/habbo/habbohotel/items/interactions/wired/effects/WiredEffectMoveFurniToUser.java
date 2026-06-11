@@ -20,16 +20,17 @@ public class WiredEffectMoveFurniToUser extends WiredEffectPhase3Base {
     @Override public WiredEffectType getType() { return type; }
     @Override public boolean requiresTriggeringUser() { return true; }
     @Override protected boolean supportsFurniPickingWhenEmpty() { return true; }
+    @Override protected boolean supportsUserPicking() { return true; }
 
     @Override
     public void execute(WiredContext ctx) {
-        RoomUnit unit = ctx.actor().orElse(null);
         Room room = ctx.room();
-        if (unit == null) return;
-        RoomTile tile = unit.getCurrentLocation();
-        if (tile == null) return;
-        for (HabboItem item : this.items) {
-            room.moveFurniTo(item, tile, item.getRotation(), null, true, false);
+        for (RoomUnit unit : sourceUsers(ctx)) {
+            RoomTile tile = unit.getCurrentLocation();
+            if (tile == null) continue;
+            for (HabboItem item : sourceItems(ctx)) {
+                room.moveFurniTo(item, tile, item.getRotation(), null, true, false);
+            }
         }
     }
 }

@@ -25,7 +25,7 @@ public class WiredEffectSetFurniAltitude extends WiredEffectPhase3Base {
         Room room = ctx.room();
         int amount = this.intParams.length > 0 ? this.intParams[0] : 0;
         int operator = this.intParams.length > 1 ? this.intParams[1] : 0;
-        for (HabboItem item : this.items) {
+        for (HabboItem item : sourceItems(ctx)) {
             RoomTile tile = room.getLayout().getTile(item.getX(), item.getY());
             if (tile == null) continue;
             double oldZ = item.getZ();

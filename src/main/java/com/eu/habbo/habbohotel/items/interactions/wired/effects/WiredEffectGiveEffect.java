@@ -17,12 +17,13 @@ public class WiredEffectGiveEffect extends WiredEffectPhase3Base {
 
     @Override public WiredEffectType getType() { return type; }
     @Override public boolean requiresTriggeringUser() { return true; }
+    @Override protected boolean supportsUserPicking() { return true; }
 
     @Override
     public void execute(WiredContext ctx) {
-        RoomUnit unit = ctx.actor().orElse(null);
-        if (unit == null) return;
         int effect = this.intParams.length > 0 ? this.intParams[0] : 0;
-        ctx.room().sendComposer(new AvatarEffectMessageComposer(unit, effect).compose());
+        for (RoomUnit unit : sourceUsers(ctx)) {
+            ctx.room().sendComposer(new AvatarEffectMessageComposer(unit, effect).compose());
+        }
     }
 }
