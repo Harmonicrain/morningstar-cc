@@ -1197,7 +1197,7 @@ public class CatalogManager {
                                     extradata = habbo.getClient().getHabbo().getHabboInfo().getUsername() + (char) 9 + Calendar.getInstance().get(Calendar.DAY_OF_MONTH) + "-" + (Calendar.getInstance().get(Calendar.MONTH) + 1) + "-" + Calendar.getInstance().get(Calendar.YEAR) + (char) 9 + Emulator.getGameEnvironment().getWordFilter().filter(extradata.replace(((char) 9) + "", ""), habbo);
                                 }
 
-                                if (InteractionTeleport.class.isAssignableFrom(baseItem.getInteractionType().getType())) {
+                                if (InteractionTeleport.class.isAssignableFrom(baseItem.getInteractionType().getType()) || InteractionRoomLinker.class.isAssignableFrom(baseItem.getInteractionType().getType())) {
                                     HabboItem teleportOne = Emulator.getGameEnvironment().getItemManager().createItem(habbo.getClient().getHabbo().getHabboInfo().getId(), baseItem, limitedStack, limitedNumber, extradata);
                                     HabboItem teleportTwo = Emulator.getGameEnvironment().getItemManager().createItem(habbo.getClient().getHabbo().getHabboInfo().getId(), baseItem, limitedStack, limitedNumber, extradata);
                                     Emulator.getGameEnvironment().getItemManager().insertTeleportPair(teleportOne.getId(), teleportTwo.getId());
