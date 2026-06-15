@@ -11,6 +11,7 @@ import com.eu.habbo.messages.outgoing.events.calendar.CampaignCalendarDataMessag
 import com.eu.habbo.messages.outgoing.habboway.nux.InClientLinkMessageComposer;
 import com.eu.habbo.messages.outgoing.users.AccountPreferencesMessageComposer;
 import com.eu.habbo.messages.outgoing.users.PerkAllowancesMessageComposer;
+import com.eu.habbo.messages.outgoing.users.PurchasableChatStylesMessageComposer;
 import com.eu.habbo.messages.outgoing.users.UserObjectMessageComposer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,7 @@ public class InfoRetrieveMessageEvent extends MessageHandler {
             messages.add(new PerkAllowancesMessageComposer(this.client.getHabbo()).compose());
 
             messages.add(new AccountPreferencesMessageComposer(this.client.getHabbo()).compose());
+            messages.add(new PurchasableChatStylesMessageComposer(Emulator.getGameEnvironment().getCatalogManager().getOwnedChatStyles(this.client.getHabbo())).compose());
 
 
 //

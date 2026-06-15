@@ -13,6 +13,7 @@ import com.eu.habbo.habbohotel.items.interactions.*;
 import com.eu.habbo.habbohotel.modtool.ScripterManager;
 import com.eu.habbo.habbohotel.permissions.Permission;
 import com.eu.habbo.habbohotel.pets.Pet;
+import com.eu.habbo.habbohotel.rooms.RoomChatMessageBubbles;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboBadge;
 import com.eu.habbo.habbohotel.users.HabboGender;
@@ -26,6 +27,7 @@ import com.eu.habbo.messages.outgoing.inventory.PetAddedToInventoryMessageCompos
 import com.eu.habbo.messages.outgoing.inventory.FurniListInvalidateMessageComposer;
 import com.eu.habbo.messages.outgoing.modtool.IssueCloseNotificationMessageComposer;
 import com.eu.habbo.messages.outgoing.users.BadgeReceivedMessageComposer;
+import com.eu.habbo.messages.outgoing.users.PurchasableChatStyleChangedMessageComposer;
 import com.eu.habbo.plugin.events.emulator.EmulatorLoadCatalogManagerEvent;
 import com.eu.habbo.plugin.events.users.catalog.UserCatalogFurnitureBoughtEvent;
 import com.eu.habbo.plugin.events.users.catalog.UserCatalogItemPurchasedEvent;
@@ -197,6 +199,7 @@ public class CatalogManager {
     public final TIntIntHashMap offerDefs;
     public final Item ecotronItem;
     public final THashMap<Integer, CatalogLimitedConfiguration> limitedNumbers;
+    private final Set<Integer> purchasableChatStyles;
     private final List<Voucher> vouchers;
     private BuildersClubCatalogRegistry buildersClubCatalogRegistry;
 
@@ -214,6 +217,7 @@ public class CatalogManager {
         this.offerDefs = new TIntIntHashMap();
         this.vouchers = new ArrayList<>();
         this.limitedNumbers = new THashMap<>();
+        this.purchasableChatStyles = new HashSet<>();
         this.buildersClubCatalogRegistry = new BuildersClubCatalogRegistry();
 
         this.initialize();
@@ -340,6 +344,7 @@ public class CatalogManager {
 
     private synchronized void loadCatalogItems() {
         this.clubItems.clear();
+        this.purchasableChatStyles.clear();
         catalogItemAmount = 0;
 
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); Statement statement = connection.createStatement(); ResultSet set = statement.executeQuery("SELECT * FROM catalog_items")) {
@@ -347,7 +352,7 @@ public class CatalogManager {
             while (set.next()) {
                 CatalogItem loadedItem = new CatalogItem(set);
 
-                if (set.getString("item_ids").equals("0") && !loadedItem.isSubscriptionOffer()) {
+                if (set.getString("item_ids").equals("0") && !loadedItem.isSubscriptionOffer() && !loadedItem.isChatStyleOffer()) {
                     continue;
                 }
 
@@ -378,6 +383,10 @@ public class CatalogManager {
 
                 if (item.isLimited()) {
                     this.createOrUpdateLimitedConfig(item);
+                }
+
+                if (item.isChatStyleOffer()) {
+                    this.purchasableChatStyles.add(item.getChatStyleId());
                 }
             }
         } catch (SQLException e) {
@@ -1091,6 +1100,38 @@ public class CatalogManager {
                     return;
                 }
 
+                if (item.isChatStyleOffer()) {
+                    int styleId = item.getChatStyleId();
+
+                    if (!this.isPurchasableChatStyle(styleId) || RoomChatMessageBubbles.getBubble(styleId) == RoomChatMessageBubbles.NORMAL) {
+                        habbo.getClient().sendResponse(new PurchaseErrorMessageComposer(PurchaseErrorMessageComposer.SERVER_ERROR));
+                        return;
+                    }
+
+                    if (this.habboOwnsChatStyle(habbo, styleId)) {
+                        habbo.getClient().sendResponse(new PurchaseErrorMessageComposer(PurchaseErrorMessageComposer.ALREADY_HAVE_BADGE));
+                        return;
+                    }
+
+                    if (!this.grantChatStyle(habbo, styleId)) {
+                        habbo.getClient().sendResponse(new PurchaseErrorMessageComposer(PurchaseErrorMessageComposer.SERVER_ERROR));
+                        return;
+                    }
+
+                    if (!free && !habbo.hasPermission(Permission.ACC_INFINITE_CREDITS) && totalCredits > 0) {
+                        habbo.giveCredits(-totalCredits);
+                    }
+
+                    if (!free && !habbo.hasPermission(Permission.ACC_INFINITE_POINTS) && totalPoints > 0) {
+                        habbo.givePoints(item.getPointsType(), -totalPoints);
+                    }
+
+                    habbo.getHabboStats().addPurchase(item);
+                    habbo.getClient().sendResponse(new PurchasableChatStyleChangedMessageComposer(styleId, true));
+                    habbo.getClient().sendResponse(new PurchaseOKMessageComposer(item));
+                    return;
+                }
+
                 List<String> badges = new ArrayList<>();
                 Map<UnseenItemsMessageComposer.AddHabboItemCategory, List<Integer>> unseenItems = new HashMap<>();
                 boolean badgeFound = false;
@@ -1343,6 +1384,56 @@ public class CatalogManager {
         } finally {
             habbo.getHabboStats().isPurchasingFurniture = false;
         }
+    }
+
+    public boolean isPurchasableChatStyle(int styleId) {
+        return this.purchasableChatStyles.contains(styleId);
+    }
+
+    public Set<Integer> getOwnedChatStyles(Habbo habbo) {
+        Set<Integer> styles = new HashSet<>();
+
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT style_id FROM users_chat_styles WHERE user_id = ?")) {
+            statement.setInt(1, habbo.getHabboInfo().getId());
+
+            try (ResultSet set = statement.executeQuery()) {
+                while (set.next()) {
+                    styles.add(set.getInt("style_id"));
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
+
+        return styles;
+    }
+
+    public boolean habboOwnsChatStyle(Habbo habbo, int styleId) {
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("SELECT 1 FROM users_chat_styles WHERE user_id = ? AND style_id = ? LIMIT 1")) {
+            statement.setInt(1, habbo.getHabboInfo().getId());
+            statement.setInt(2, styleId);
+
+            try (ResultSet set = statement.executeQuery()) {
+                return set.next();
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
+
+        return false;
+    }
+
+    public boolean grantChatStyle(Habbo habbo, int styleId) {
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("INSERT IGNORE INTO users_chat_styles (user_id, style_id) VALUES (?, ?)")) {
+            statement.setInt(1, habbo.getHabboInfo().getId());
+            statement.setInt(2, styleId);
+            statement.execute();
+            return true;
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
+
+        return false;
     }
 
     public List<ClubOffer> getClubOffers() {
