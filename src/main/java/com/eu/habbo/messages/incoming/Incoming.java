@@ -357,11 +357,15 @@ public class Incoming {
     public static final int OpenPetPackageMessageEvent = 3698;
 
     public static final int GetGameListMessageEvent = 741;
+    public static final int GetGameAchievementsMessageEvent = 2399;
     public static final int GetGameStatusMessageEvent = 3171;
+    public static final int GetUserGameAchievementsMessageEvent = 389;
     public static final int Game2GetAccountGameStatusMessageEvent = 11;
     public static final int PublishPhotoMessageEvent = 2068;
 
     public static final int JoinQueueMessageEvent = 1458;
+    public static final int GetWeeklyCompetitiveFriendsLeaderboardEvent = 1081;
+    public static final int Game2GetWeeklyLeaderboardEvent = 2565;
     public static final int GetWeeklyGameRewardWinnersEvent = 1054;
     public static final int GetWeeklyGameRewardEvent = 2914;
     public static final int GameUnloadedMessageEvent = 3207;

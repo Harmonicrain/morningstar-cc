@@ -652,8 +652,12 @@ public class PacketManager {
 
     void registerGameCenter() throws Exception {
         this.registerHandler(Incoming.GetGameListMessageEvent, GetGameListMessageEvent.class);
+        this.registerHandler(Incoming.GetGameAchievementsMessageEvent, GetGameAchievementsMessageEvent.class);
         this.registerHandler(Incoming.GetGameStatusMessageEvent, GetGameStatusMessageEvent.class);
+        this.registerHandler(Incoming.GetUserGameAchievementsMessageEvent, GetUserGameAchievementsMessageEvent.class);
         this.registerHandler(Incoming.JoinQueueMessageEvent, JoinQueueMessageEvent.class);
+        this.registerHandler(Incoming.GetWeeklyCompetitiveFriendsLeaderboardEvent, GetWeeklyCompetitiveFriendsLeaderboardEvent.class);
+        this.registerHandler(Incoming.Game2GetWeeklyLeaderboardEvent, Game2GetWeeklyLeaderboardEvent.class);
         this.registerHandler(Incoming.GetWeeklyGameRewardWinnersEvent, GetWeeklyGameRewardWinnersEvent.class);
         this.registerHandler(Incoming.GameUnloadedMessageEvent, GameUnloadedMessageEvent.class);
         this.registerHandler(Incoming.GetWeeklyGameRewardEvent, GetWeeklyGameRewardEvent.class);

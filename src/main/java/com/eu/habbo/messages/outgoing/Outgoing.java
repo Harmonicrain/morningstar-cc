@@ -179,7 +179,10 @@ public class Outgoing {
     public final static int WiredMenuMarker7112MessageComposer = 7112; // May parser §_-G3§
     public final static int WiredMenuMarker7113MessageComposer = 7113; // May parser §_-nT§
     public final static int WiredMenuHashCountMessageComposer = 7114;  // May parser §_-jM§
+    public final static int WiredMovementsMessageComposer = 7115;      // May 641/723 runtime room-engine movement
     // ===== end Wired 2.0 outgoing =====
+    public final static int PurchasableChatStylesMessageComposer = 7200;
+    public final static int PurchasableChatStyleChangedMessageComposer = 7202;
 
     public final static int ModeratorUserInfoMessageComposer = 2866; // PRODUCTION-201611291003-338511768
     public final static int WardrobeMessageComposer = 3315; // PRODUCTION-201611291003-338511768
@@ -339,7 +342,6 @@ public class Outgoing {
     public final static int FriendFurniOtherLockConfirmedMessageComposer = 382; // PRODUCTION-201611291003-338511768
     public final static int FriendFurniCancelLockMessageComposer = 770; // PRODUCTION-201611291003-338511768
     public final static int OpenPetPackageResultMessageComposer = 546; // PRODUCTION-201611291003-338511768
-    public final static int GameCenterFeaturedPlayersComposer = 3097; // PRODUCTION-201611291003-338511768
     public final static int TargetedOfferNotFoundMessageComposer = 1237; // PRODUCTION-201611291003-338511768
     public final static int TargetedOfferMessageComposer = 119; // PRODUCTION-201611291003-338511768
     public final static int LeprechaunStarterBundleComposer = 2380; // PRODUCTION-201611291003-338511768
@@ -362,7 +364,6 @@ public class Outgoing {
     public final static int RoomSettingsSaveErrorMessageComposer = 1555; // PRODUCTION-201611291003-338511768
     public final static int GuildMemberMgmtFailedMessageComposer = 818; // PRODUCTION-201611291003-338511768
     public final static int PollErrorMessageComposer = 662; // PRODUCTION-201611291003-338511768
-    public final static int AchievementsConfigurationComposer = 1689; // PRODUCTION-201611291003-338511768
     public final static int ConfirmBreedingRequestMessageComposer = 634; // PRODUCTION-201611291003-338511768
     public final static int RoomUserQuestionAnsweredComposer = -1; // PRODUCTION-201611291003-338511768
     public final static int PetBreedingMessageComposer = 1746; // PRODUCTION-201611291003-338511768
@@ -443,7 +444,8 @@ public class Outgoing {
     public final static int AvatarEffectAddedMessageComposer = 2867; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_1188 = 1437; // PRODUCTION-201611291003-338511768
     public final static int SubmitCompetitionRoomComposer = 3841; // PRODUCTION-201611291003-338511768
-    public final static int GameAchievementsListComposer = 2265; // PRODUCTION-201611291003-338511768
+    public final static int GameAchievementsMessageComposer = 1689; // PRODUCTION-201611291003-338511768
+    public final static int UserGameAchievementsMessageComposer = 2265; // PRODUCTION-201611291003-338511768
     public final static int TradingOtherNotAllowedMessageComposer = 1254; // PRODUCTION-201611291003-338511768
     public final static int UnloadGameMessageComposer = 1715; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_137 = 2897; // PRODUCTION-201611291003-338511768
@@ -453,7 +455,6 @@ public class Outgoing {
     public final static int UnknowComposer_1427 = 3319; // PRODUCTION-201611291003-338511768
     public final static int CampaignCalendarDataMessageComposer = 2531; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_152 = 3954; // PRODUCTION-201611291003-338511768
-    public final static int UnknownComposer_1577 = 2641; // PRODUCTION-201611291003-338511768
     public final static int AchievementResolutionCompletedMessageComposer = 740; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_1741 = 2246; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_1744 = 2873; // PRODUCTION-201611291003-338511768
@@ -545,6 +546,9 @@ public class Outgoing {
     public final static int ExtendedProfileChangedMessageComposer = 876;
 
     public final static int GameStatusMessageComposer = 3805;
+    public final static int WeeklyGameRewardMessageComposer = 2641;
+    public final static int WeeklyGameRewardWinnersMessageComposer = 3097;
+    public final static int WeeklyCompetitiveFriendsLeaderboardMessageComposer = 3560;
 
 
     public static final int SnowStormGameStartedComposer = 5000;
