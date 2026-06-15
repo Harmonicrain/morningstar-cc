@@ -60,6 +60,11 @@ public abstract class InteractionWiredCondition extends InteractionWired impleme
     @Override
     protected int getWiredTypeCode() { return this.getType().code; }
 
+    @Override
+    protected boolean isWiredAdvancedMode() {
+        return getFurniSourceSlotCount() > 0 || getUserSourceSlotCount() > 0;
+    }
+
     public abstract boolean saveData(WiredSettings settings);
 
     public WiredConditionOperator operator() {

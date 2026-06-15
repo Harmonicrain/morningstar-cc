@@ -16,7 +16,7 @@ import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.messages.ClientMessage;
 import com.eu.habbo.messages.ServerMessage;
-import com.eu.habbo.messages.outgoing.rooms.items.OneWayDoorStatusMessageComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.ObjectsDataUpdateMessageComposer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +26,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -78,7 +79,15 @@ public abstract class InteractionWired extends InteractionDefault {
     private static final long CACHE_EXPIRY_MS = 5 * 60 * 1000;
     
     private long cooldown;
+    private long lastBoxAnimationMs;
     private final ConcurrentHashMap<Long, Long> userExecutionCache = new ConcurrentHashMap<>();
+
+    /**
+     * Minimum interval between wired-box "light up" animations. A fast trigger (e.g. a 50ms
+     * short repeater) fires every tick, but the cosmetic box blink must not strobe at that rate;
+     * Habbo blinks the box much slower. Tune this single value to taste.
+     */
+    private static final long BOX_ANIMATION_MIN_INTERVAL_MS = 500L;
 
     // Wired 2.0 advanced source settings. Generic storage so every wired type
     // round-trips furniSourceTypes/userSourceTypes; persisted in items.wired_sources.
@@ -153,9 +162,36 @@ public abstract class InteractionWired extends InteractionDefault {
     }
 
     public void activateBox(Room room, RoomUnit roomUnit, long millis) {
+        this.activateBox(room, roomUnit, millis, null);
+    }
+
+    /**
+     * Toggle this wired box's highlight state.
+     * <p>
+     * habbo.com lights its boxes with a batched {@link ObjectsDataUpdateMessageComposer}: every box that
+     * lights up during one wired tick ships in a single packet (count + roomVisibleId + serialized
+     * extradata per item). The old {@link com.eu.habbo.messages.outgoing.rooms.items.OneWayDoorStatusMessageComposer}
+     * is the wrong packet for this — it carries a door open/closed int, not the box extradata, so the
+     * client never animated the highlight the way .com does.
+     *
+     * @param boxUpdates when non-null, the toggled box is added to this set instead of being sent
+     *                   immediately, letting the caller ({@link com.eu.habbo.habbohotel.wired.core.WiredEngine})
+     *                   flush every box lit during one event in one packet — matching .com's per-tick batch.
+     *                   When null (direct furniture interaction), the toggle is sent right away as a
+     *                   single-item update.
+     */
+    public void activateBox(Room room, RoomUnit roomUnit, long millis, Set<HabboItem> boxUpdates) {
         if(!room.isHideWired()) {
-            this.setExtradata(this.getExtradata().equals("1") ? "0" : "1");
-            room.sendComposer(new OneWayDoorStatusMessageComposer(this).compose());
+            long now = millis > 0 ? millis : System.currentTimeMillis();
+            if (now - this.lastBoxAnimationMs >= BOX_ANIMATION_MIN_INTERVAL_MS) {
+                this.lastBoxAnimationMs = now;
+                this.setExtradata(this.getExtradata().equals("1") ? "0" : "1");
+                if (boxUpdates != null) {
+                    boxUpdates.add(this);
+                } else {
+                    room.sendComposer(new ObjectsDataUpdateMessageComposer(Collections.singleton((HabboItem) this)).compose());
+                }
+            }
         }
         if (roomUnit != null) {
             this.addUserExecutionCache(roomUnit.getId(), millis);
@@ -169,6 +205,15 @@ public abstract class InteractionWired extends InteractionDefault {
 
     public boolean canExecute(long newMillis) {
         return newMillis - this.cooldown >= this.requiredCooldown();
+    }
+
+    /**
+     * Movement effects override this {@code true} so a fast trigger (e.g. a 50ms short repeater)
+     * can re-run them every tick and stream smooth {@link com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer}
+     * slides. All other effects stay gated by their cooldown so they do not spam (e.g. Show Message).
+     */
+    public boolean bypassExecutionCooldown() {
+        return false;
     }
 
     public void setCooldown(long newMillis) {

@@ -195,6 +195,11 @@ public class WiredEffectWhisper extends InteractionWiredEffect {
         return true;
     }
 
+    @Override
+    protected long requiredCooldown() {
+        return 500; // Habbo throttles Show Message to ~500ms even under a 50ms trigger
+    }
+
     static class JsonData {
         String message;
         int visibility;

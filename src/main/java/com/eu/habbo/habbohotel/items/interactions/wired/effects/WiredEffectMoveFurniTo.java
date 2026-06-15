@@ -5,6 +5,7 @@ import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredEffect;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
+import com.eu.habbo.habbohotel.rooms.FurnitureMovementError;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomTile;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
@@ -15,7 +16,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredSimulation;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
-import com.eu.habbo.messages.outgoing.rooms.items.FloorItemOnRollerComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
 import gnu.trove.set.hash.THashSet;
 
 import java.sql.ResultSet;
@@ -129,8 +130,14 @@ public class WiredEffectMoveFurniTo extends InteractionWiredEffect {
                                 continue;
                             }
 
-                            room.sendComposer(new FloorItemOnRollerComposer((HabboItem) object, null, tile,
-                                    tile.getStackHeight() - ((HabboItem) object).getZ(), room).compose());
+                            HabboItem moved = (HabboItem) object;
+                            double oldZ = moved.getZ();
+                            // Wired 2.0: move silently (sendUpdates=false emits no packet) then stream a smooth
+                            // WiredMovements slide instead of the legacy side-effecting roller composer.
+                            if (room.moveFurniTo(moved, tile, moved.getRotation(), null, false) == FurnitureMovementError.NONE) {
+                                room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
+                                        moved, sourceTile, oldZ, tile, moved.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
+                            }
 
                             RoomTile newSourceTile = room.getLayout().getTile(((HabboItem) object).getX(),
                                     ((HabboItem) object).getY());
@@ -307,6 +314,11 @@ public class WiredEffectMoveFurniTo extends InteractionWiredEffect {
     @Override
     protected long requiredCooldown() {
         return 495;
+    }
+
+    @Override
+    public boolean bypassExecutionCooldown() {
+        return true; // movement runs every tick (Habbo parity); not gated by the cooldown
     }
 
     static class JsonData {

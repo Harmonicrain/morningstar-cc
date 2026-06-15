@@ -66,6 +66,11 @@ public class WiredConditionMatchStatePosition extends InteractionWiredCondition
     }
 
     @Override
+    protected boolean supportsFurniPicking() {
+        return true;
+    }
+
+    @Override
     public void serializeWiredData(ServerMessage message, Room room) {
         this.refresh();
 

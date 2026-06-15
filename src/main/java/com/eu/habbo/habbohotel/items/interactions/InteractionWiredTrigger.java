@@ -62,6 +62,11 @@ public abstract class InteractionWiredTrigger extends InteractionWired implement
     @Override
     protected int getWiredTypeCode() { return this.getType().code; }
 
+    @Override
+    protected boolean isWiredAdvancedMode() {
+        return getFurniSourceSlotCount() > 0 || getUserSourceSlotCount() > 0;
+    }
+
     public abstract boolean saveData(WiredSettings settings);
 
     protected int getDelay() {

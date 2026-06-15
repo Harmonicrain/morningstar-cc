@@ -6,7 +6,7 @@ import com.eu.habbo.habbohotel.rooms.RoomTile;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
-import com.eu.habbo.messages.outgoing.rooms.items.FloorItemOnRollerComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,7 +33,9 @@ public class WiredEffectSetFurniAltitude extends WiredEffectPhase3Base {
             if (operator == 1) target = oldZ + target;
             if (operator == 2) target = oldZ - target;
             item.setZ(target);
-            room.sendComposer(new FloorItemOnRollerComposer(item, null, tile, oldZ, tile, item.getZ(), 0, room).compose());
+            // Wired 2.0: stream a smooth WiredMovements altitude slide (same tile, fromZ -> toZ) instead of the legacy roller hop.
+            room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
+                    item, tile, oldZ, tile, item.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
         }
     }
 }

@@ -6,6 +6,7 @@ import com.eu.habbo.habbohotel.items.interactions.InteractionWiredEffect;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredExtra;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredSelector;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredTrigger;
+import com.eu.habbo.habbohotel.items.interactions.wired.triggers.WiredTriggerHabboSaysKeyword;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.habbohotel.users.HabboItem;
@@ -15,6 +16,7 @@ import com.eu.habbo.habbohotel.wired.api.IWiredEffect;
 import com.eu.habbo.habbohotel.wired.api.WiredStack;
 import com.eu.habbo.messages.outgoing.generic.alerts.NotificationDialogMessageComposer;
 import com.eu.habbo.messages.outgoing.generic.alerts.HabboBroadcastMessageComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.ObjectsDataUpdateMessageComposer;
 import com.eu.habbo.plugin.events.furniture.wired.WiredStackExecutedEvent;
 import com.eu.habbo.plugin.events.furniture.wired.WiredStackTriggeredEvent;
 import gnu.trove.map.hash.THashMap;
@@ -61,13 +63,19 @@ public final class WiredEngine {
     /** Maximum recursion depth to prevent infinite loops (e.g., collision + chase) */
     public static int MAX_RECURSION_DEPTH = 10;
     
-    /** Maximum events of same type per room within rate limit window before banning */
-    public static int MAX_EVENTS_PER_WINDOW = 100;
-    
-    /** Time window for counting rapid events (milliseconds) */
+    /** Whether the wired abuse rate-limiter is active. emulator_settings: wired.abuse.protection.enabled (default 1). */
+    public static boolean ABUSE_PROTECTION_ENABLED = true;
+
+    /** Maximum events of same type per room within rate limit window before banning.
+     *  emulator_settings: wired.abuse.max_events_per_window. Default 1000 so legitimate fast wired
+     *  (e.g. a 50ms short repeater driving a chase = ~200 collision events/10s) does not false-trip;
+     *  a true runaway loop far exceeds this. */
+    public static int MAX_EVENTS_PER_WINDOW = 1000;
+
+    /** Time window for counting rapid events (ms). emulator_settings: wired.abuse.window_ms. */
     public static long RATE_LIMIT_WINDOW_MS = 10000;
-    
-    /** Duration to ban wired execution in a room after abuse detected (milliseconds) */
+
+    /** Duration to ban wired execution in a room after abuse detected (ms). emulator_settings: wired.abuse.ban_duration_ms. */
     public static long WIRED_BAN_DURATION_MS = 600000;
 
     private final WiredServices services;
@@ -105,6 +113,10 @@ public final class WiredEngine {
         this.roomRecursionDepth = new ConcurrentHashMap<>();
         this.eventRateLimiters = new ConcurrentHashMap<>();
         this.bannedRooms = new ConcurrentHashMap<>();
+        // Abuse rate-limiter settings (ABUSE_PROTECTION_ENABLED, MAX_EVENTS_PER_WINDOW,
+        // RATE_LIMIT_WINDOW_MS, WIRED_BAN_DURATION_MS) are loaded from emulator_settings in
+        // PluginManager.globalOnConfigurationUpdated using the wired.abuse.* keys, so they apply at
+        // boot and on every config reload.
     }
 
     /**
@@ -130,8 +142,12 @@ public final class WiredEngine {
             return false;
         }
         
-        // Check rate limiting to prevent rapid-fire event spam (e.g., collision + chase loop)
-        if (isRateLimited(roomId, room, event.getType())) {
+        // Check rate limiting to prevent rapid-fire event spam (e.g., collision + chase loop).
+        // Self-paced timer events are exempt: their frequency is bounded by their own configured
+        // interval (a short repeater can legitimately fire every 50ms = 200/10s), not by a runaway
+        // loop, so they must not be mistaken for abuse. Any downstream events they trigger
+        // (collision, etc.) are still rate-limited and recursion-guarded below.
+        if (ABUSE_PROTECTION_ENABLED && !isSelfPacedTimerEvent(event.getType()) && isRateLimited(roomId, room, event.getType())) {
             // Room has been banned, all events will be dropped
             return false;
         }
@@ -158,6 +174,43 @@ public final class WiredEngine {
             }
         }
     }
+
+    /**
+     * Preview whether a matching User Says trigger asks the room chat message to be hidden.
+     * This intentionally does not execute the stack; RoomChatManager uses it to decide whether
+     * to send the normal chat bubble before it fires the wired stack.
+     */
+    public boolean shouldHideUserSays(WiredEvent event) {
+        if (event == null || event.getType() != WiredEvent.Type.USER_SAYS) {
+            return false;
+        }
+
+        Room room = event.getRoom();
+        if (room == null || !room.isLoaded()) {
+            return false;
+        }
+
+        for (WiredStack stack : index.getStacks(room, event.getType())) {
+            if (!(stack.trigger() instanceof WiredTriggerHabboSaysKeyword)) {
+                continue;
+            }
+
+            WiredTriggerHabboSaysKeyword trigger = (WiredTriggerHabboSaysKeyword) stack.trigger();
+            if (!trigger.shouldHideMessage()) {
+                continue;
+            }
+
+            if (trigger.requiresActor() && !event.getActor().isPresent()) {
+                continue;
+            }
+
+            if (trigger.matches(stack.triggerItem(), event)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
     
     /**
      * Internal event handling after recursion check.
@@ -175,9 +228,13 @@ public final class WiredEngine {
         boolean anyTriggered = false;
         long currentTime = System.currentTimeMillis();
 
+        // Collect every box that lights up across all stacks for this event so they ship in one
+        // ObjectsDataUpdate packet, matching how habbo.com batches box highlights per tick.
+        Set<HabboItem> boxUpdates = new LinkedHashSet<>();
+
         for (WiredStack stack : stacks) {
             try {
-                boolean triggered = processStack(stack, event, currentTime);
+                boolean triggered = processStack(stack, event, currentTime, boxUpdates);
                 if (triggered) {
                     anyTriggered = true;
                 }
@@ -189,13 +246,17 @@ public final class WiredEngine {
             }
         }
 
+        if (!boxUpdates.isEmpty()) {
+            room.sendComposer(new ObjectsDataUpdateMessageComposer(boxUpdates).compose());
+        }
+
         return anyTriggered;
     }
 
     /**
      * Process a single wired stack.
      */
-    private boolean processStack(WiredStack stack, WiredEvent event, long currentTime) {
+    private boolean processStack(WiredStack stack, WiredEvent event, long currentTime, Set<HabboItem> boxUpdates) {
         Room room = event.getRoom();
 
         // Check if trigger matches
@@ -218,7 +279,7 @@ public final class WiredEngine {
         // Activate the trigger box animation
         if (stack.triggerItem() instanceof InteractionWiredTrigger) {
             InteractionWiredTrigger trigger = (InteractionWiredTrigger) stack.triggerItem();
-            trigger.activateBox(room, event.getActor().orElse(null), currentTime);
+            trigger.activateBox(room, event.getActor().orElse(null), currentTime, boxUpdates);
         }
 
         debug(room, "Trigger matched: {} at item {} (conditions: {}, effects: {})", 
@@ -228,7 +289,7 @@ public final class WiredEngine {
               stack.effects().size());
         
         // Activate extras (for their animation)
-        activateExtras(room, stack.triggerItem(), event.getActor().orElse(null), currentTime);
+        activateExtras(room, stack.triggerItem(), event.getActor().orElse(null), currentTime, boxUpdates);
 
         // Evaluate conditions
         if (stack.hasConditions()) {
@@ -244,7 +305,12 @@ public final class WiredEngine {
         }
 
         if (stack.hasSelectors()) {
-            resolveSelectors(stack, ctx, room);
+            boolean selectorsPassed = resolveSelectors(stack, ctx, room, event.getActor().orElse(null), currentTime, boxUpdates);
+            debug(room, "Selectors result: {}", selectorsPassed ? "PASSED" : "FAILED");
+            if (!selectorsPassed) {
+                debug(room, "Selectors failed, aborting before effects");
+                return false;
+            }
         }
 
         // Fire plugin event (WiredStackTriggeredEvent)
@@ -255,7 +321,7 @@ public final class WiredEngine {
 
         // Execute effects
         if (stack.hasEffects()) {
-            executeEffects(stack, ctx, currentTime);
+            executeEffects(stack, ctx, currentTime, boxUpdates);
         }
 
         // Fire executed event
@@ -264,15 +330,19 @@ public final class WiredEngine {
         return true;
     }
 
-    private void resolveSelectors(WiredStack stack, WiredContext ctx, Room room) {
+    private boolean resolveSelectors(WiredStack stack, WiredContext ctx, Room room, RoomUnit actor, long currentTime, Set<HabboItem> boxUpdates) {
         boolean usersTouched = false;
         boolean itemsTouched = false;
+        boolean usersNonFilterSeen = false;
+        boolean itemsNonFilterSeen = false;
 
         for (InteractionWiredSelector selector : stack.selectors()) {
             ctx.state().step();
+            selector.activateBox(room, actor, currentTime, boxUpdates);
             WiredTargets resolved = selector.resolve(room, ctx);
 
             if (selector.getType().isUser) {
+                usersTouched = true;
                 Set<RoomUnit> users = new LinkedHashSet<>(resolved.users());
                 if (selector.isInvert()) {
                     users = invertUsers(room, users);
@@ -281,17 +351,18 @@ public final class WiredEngine {
                     users.retainAll(ctx.targets().users());
                     ctx.targets().setUsers(users);
                 } else {
-                    if (!usersTouched) {
+                    if (!usersNonFilterSeen) {
                         ctx.targets().clearUsers();
                     }
                     for (RoomUnit unit : users) {
                         ctx.targets().addUser(unit);
                     }
-                    usersTouched = true;
+                    usersNonFilterSeen = true;
                 }
             }
 
             if (selector.getType().isFurni) {
+                itemsTouched = true;
                 Set<HabboItem> items = new LinkedHashSet<>(resolved.items());
                 if (selector.isInvert()) {
                     items = invertItems(room, items);
@@ -300,16 +371,18 @@ public final class WiredEngine {
                     items.retainAll(ctx.targets().items());
                     ctx.targets().setItems(items);
                 } else {
-                    if (!itemsTouched) {
+                    if (!itemsNonFilterSeen) {
                         ctx.targets().clearItems();
                     }
                     for (HabboItem item : items) {
                         ctx.targets().addItem(item);
                     }
-                    itemsTouched = true;
+                    itemsNonFilterSeen = true;
                 }
             }
         }
+
+        return (!usersTouched || ctx.targets().hasUsers()) && (!itemsTouched || ctx.targets().hasItems());
     }
 
     private Set<RoomUnit> invertUsers(Room room, Set<RoomUnit> selected) {
@@ -406,7 +479,7 @@ public final class WiredEngine {
     /**
      * Execute effects in a stack.
      */
-    private void executeEffects(WiredStack stack, WiredContext ctx, long currentTime) {
+    private void executeEffects(WiredStack stack, WiredContext ctx, long currentTime, Set<HabboItem> boxUpdates) {
         List<IWiredEffect> effects = stack.effects();
         
         if (effects.isEmpty()) {
@@ -439,6 +512,16 @@ public final class WiredEngine {
                 continue;
             }
 
+            // Respect the per-effect cooldown so a fast trigger (e.g. a 50ms short repeater) cannot
+            // spam an effect such as Show Message. Movement effects bypass this — they re-run every
+            // tick and stream smooth WiredMovements slides instead.
+            if (effect instanceof InteractionWiredEffect) {
+                InteractionWiredEffect wiredEffect = (InteractionWiredEffect) effect;
+                if (!wiredEffect.bypassExecutionCooldown() && !wiredEffect.canExecute(currentTime)) {
+                    continue;
+                }
+            }
+
             // Handle delay
             int delay = effect.getDelay();
             if (delay > 0) {
@@ -454,7 +537,7 @@ public final class WiredEngine {
                     if (effect instanceof InteractionWiredEffect) {
                         InteractionWiredEffect wiredEffect = (InteractionWiredEffect) effect;
                         wiredEffect.setCooldown(currentTime);
-                        wiredEffect.activateBox(ctx.room(), ctx.actor().orElse(null), currentTime);
+                        wiredEffect.activateBox(ctx.room(), ctx.actor().orElse(null), currentTime, boxUpdates);
                     }
                 } catch (Exception e) {
                     LOGGER.warn("Error executing effect: {}", e.getMessage());
@@ -584,17 +667,17 @@ public final class WiredEngine {
     /**
      * Activate all extras at the trigger item's location for their animation.
      */
-    private void activateExtras(Room room, HabboItem triggerItem, RoomUnit roomUnit, long millis) {
+    private void activateExtras(Room room, HabboItem triggerItem, RoomUnit roomUnit, long millis, Set<HabboItem> boxUpdates) {
         if (triggerItem == null || room.getRoomSpecialTypes() == null) {
             return;
         }
-        
+
         THashSet<InteractionWiredExtra> extras = room.getRoomSpecialTypes().getExtras(
                 triggerItem.getX(), triggerItem.getY());
-        
+
         if (extras != null) {
             for (InteractionWiredExtra extra : extras) {
-                extra.activateBox(room, roomUnit, millis);
+                extra.activateBox(room, roomUnit, millis, boxUpdates);
             }
         }
     }
@@ -737,6 +820,19 @@ public final class WiredEngine {
      * @param eventType the event type
      * @return true if the event should be blocked due to rate limiting
      */
+    /**
+     * Timer-driven events are self-paced by their own configured interval (and capped by the room
+     * tick), so they are not subject to the loop-abuse rate limiter. A legitimate short repeater
+     * fires far faster than the per-type window allows, but it is not a runaway loop. Effect->trigger
+     * loops are still caught by the recursion-depth check and per-effect cooldowns.
+     */
+    private static boolean isSelfPacedTimerEvent(WiredEvent.Type type) {
+        return type == WiredEvent.Type.TIMER_REPEAT
+                || type == WiredEvent.Type.TIMER_REPEAT_SHORT
+                || type == WiredEvent.Type.TIMER_REPEAT_LONG
+                || type == WiredEvent.Type.TIMER_TICK;
+    }
+
     private boolean isRateLimited(int roomId, Room room, WiredEvent.Type eventType) {
         String key = roomId + ":" + eventType.name();
         long now = System.currentTimeMillis();

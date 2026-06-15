@@ -108,6 +108,11 @@ public abstract class InteractionWiredEffect extends InteractionWired implements
     @Override
     protected int getWiredDelay() { return this.getDelay(); }
 
+    @Override
+    protected boolean isWiredAdvancedMode() {
+        return getFurniSourceSlotCount() > 0 || getUserSourceSlotCount() > 0;
+    }
+
     // ========== IWiredEffect Implementation ==========
     
     /**

@@ -19,7 +19,8 @@ public class WiredEffectMoveFurniToFurni extends WiredEffectPhase3Base {
     @Override public WiredEffectType getType() { return type; }
     @Override protected boolean supportsFurniPickingWhenEmpty() { return true; }
     @Override protected int getFurniSourceSlotCount() { return 2; }
-    @Override protected int getDefaultFurniSourceForSlot(int slot) { return slot == 1 ? FURNI_SOURCE_PICKED_2 : FURNI_SOURCE_PICKED_1; }
+    @Override protected int[] getAllowedFurniSourcesForSlot(int slot) { return new int[] { slot == 0 ? FURNI_SOURCE_PICKED_2 : FURNI_SOURCE_PICKED_1, FURNI_SOURCE_SELECTOR }; }
+    @Override protected int getDefaultFurniSourceForSlot(int slot) { return slot == 0 ? FURNI_SOURCE_PICKED_2 : FURNI_SOURCE_PICKED_1; }
 
     @Override
     public void execute(WiredContext ctx) {

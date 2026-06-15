@@ -13,7 +13,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredSimulation;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
-import com.eu.habbo.messages.outgoing.rooms.items.FloorItemOnRollerComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
 import com.eu.habbo.threading.runnables.WiredCollissionRunnable;
 import gnu.trove.map.hash.THashMap;
 import gnu.trove.set.hash.THashSet;
@@ -34,21 +34,35 @@ import java.util.stream.Collectors;
 public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
     public static final WiredEffectType type = WiredEffectType.CHASE;
 
+    /**
+     * Minimum gap between bot/user collision events this chase emits for the same furni while a user
+     * stays wedged against it. The chase effect re-runs every tick (≈50ms) via a fast repeater, but
+     * habbo.com only fires the collision (and the downstream Send Message) at roughly this cadence —
+     * not per tick. Without this throttle a stuck chase emits ~20 collision events/second, which trips
+     * the wired abuse rate-limiter and false-bans the room. Matches the observed .com ~500ms cadence.
+     */
+    private static final long BOT_COLLISION_MIN_INTERVAL_MS = 500L;
+
     private THashSet<HabboItem> items;
 
     private THashMap<Integer, RoomUserRotation> lastDirections;
+
+    /** Last time (ms) this chase emitted a collision event per furni id, to throttle the emission. */
+    private THashMap<Integer, Long> lastCollisionMs;
 
 
     public WiredEffectMoveFurniTowards(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
         this.items = new THashSet<>();
         this.lastDirections = new THashMap<>();
+        this.lastCollisionMs = new THashMap<>();
     }
 
     public WiredEffectMoveFurniTowards(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) {
         super(id, userId, item, extradata, limitedStack, limitedSells);
         this.items = new THashSet<>();
         this.lastDirections = new THashMap<>();
+        this.lastCollisionMs = new THashMap<>();
     }
 
     public List<RoomUserRotation> getAvailableDirections(HabboItem item, Room room) {
@@ -141,7 +155,14 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
                             target = roomUnitsAtTile.iterator().next();
                             if (i == 0) { // i = 0 means right next to it
                                 collided = true;
-                                Emulator.getThreading().run(new WiredCollissionRunnable(target, room));
+                                // Throttle collision emission so a furni a user is wedged against does not
+                                // fire a collision event every tick (which would trip the abuse limiter).
+                                long now = System.currentTimeMillis();
+                                Long lastCollision = this.lastCollisionMs.get(item.getId());
+                                if (lastCollision == null || now - lastCollision >= BOT_COLLISION_MIN_INTERVAL_MS) {
+                                    this.lastCollisionMs.put(item.getId(), now);
+                                    Emulator.getThreading().run(new WiredCollissionRunnable(target, room));
+                                }
                             }
                             break;
                         }
@@ -230,7 +251,9 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
                 lastDirections.put(item.getId(), moveDirection);
                 if(newTile.state != RoomTileState.INVALID && newTile != oldLocation && room.furnitureFitsAt(newTile, item, item.getRotation(), true) == FurnitureMovementError.NONE) {
                     if (room.moveFurniTo(item, newTile, item.getRotation(), null, false) == FurnitureMovementError.NONE) {
-                        room.sendComposer(new FloorItemOnRollerComposer(item, null, oldLocation, oldZ, newTile, item.getZ(), 0, room).compose());
+                        // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
+                        room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
+                                item, oldLocation, oldZ, newTile, item.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
                     }
                 }
             }
@@ -431,6 +454,11 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
     @Override
     protected long requiredCooldown() {
         return 495;
+    }
+
+    @Override
+    public boolean bypassExecutionCooldown() {
+        return true; // chase streams smooth WiredMovements every tick; not gated by the 495ms cooldown
     }
 
     static class JsonData {

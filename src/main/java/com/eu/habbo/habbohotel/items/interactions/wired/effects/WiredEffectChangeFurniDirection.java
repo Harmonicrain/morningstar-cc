@@ -12,7 +12,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
-import com.eu.habbo.messages.outgoing.rooms.items.FloorItemOnRollerComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
 import gnu.trove.map.hash.THashMap;
 import gnu.trove.set.hash.THashSet;
 
@@ -125,7 +125,9 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
                     RoomTile oldLocation = room.getLayout().getTile(entry.getKey().getX(), entry.getKey().getY());
                     double oldZ = entry.getKey().getZ();
                     if(oldLocation != null && room.moveFurniTo(entry.getKey(), targetTile, item.getRotation(), null, false) == FurnitureMovementError.NONE) {
-                        room.sendComposer(new FloorItemOnRollerComposer(entry.getKey(), null, oldLocation, oldZ, targetTile, entry.getKey().getZ(), 0, room).compose());
+                        // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
+                        room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
+                                entry.getKey(), oldLocation, oldZ, targetTile, entry.getKey().getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
                     }
                 }
             }

@@ -14,7 +14,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.wired.WiredMatchFurniSetting;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
-import com.eu.habbo.messages.outgoing.rooms.items.FloorItemOnRollerComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
 import gnu.trove.set.hash.THashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,12 +101,14 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
                                 Emulator.getThreading().run(item);
                                 room.updateTiles(room.getLayout().getTilesAt(newLocation, item.getBaseItem().getWidth(),
                                         item.getBaseItem().getLength(), item.getRotation()));
-                                room.sendComposer(new FloorItemOnRollerComposer(item, null, oldLocation, oldZ,
-                                        newLocation, setting.z, 0, room).compose());
+                                // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
+                                room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
+                                        item, oldLocation, oldZ, newLocation, setting.z, WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
                                 animatedAltitudeMove = true;
                             } else if (slideAnimation) {
-                                room.sendComposer(new FloorItemOnRollerComposer(item, null, oldLocation, oldZ,
-                                        newLocation, item.getZ(), 0, room).compose());
+                                // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
+                                room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
+                                        item, oldLocation, oldZ, newLocation, item.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
                             }
                         }
                     }
@@ -215,6 +217,16 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
     @Override
     protected int[] getWiredIntParams() {
         return new int[]{ this.state ? 1 : 0, this.direction ? 1 : 0, this.position ? 1 : 0, this.altitude ? 1 : 0 };
+    }
+
+    @Override
+    protected boolean supportsFurniPicking() {
+        return true;
+    }
+
+    @Override
+    protected boolean isWiredAdvancedMode() {
+        return true;
     }
 
     @Override

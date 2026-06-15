@@ -14,7 +14,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredSimulation;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
-import com.eu.habbo.messages.outgoing.rooms.items.FloorItemOnRollerComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
 import gnu.trove.set.hash.THashSet;
 
 import java.sql.ResultSet;
@@ -99,8 +99,9 @@ public class WiredEffectMoveRotateFurni extends InteractionWiredEffect implement
                                 !slideAnimation) == FurnitureMovementError.NONE) {
                     this.itemCooldowns.add(item);
                     if (slideAnimation) {
-                        room.sendComposer(new FloorItemOnRollerComposer(item, null, oldLocation, oldZ, newLocation,
-                                item.getZ(), 0, room).compose());
+                        // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
+                        room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
+                                item, oldLocation, oldZ, newLocation, item.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
                     }
                 }
             }
