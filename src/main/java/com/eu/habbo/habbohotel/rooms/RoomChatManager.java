@@ -303,7 +303,10 @@ public class RoomChatManager {
             }
         }
 
-        // Handle commands and wired
+        boolean triggerUserSaysAfterChat = false;
+        boolean hideUserSaysMessage = false;
+
+        // Handle commands and decide whether the User Says chat should be hidden.
         if (chatType != RoomChatType.WHISPER) {
             if (CommandHandler.handleCommand(habbo.getClient(), roomChatMessage.getUnfilteredMessage())) {
                 WiredManager.triggerUserSays(habbo.getHabboInfo().getCurrentRoom(), habbo.getRoomUnit(), roomChatMessage.getMessage());
@@ -312,12 +315,11 @@ public class RoomChatManager {
             }
 
             if (!ignoreWired) {
-                if (WiredManager.triggerUserSays(habbo.getHabboInfo().getCurrentRoom(), habbo.getRoomUnit(), roomChatMessage.getMessage())) {
-                    habbo.getClient().sendResponse(new WhisperMessageComposer(
-                        new RoomChatMessage(roomChatMessage.getMessage(), habbo, habbo,
-                            roomChatMessage.getBubble())));
-                    return;
-                }
+                triggerUserSaysAfterChat = true;
+                hideUserSaysMessage = WiredManager.shouldHideUserSays(
+                    habbo.getHabboInfo().getCurrentRoom(),
+                    habbo.getRoomUnit(),
+                    roomChatMessage.getMessage());
             }
         }
 
@@ -374,17 +376,26 @@ public class RoomChatManager {
 
         roomChatMessage.setMessage(trimmedMessage);
 
-        // Send chat based on type
-        if (chatType == RoomChatType.WHISPER) {
-            this.handleWhisper(habbo, roomChatMessage, prefixMessage, clearPrefixMessage);
-        } else if (chatType == RoomChatType.TALK) {
-            this.handleTalk(habbo, roomChatMessage, prefixMessage, clearPrefixMessage, tentRectangle);
-        } else if (chatType == RoomChatType.SHOUT) {
-            this.handleShout(habbo, roomChatMessage, prefixMessage, clearPrefixMessage, tentRectangle);
+        // Send chat before executing User Says wired so effect chat appears after the spoken keyword.
+        if (!hideUserSaysMessage) {
+            if (chatType == RoomChatType.WHISPER) {
+                this.handleWhisper(habbo, roomChatMessage, prefixMessage, clearPrefixMessage);
+            } else if (chatType == RoomChatType.TALK) {
+                this.handleTalk(habbo, roomChatMessage, prefixMessage, clearPrefixMessage, tentRectangle);
+            } else if (chatType == RoomChatType.SHOUT) {
+                this.handleShout(habbo, roomChatMessage, prefixMessage, clearPrefixMessage, tentRectangle);
+            }
+        }
+
+        if (triggerUserSaysAfterChat) {
+            WiredManager.triggerUserSays(
+                habbo.getHabboInfo().getCurrentRoom(),
+                habbo.getRoomUnit(),
+                roomChatMessage.getMessage());
         }
 
         // Notify bots and talking furniture
-        if (chatType == RoomChatType.TALK || chatType == RoomChatType.SHOUT) {
+        if (!hideUserSaysMessage && (chatType == RoomChatType.TALK || chatType == RoomChatType.SHOUT)) {
             this.notifyBots(roomChatMessage);
             this.handleTalkingFurniture(habbo, roomChatMessage);
         }

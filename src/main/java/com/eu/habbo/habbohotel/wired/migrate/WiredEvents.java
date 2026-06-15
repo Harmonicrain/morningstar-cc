@@ -153,6 +153,18 @@ public final class WiredEvents {
                 .build();
     }
 
+    /**
+     * Create an event for a short periodic timer (PERIOD_SHORT / trigger 19).
+     * @param room the room
+     * @param timerItem the timer furniture
+     * @return the event
+     */
+    public static WiredEvent timerRepeatShort(Room room, HabboItem timerItem) {
+        return WiredEvent.builder(WiredEvent.Type.TIMER_REPEAT_SHORT, room)
+                .sourceItem(timerItem)
+                .build();
+    }
+
     // ========== Game Events ==========
 
     /**

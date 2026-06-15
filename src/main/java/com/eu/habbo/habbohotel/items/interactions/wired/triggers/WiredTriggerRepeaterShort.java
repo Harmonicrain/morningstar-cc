@@ -42,6 +42,12 @@ public class WiredTriggerRepeaterShort extends WiredTriggerRepeater {
     @Override
     protected int[] getWiredIntParams() { return new int[]{ this.repeatTime / 50 }; }
 
+    // Fire the short-timer event so PERIOD_SHORT stacks match (not the base PERIODICALLY event).
+    @Override
+    protected void fireTimerEvent(Room room) {
+        WiredManager.triggerTimerRepeatShort(room, this);
+    }
+
     @Override
     public void loadWiredData(ResultSet set, Room room) throws SQLException {
         String wiredData = set.getString("wired_data");

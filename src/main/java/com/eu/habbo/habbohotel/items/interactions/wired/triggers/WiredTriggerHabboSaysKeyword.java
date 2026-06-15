@@ -153,6 +153,10 @@ public class WiredTriggerHabboSaysKeyword extends InteractionWiredTrigger {
         return true;
     }
 
+    public boolean shouldHideMessage() {
+        return this.hide;
+    }
+
     static class JsonData {
         boolean hide;
         int matchType;

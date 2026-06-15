@@ -54,7 +54,10 @@ public final class WiredEvent {
         
         /** Long timer repeat */
         TIMER_REPEAT_LONG(WiredTriggerType.PERIODICALLY_LONG),
-        
+
+        /** Short timer repeat — Wired 2.0 trigger 19 (wf_trg_period_short) */
+        TIMER_REPEAT_SHORT(WiredTriggerType.PERIOD_SHORT),
+
         /** User enters the room */
         USER_ENTERS_ROOM(WiredTriggerType.ENTER_ROOM),
         

@@ -139,11 +139,12 @@ public class WiredTriggerRepeaterLong extends InteractionWiredTrigger implements
         // Use global tick counter - all repeaters with same interval fire together
         // This ensures perfect synchronization regardless of when they were registered
         long elapsedMs = tickCount * tickIntervalMs;
-        
+
         // Fire when elapsed time is a multiple of repeat time
         if (elapsedMs % this.repeatTime == 0) {
             if (this.getRoomId() != 0 && room.isLoaded()) {
-                WiredManager.triggerTimerRepeat(room, this);
+                // Fire the long-timer event so PERIODICALLY_LONG stacks match (not the base PERIODICALLY event).
+                WiredManager.triggerTimerRepeatLong(room, this);
             }
         }
     }

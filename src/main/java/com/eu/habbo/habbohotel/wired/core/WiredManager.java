@@ -251,6 +251,15 @@ public final class WiredManager {
         return handleEvent(event);
     }
 
+    public static boolean shouldHideUserSays(Room room, RoomUnit user, String message) {
+        if (!isEnabled() || engine == null || room == null || user == null) {
+            return false;
+        }
+
+        WiredEvent event = WiredEvents.userSays(room, user, message);
+        return engine.shouldHideUserSays(event);
+    }
+
     /**
      * Trigger when a user enters the room.
      */
@@ -294,8 +303,32 @@ public final class WiredManager {
         if (!isEnabled() || room == null) {
             return false;
         }
-        
+
         WiredEvent event = WiredEvents.timerRepeat(room, timerItem);
+        return handleEvent(event);
+    }
+
+    /**
+     * Trigger a short periodic timer (PERIOD_SHORT / trigger 19).
+     */
+    public static boolean triggerTimerRepeatShort(Room room, HabboItem timerItem) {
+        if (!isEnabled() || room == null) {
+            return false;
+        }
+
+        WiredEvent event = WiredEvents.timerRepeatShort(room, timerItem);
+        return handleEvent(event);
+    }
+
+    /**
+     * Trigger a long periodic timer (PERIODICALLY_LONG / trigger 12).
+     */
+    public static boolean triggerTimerRepeatLong(Room room, HabboItem timerItem) {
+        if (!isEnabled() || room == null) {
+            return false;
+        }
+
+        WiredEvent event = WiredEvents.timerRepeatLong(room, timerItem);
         return handleEvent(event);
     }
 
