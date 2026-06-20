@@ -109,6 +109,9 @@ public final class WiredEvent {
         /** Room wired clock reached a time — Wired 2.0 trigger 15 (score = total seconds) */
         CLOCK_REACHED(WiredTriggerType.CLOCK_REACH_TIME),
 
+        /** User performs an avatar action - Wired 2.0 trigger 16 (score = action code) */
+        USER_PERFORMS_ACTION(WiredTriggerType.USER_PERFORMS_ACTION),
+
         /** Custom trigger type for plugins */
         CUSTOM(WiredTriggerType.CUSTOM);
 

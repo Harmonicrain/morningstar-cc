@@ -17,6 +17,7 @@ public enum WiredTriggerType {
     BOT_REACHED_AVTR(14),
     // Wired 2.0 Phase 3 (May 2026 codes)
     CLOCK_REACH_TIME(15),
+    USER_PERFORMS_ACTION(16),
     CLICK_FURNI(18),
     PERIOD_SHORT(19),
     STUFF_STATE(20),

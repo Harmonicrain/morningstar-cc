@@ -457,6 +457,21 @@ public final class WiredManager {
     }
 
     /**
+     * Trigger when a user performs a May 2026 Wired user action.
+     */
+    public static boolean triggerUserPerformsAction(Room room, RoomUnit user, int actionCode, String extra) {
+        if (!isEnabled() || room == null || user == null) {
+            return false;
+        }
+        if (room.getHabbo(user) == null) {
+            return false;
+        }
+
+        WiredEvent event = WiredEvents.userPerformsAction(room, user, actionCode, extra);
+        return handleEvent(event);
+    }
+
+    /**
      * Trigger when a team wins a game.
      */
     public static boolean triggerTeamWins(Room room, RoomUnit user) {

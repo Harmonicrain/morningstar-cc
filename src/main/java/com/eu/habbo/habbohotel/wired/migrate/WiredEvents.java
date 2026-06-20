@@ -370,6 +370,19 @@ public final class WiredEvents {
                 .build();
     }
 
+    /**
+     * Create an event for when a user performs a May 2026 Wired user action.
+     * The action code travels in score; optional sign/dance detail travels in text.
+     */
+    public static WiredEvent userPerformsAction(Room room, RoomUnit user, int actionCode, String extra) {
+        return WiredEvent.builder(WiredEvent.Type.USER_PERFORMS_ACTION, room)
+                .actor(user)
+                .tile(user.getCurrentLocation())
+                .score(actionCode)
+                .text(extra == null ? "" : extra)
+                .build();
+    }
+
     // ========== Legacy Compatibility ==========
 
     /**

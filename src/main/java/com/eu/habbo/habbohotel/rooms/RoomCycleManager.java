@@ -9,6 +9,7 @@ import com.eu.habbo.habbohotel.pets.Pet;
 import com.eu.habbo.habbohotel.users.DanceType;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.habbohotel.wired.WiredUserAction;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.rooms.FlatAccessDeniedMessageComposer;
@@ -446,15 +447,20 @@ public class RoomCycleManager {
                 if (topItem == null || !topItem.getBaseItem().allowSit()) {
                     if (unit.hasStatus(RoomUnitStatus.SIT)) {
                         unit.removeStatus(RoomUnitStatus.SIT);
+                        WiredManager.triggerUserPerformsAction(this.room, unit, WiredUserAction.STAND, "");
                         update = true;
                     }
                 } else if (!hasSpecialPetStatus && thisTile.state == RoomTileState.SIT && (!unit.hasStatus(RoomUnitStatus.SIT)
                         || unit.sitUpdate)) {
+                    boolean wasSitting = unit.hasStatus(RoomUnitStatus.SIT);
                     this.room.dance(unit, DanceType.NONE);
                     unit.setStatus(RoomUnitStatus.SIT, (Item.getCurrentHeight(topItem) * 1.0D) + "");
                     unit.setZ(topItem.getZ());
                     unit.setRotation(RoomUserRotation.values()[topItem.getRotation()]);
                     unit.sitUpdate = false;
+                    if (!wasSitting) {
+                        WiredManager.triggerUserPerformsAction(this.room, unit, WiredUserAction.SIT, "");
+                    }
                     return true;
                 }
             }
@@ -466,6 +472,7 @@ public class RoomCycleManager {
             if (topItem == null || !topItem.getBaseItem().allowLay()) {
                 if (unit.hasStatus(RoomUnitStatus.LAY)) {
                     unit.removeStatus(RoomUnitStatus.LAY);
+                    WiredManager.triggerUserPerformsAction(this.room, unit, WiredUserAction.STAND, "");
                     update = true;
                 }
             } else {
@@ -478,6 +485,7 @@ public class RoomCycleManager {
                     } else {
                         unit.setLocation(this.room.getLayout().getTile(topItem.getX(), unit.getY()));
                     }
+                    WiredManager.triggerUserPerformsAction(this.room, unit, WiredUserAction.LAY, "");
                     update = true;
                 }
             }

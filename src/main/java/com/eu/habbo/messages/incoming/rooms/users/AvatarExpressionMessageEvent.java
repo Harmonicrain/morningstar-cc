@@ -3,6 +3,8 @@ package com.eu.habbo.messages.incoming.rooms.users;
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUserAction;
+import com.eu.habbo.habbohotel.wired.WiredUserAction;
+import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.rooms.users.ExpressionMessageComposer;
@@ -51,6 +53,7 @@ public class AvatarExpressionMessageEvent extends MessageHandler {
             }
 
             room.sendComposer(new ExpressionMessageComposer(habbo.getRoomUnit(), RoomUserAction.fromValue(action)).compose());
+            WiredManager.triggerUserPerformsAction(room, habbo.getRoomUnit(), WiredUserAction.fromAvatarExpression(action), "");
         }
     }
 }

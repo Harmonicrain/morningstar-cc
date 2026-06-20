@@ -41,6 +41,8 @@ import com.eu.habbo.habbohotel.pets.PetManager;
 import com.eu.habbo.habbohotel.users.DanceType;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.habbohotel.wired.WiredUserAction;
+import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.messages.ISerialize;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.guilds.HabboGroupDetailsMessageComposer;
@@ -2216,6 +2218,7 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
             - habbo.getRoomUnit().getBodyRotation().getValue() % 2]);
     habbo.getRoomUnit().setStatus(RoomUnitStatus.SIT, 0.5 + "");
     this.sendComposer(new UserUpdateMessageComposer(habbo.getRoomUnit()).compose());
+    WiredManager.triggerUserPerformsAction(this, habbo.getRoomUnit(), WiredUserAction.SIT, "");
   }
 
   public void makeStand(Habbo habbo) {
@@ -2224,13 +2227,20 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     }
 
     HabboItem item = this.getTopItemAt(habbo.getRoomUnit().getX(), habbo.getRoomUnit().getY());
+    boolean wasSittingOrLaying = habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT)
+        || habbo.getRoomUnit().hasStatus(RoomUnitStatus.LAY);
+
     if (item == null || !item.getBaseItem().allowSit() || !item.getBaseItem().allowLay()) {
       habbo.getRoomUnit().cmdStand = true;
       habbo.getRoomUnit().setBodyRotation(
           RoomUserRotation.values()[habbo.getRoomUnit().getBodyRotation().getValue()
               - habbo.getRoomUnit().getBodyRotation().getValue() % 2]);
       habbo.getRoomUnit().removeStatus(RoomUnitStatus.SIT);
+      habbo.getRoomUnit().removeStatus(RoomUnitStatus.LAY);
       this.sendComposer(new UserUpdateMessageComposer(habbo.getRoomUnit()).compose());
+      if (wasSittingOrLaying) {
+        WiredManager.triggerUserPerformsAction(this, habbo.getRoomUnit(), WiredUserAction.STAND, "");
+      }
     }
   }
 

@@ -12,6 +12,8 @@ import com.eu.habbo.habbohotel.pets.RideablePet;
 import com.eu.habbo.habbohotel.users.DanceType;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.habbohotel.wired.WiredUserAction;
+import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.messages.outgoing.rooms.users.UserUpdateMessageComposer;
 import com.eu.habbo.plugin.Event;
 import com.eu.habbo.plugin.events.roomunit.RoomUnitLookAtPointEvent;
@@ -165,14 +167,20 @@ public class RoomUnit {
         }
       }
 
+      boolean stoodUp = false;
       if (this.status.remove(RoomUnitStatus.SIT) != null) {
+        stoodUp = true;
         this.statusUpdate = true;
       }
       if (this.status.remove(RoomUnitStatus.MOVE) != null) {
         this.statusUpdate = true;
       }
       if (this.status.remove(RoomUnitStatus.LAY) != null) {
+        stoodUp = true;
         this.statusUpdate = true;
+      }
+      if (stoodUp && room.getHabbo(this) != null) {
+        WiredManager.triggerUserPerformsAction(room, this, WiredUserAction.STAND, "");
       }
 
       for (Map.Entry<RoomUnitStatus, String> set : this.status.entrySet()) {
