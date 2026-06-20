@@ -62,6 +62,15 @@ public class RoomChatMessage implements Runnable, ISerialize, DatabaseLoggable {
         }
 
         this.habbo = message.client.getHabbo();
+
+        // Honour the stored chat-style preference for live chat, like the programmatic constructors
+        // below. The client only sends the picker's style per message; the :chat command (and any
+        // server-side preference) sets HabboStats.chatColor, which would otherwise be ignored here.
+        // Overridable bubbles only, so command/system/non-overridable styles are preserved.
+        if (this.bubble.isOverridable() && this.habbo.getHabboStats().chatColor != RoomChatMessageBubbles.NORMAL) {
+            this.bubble = this.habbo.getHabboStats().chatColor;
+        }
+
         this.roomUnitId = this.habbo.getRoomUnit().getId();
         this.unfilteredMessage = this.message;
         this.timestamp = Emulator.getIntUnixTimestamp();
