@@ -512,13 +512,20 @@ public final class WiredEngine {
                 continue;
             }
 
-            // Respect the per-effect cooldown so a fast trigger (e.g. a 50ms short repeater) cannot
-            // spam an effect such as Show Message. Movement effects bypass this — they re-run every
+            // Respect cooldown per triggering room unit so one user's flood does not suppress the
+            // same wired stack for everyone else. Movement effects bypass this: they re-run every
             // tick and stream smooth WiredMovements slides instead.
             if (effect instanceof InteractionWiredEffect) {
                 InteractionWiredEffect wiredEffect = (InteractionWiredEffect) effect;
-                if (!wiredEffect.bypassExecutionCooldown() && !wiredEffect.canExecute(currentTime)) {
-                    continue;
+                if (!wiredEffect.bypassExecutionCooldown()) {
+                    RoomUnit actor = ctx.actor().orElse(null);
+                    boolean canExecute = actor != null
+                            ? wiredEffect.userCanExecute(actor.getId(), currentTime)
+                            : wiredEffect.canExecute(currentTime);
+
+                    if (!canExecute) {
+                        continue;
+                    }
                 }
             }
 
@@ -536,7 +543,9 @@ public final class WiredEngine {
                     // Activate box animation after execution
                     if (effect instanceof InteractionWiredEffect) {
                         InteractionWiredEffect wiredEffect = (InteractionWiredEffect) effect;
-                        wiredEffect.setCooldown(currentTime);
+                        if (!ctx.hasActor()) {
+                            wiredEffect.setCooldown(currentTime);
+                        }
                         wiredEffect.activateBox(ctx.room(), ctx.actor().orElse(null), currentTime, boxUpdates);
                     }
                 } catch (Exception e) {
@@ -566,8 +575,11 @@ public final class WiredEngine {
                 // Activate box animation after execution
                 if (effect instanceof InteractionWiredEffect) {
                     InteractionWiredEffect wiredEffect = (InteractionWiredEffect) effect;
-                    wiredEffect.setCooldown(System.currentTimeMillis());
-                    wiredEffect.activateBox(room, actor, System.currentTimeMillis());
+                    long executedAt = System.currentTimeMillis();
+                    if (actor == null) {
+                        wiredEffect.setCooldown(executedAt);
+                    }
+                    wiredEffect.activateBox(room, actor, executedAt);
                 }
             } catch (Exception e) {
                 LOGGER.warn("Error executing delayed effect: {}", e.getMessage());

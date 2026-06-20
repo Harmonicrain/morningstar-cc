@@ -210,7 +210,7 @@ public abstract class InteractionWired extends InteractionDefault {
     /**
      * Movement effects override this {@code true} so a fast trigger (e.g. a 50ms short repeater)
      * can re-run them every tick and stream smooth {@link com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer}
-     * slides. All other effects stay gated by their cooldown so they do not spam (e.g. Show Message).
+     * slides. All other effects stay gated by their cooldown per triggering room unit.
      */
     public boolean bypassExecutionCooldown() {
         return false;
