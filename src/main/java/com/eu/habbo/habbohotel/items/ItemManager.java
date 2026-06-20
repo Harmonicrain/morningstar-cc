@@ -218,6 +218,7 @@ public class ItemManager {
         this.interactionsList.add(new ItemInteraction("wf_trg_bot_reached_stf", WiredTriggerBotReachedFurni.class));
         this.interactionsList.add(new ItemInteraction("wf_trg_bot_reached_avtr", WiredTriggerBotReachedHabbo.class));
         this.interactionsList.add(new ItemInteraction("wf_trg_score_achieved", WiredTriggerScoreAchieved.class));
+        this.interactionsList.add(new ItemInteraction("wf_trg_user_performs_action", WiredTriggerUserPerformsAction.class));
         this.interactionsList.add(new ItemInteraction("wf_trg_game_team_win", WiredTriggerTeamWins.class));
         this.interactionsList.add(new ItemInteraction("wf_trg_game_team_lose", WiredTriggerTeamLoses.class));
 
@@ -464,18 +465,23 @@ public class ItemManager {
     public void loadCrackable() {
         this.crackableRewards.clear();
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
-                PreparedStatement statement = connection.prepareStatement("SELECT * FROM items_crackable");
+                PreparedStatement statement = connection.prepareStatement("SELECT * FROM items_crackable ORDER BY crackable_id, tier");
                 ResultSet set = statement.executeQuery()) {
             while (set.next()) {
-                CrackableReward reward;
                 try {
-                    reward = new CrackableReward(set);
+                    int crackableId = set.getInt("crackable_id");
+                    CrackableReward reward = this.crackableRewards.get(crackableId);
+                    if (reward == null) {
+                        reward = new CrackableReward(set);
+                        this.crackableRewards.put(crackableId, reward);
+                    } else {
+                        // additional tier/outcome row for an already-loaded crackable
+                        reward.addRow(set);
+                    }
                 } catch (Exception e) {
-                    LOGGER.error("Failed to load items_crackable item_id = {}", set.getInt("item_id"));
+                    LOGGER.error("Failed to load items_crackable row (crackable_id = {})", set.getInt("crackable_id"));
                     LOGGER.error("Caught exception", e);
-                    continue;
                 }
-                this.crackableRewards.put(set.getInt("item_id"), reward);
             }
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);
@@ -499,8 +505,16 @@ public class ItemManager {
         return this.crackableRewards.get(itemId);
     }
 
-    public Item getCrackableReward(int itemId) {
-        return this.getItem(this.crackableRewards.get(itemId).getRandomReward());
+    /**
+     * Rolls the crackable's rewards: one outcome per tier, union of all winners.
+     * Returns the list of items_base ids to give (empty if the furni has no crackable config).
+     */
+    public List<Integer> getCrackableRewards(int itemId) {
+        CrackableReward reward = this.crackableRewards.get(itemId);
+        if (reward == null) {
+            return Collections.emptyList();
+        }
+        return reward.roll();
     }
 
     public void loadSoundTracks() {
