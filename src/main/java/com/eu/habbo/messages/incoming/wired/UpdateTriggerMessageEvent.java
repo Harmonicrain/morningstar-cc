@@ -19,19 +19,21 @@ import java.util.Optional;
 public class UpdateTriggerMessageEvent extends MessageHandler {
     @Override
     public void handle() throws Exception {
-        int itemId = this.packet.readInt();
+        int visibleId = this.packet.readInt();
 
         Room room = this.client.getHabbo().getHabboInfo().getCurrentRoom();
 
         if (room != null) {
             if (room.hasRights(this.client.getHabbo()) || room.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || this.client.getHabbo().hasPermission(Permission.ACC_ANYROOMOWNER) || this.client.getHabbo().hasPermission(Permission.ACC_MOVEROTATE)) {
+                // Client sends the room-visible id (BC furni use virtual ids); resolve to db id.
+                int itemId = room.getItemManager().resolveVisibleId(visibleId);
                 InteractionWiredTrigger trigger = room.getRoomSpecialTypes().getTrigger(itemId);
 
                 if (trigger != null) {
                     // Wired 2.0: deterministic dispatch (no reflection). saveData is the
                     // typed abstract on InteractionWiredTrigger; settings come from the
                     // 2.0 reader bridged to the legacy DTO.
-                    WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.TRIGGER).toLegacy();
+                    WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.TRIGGER, room).toLegacy();
 
                     if (trigger.saveData(settings)) {
                         trigger.setWiredSourceTypes(settings.getFurniSourceTypes(), settings.getUserSourceTypes());

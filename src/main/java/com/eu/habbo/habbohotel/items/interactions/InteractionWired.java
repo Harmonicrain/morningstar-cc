@@ -595,12 +595,14 @@ public abstract class InteractionWired extends InteractionDefault {
      * {@code category}: EFFECT->delay, CONDITION->quantifierCode,
      * SELECTOR->isFilter+isInvert; others have no type-specific field.
      */
-    public static WiredSettingsNew readSettingsNew(ClientMessage packet, WiredCategoryType category)
+    public static WiredSettingsNew readSettingsNew(ClientMessage packet, WiredCategoryType category, Room room)
     {
         // Common prefix
         int[] intParams = readCountedInts(packet);
         String stringParam = packet.readString();
-        int[] furniIds = readCountedInts(packet);
+        // Furni selections arrive as room-visible ids (BC furni use virtual ids); resolve
+        // them back to real db ids so downstream getHabboItem(dbId) lookups succeed.
+        int[] furniIds = resolveVisibleIds(room, readCountedInts(packet));
 
         // Type-specific block
         int delay = 0;
@@ -626,10 +628,23 @@ public abstract class InteractionWired extends InteractionDefault {
         int[] furniSourceTypes = readCountedInts(packet);
         int[] userSourceTypes = readCountedInts(packet);
         String[] variableIds = readCountedStrings(packet);
-        int[] furniIds2 = readCountedInts(packet);
+        int[] furniIds2 = resolveVisibleIds(room, readCountedInts(packet));
 
         return new WiredSettingsNew(intParams, stringParam, furniIds, furniIds2, variableIds,
                 furniSourceTypes, userSourceTypes, delay, quantifierCode, isFilter, isInvert);
+    }
+
+    /** Maps room-visible furni ids (BC virtual ids) back to real db ids. Null/normal-safe:
+     *  non-BC ids and a null room pass through unchanged. */
+    private static int[] resolveVisibleIds(Room room, int[] ids) {
+        if (room == null || ids == null) {
+            return ids;
+        }
+        int[] out = new int[ids.length];
+        for (int i = 0; i < ids.length; i++) {
+            out[i] = room.getItemManager().resolveVisibleId(ids[i]);
+        }
+        return out;
     }
 
     private static int[] readCountedInts(ClientMessage packet) {

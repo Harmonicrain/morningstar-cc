@@ -5,6 +5,7 @@ import com.eu.habbo.habbohotel.items.FurnitureType;
 import com.eu.habbo.habbohotel.items.ICycleable;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.*;
+import com.eu.habbo.habbohotel.games.gamehall.GamehallManager;
 import com.eu.habbo.habbohotel.items.interactions.games.InteractionGameGate;
 import com.eu.habbo.habbohotel.items.interactions.games.InteractionGameScoreboard;
 import com.eu.habbo.habbohotel.items.interactions.games.InteractionGameTimer;
@@ -674,34 +675,50 @@ public class RoomItemManager {
      * room mid-refresh with its collision objects missing.
      */
     public void injectPublicItems(List<PublicItem> publicItems) {
-        synchronized (this.roomItems) {
-            this.removePublicItemsLocked();
+        this.room.getGamehallManager().beginStationRefresh("station_refresh");
+        try {
+            synchronized (this.roomItems) {
+                this.removePublicItemsLocked();
 
-            int injected = 0;
-            if (publicItems != null) {
-                int nextId = -1;
-                for (PublicItem p : publicItems) {
-                    if (!p.hasBehaviour()) {
-                        continue; // visual-only -> not a collision object
+                int injected = 0;
+                if (publicItems != null) {
+                    int nextId = -1;
+                    for (PublicItem p : publicItems) {
+                        if (!p.hasBehaviour()) {
+                            continue; // visual-only -> not a collision object
+                        }
+
+                        Item base = Item.createPublicSpaceItem(p.getSprite(),
+                                p.allowWalk(), p.allowSit(), p.allowLay(), p.allowStack(),
+                                p.getTopHeight(), p.getWidth(), p.getLength());
+
+                        GamehallManager.SeatAssignment gamehallSeat = this.room.getGamehallManager()
+                                .resolveSeat(this.room.getLayout().getName(), p.getSprite(), p.getX(), p.getY());
+                        InteractionPublicItem item;
+                        if (gamehallSeat != null) {
+                            item = new InteractionGamehallSeat(nextId--, base, gamehallSeat);
+                        } else if (p.getSprite() != null && p.getSprite().contains("queue_tile2")) {
+                            // Queue tiles get a marker subclass so the room cycle can auto-advance
+                            // players standing on them along the chevron.
+                            item = new InteractionPublicQueueTile(nextId--, base);
+                        } else {
+                            item = new InteractionPublicItem(nextId--, base);
+                        }
+                        item.setX((short) p.getX());
+                        item.setY((short) p.getY());
+                        item.setZ(p.getZ());
+                        item.setRotation(p.getRotation());
+                        item.setRoomId(this.room.getId());
+
+                        this.roomItems.put(item.getId(), item);
+                        injected++;
                     }
-
-                    Item base = Item.createPublicSpaceItem(p.getSprite(),
-                            p.allowWalk(), p.allowSit(), p.allowLay(), p.allowStack(),
-                            p.getTopHeight(), p.getWidth(), p.getLength());
-
-                    InteractionPublicItem item = new InteractionPublicItem(nextId--, base);
-                    item.setX((short) p.getX());
-                    item.setY((short) p.getY());
-                    item.setZ(p.getZ());
-                    item.setRotation(p.getRotation());
-                    item.setRoomId(this.room.getId());
-
-                    this.roomItems.put(item.getId(), item);
-                    injected++;
                 }
-            }
 
-            this.publicSpaceItemCount = injected;
+                this.publicSpaceItemCount = injected;
+            }
+        } finally {
+            this.room.getGamehallManager().endStationRefresh();
         }
 
         this.tileCache.clear();

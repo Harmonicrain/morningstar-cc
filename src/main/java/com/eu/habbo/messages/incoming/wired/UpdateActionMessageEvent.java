@@ -19,12 +19,14 @@ import java.util.Optional;
 public class UpdateActionMessageEvent extends MessageHandler {
     @Override
     public void handle() throws Exception {
-        int itemId = this.packet.readInt();
+        int visibleId = this.packet.readInt();
 
         Room room = this.client.getHabbo().getHabboInfo().getCurrentRoom();
 
         if (room != null) {
             if (room.hasRights(this.client.getHabbo()) || room.getOwnerId() == this.client.getHabbo().getHabboInfo().getId() || this.client.getHabbo().hasPermission(Permission.ACC_ANYROOMOWNER) || this.client.getHabbo().hasPermission(Permission.ACC_MOVEROTATE)) {
+                // Client sends the room-visible id (BC furni use virtual ids); resolve to db id.
+                int itemId = room.getItemManager().resolveVisibleId(visibleId);
                 InteractionWiredEffect effect = room.getRoomSpecialTypes().getEffect(itemId);
 
                 try {
@@ -34,7 +36,7 @@ public class UpdateActionMessageEvent extends MessageHandler {
                     // Wired 2.0: deterministic dispatch (no reflection). saveData is the
                     // typed abstract on InteractionWiredEffect (takes GameClient, may throw
                     // WiredSaveException); settings come from the 2.0 reader bridged to legacy.
-                    WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.EFFECT).toLegacy();
+                    WiredSettings settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.EFFECT, room).toLegacy();
                     if (effect.saveData(settings, this.client)) {
                         effect.setWiredSourceTypes(settings.getFurniSourceTypes(), settings.getUserSourceTypes());
                         this.client.sendResponse(new WiredSavedMessageComposer());

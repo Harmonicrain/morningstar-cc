@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.bots.Bot;
 import com.eu.habbo.habbohotel.games.Game;
+import com.eu.habbo.habbohotel.games.gamehall.GamehallManager;
 import com.eu.habbo.habbohotel.guilds.Guild;
 import com.eu.habbo.habbohotel.guilds.GuildMember;
 import com.eu.habbo.habbohotel.items.FurnitureType;
@@ -32,6 +33,7 @@ import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.InteractionBackgroundToner;
 import com.eu.habbo.habbohotel.items.interactions.InteractionFireworks;
 import com.eu.habbo.habbohotel.items.interactions.InteractionGuildFurni;
+import com.eu.habbo.habbohotel.items.interactions.InteractionGamehallSeat;
 import com.eu.habbo.habbohotel.items.interactions.InteractionJukeBox;
 import com.eu.habbo.habbohotel.items.interactions.InteractionMultiHeight;
 import com.eu.habbo.habbohotel.items.interactions.games.InteractionGameTimer;
@@ -80,6 +82,7 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   // Manager instances for better separation of concerns
   private RoomTileManager tileManager;
   private RoomGameManager gameManager;
+  private GamehallManager gamehallManager;
   private RoomTradeManager tradeManager;
   private RoomPromotionManager promotionManager;
   private RoomWordQuizManager wordQuizManager;
@@ -288,6 +291,7 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   private void initializeManagers() {
     this.tileManager = new RoomTileManager(this);
     this.gameManager = new RoomGameManager(this);
+    this.gamehallManager = new GamehallManager(this);
     this.tradeManager = new RoomTradeManager(this);
     this.promotionManager = new RoomPromotionManager(this);
     this.wordQuizManager = new RoomWordQuizManager(this);
@@ -314,6 +318,10 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
    */
   public RoomGameManager getGameManager() {
     return this.gameManager;
+  }
+
+  public GamehallManager getGamehallManager() {
+    return this.gamehallManager;
   }
 
   /**
@@ -488,6 +496,7 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
         return;
       }
       this.preLoaded = false;
+      this.gamehallManager = new GamehallManager(this);
     }
 
     // Perform loading WITHOUT holding the lock to avoid deadlocks
@@ -871,6 +880,12 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     }
 
     this.sendComposer(new UserUpdateMessageComposer(roomUnit).compose());
+    if (roomUnit.getRoomUnitType() == RoomUnitType.USER && roomUnit.hasStatus(RoomUnitStatus.SIT)) {
+      Habbo habbo = this.getHabbo(roomUnit);
+      if (habbo != null) {
+        this.triggerGamehallSeatWalkOn(habbo);
+      }
+    }
   }
 
   public void updateHabbosAt(short x, short y) {
@@ -945,6 +960,10 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
             game.dispose();
           }
           this.games.clear();
+
+          if (this.gamehallManager != null) {
+            this.gamehallManager.dispose();
+          }
 
           removeAllPets(ownerId);
 
@@ -1813,10 +1832,16 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   }
 
   public void removeHabbo(Habbo habbo) {
+    if (this.gamehallManager != null) {
+      this.gamehallManager.onRoomLeave(habbo, "left_room");
+    }
     this.unitManager.removeHabbo(habbo);
   }
 
   public void removeHabbo(Habbo habbo, boolean sendRemovePacket) {
+    if (this.gamehallManager != null) {
+      this.gamehallManager.onRoomLeave(habbo, "left_room");
+    }
     this.unitManager.removeHabbo(habbo, sendRemovePacket);
   }
 
@@ -2206,8 +2231,12 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
       return;
     }
 
-    if (habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT) || !habbo.getRoomUnit()
-        .canForcePosture()) {
+    if (habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT)) {
+      this.triggerGamehallSeatWalkOn(habbo);
+      return;
+    }
+
+    if (!habbo.getRoomUnit().canForcePosture()) {
       return;
     }
 
@@ -2218,7 +2247,43 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
             - habbo.getRoomUnit().getBodyRotation().getValue() % 2]);
     habbo.getRoomUnit().setStatus(RoomUnitStatus.SIT, 0.5 + "");
     this.sendComposer(new UserUpdateMessageComposer(habbo.getRoomUnit()).compose());
+    this.triggerGamehallSeatWalkOn(habbo);
     WiredManager.triggerUserPerformsAction(this, habbo.getRoomUnit(), WiredUserAction.SIT, "");
+  }
+
+  void triggerGamehallSeatWalkOn(Habbo habbo) {
+    if (habbo == null || habbo.getRoomUnit() == null) {
+      return;
+    }
+
+    int x = habbo.getRoomUnit().getX();
+    int y = habbo.getRoomUnit().getY();
+    for (HabboItem item : this.getItemsAt(habbo.getRoomUnit().getX(), habbo.getRoomUnit().getY())) {
+      if (item instanceof InteractionGamehallSeat) {
+        InteractionGamehallSeat gamehallSeat = (InteractionGamehallSeat) item;
+        LOGGER.info("[GAMEHALL] sit-hook object user={} room={} model={} tile={},{} itemId={} station={} seat={} type={}",
+            habbo.getHabboInfo().getUsername(), this.id,
+            this.getLayout() != null ? this.getLayout().getName() : "null", x, y, item.getId(),
+            gamehallSeat.getAssignment().getStationId(), gamehallSeat.getAssignment().getSeatIndex(),
+            gamehallSeat.getAssignment().getType());
+        this.gamehallManager.onSeat(habbo, gamehallSeat.getAssignment());
+        return;
+      }
+    }
+
+    if (this.getLayout() != null && this.gamehallManager != null) {
+      GamehallManager.SeatAssignment assignment =
+          this.gamehallManager.resolveSeat(this.getLayout().getName(), x, y);
+      if (assignment != null) {
+        LOGGER.info("[GAMEHALL] sit-hook direct user={} room={} model={} tile={},{} station={} seat={} type={}",
+            habbo.getHabboInfo().getUsername(), this.id, this.getLayout().getName(), x, y,
+            assignment.getStationId(), assignment.getSeatIndex(), assignment.getType());
+        this.gamehallManager.onSeat(habbo, assignment);
+      } else {
+        LOGGER.info("[GAMEHALL] sit-hook miss user={} room={} model={} tile={},{}",
+            habbo.getHabboInfo().getUsername(), this.id, this.getLayout().getName(), x, y);
+      }
+    }
   }
 
   public void makeStand(Habbo habbo) {
@@ -2229,6 +2294,12 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     HabboItem item = this.getTopItemAt(habbo.getRoomUnit().getX(), habbo.getRoomUnit().getY());
     boolean wasSittingOrLaying = habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT)
         || habbo.getRoomUnit().hasStatus(RoomUnitStatus.LAY);
+    if (wasSittingOrLaying && item instanceof InteractionGamehallSeat) {
+      try {
+        item.onWalkOff(habbo.getRoomUnit(), this, null);
+      } catch (Exception ignored) {
+      }
+    }
 
     if (item == null || !item.getBaseItem().allowSit() || !item.getBaseItem().allowLay()) {
       habbo.getRoomUnit().cmdStand = true;

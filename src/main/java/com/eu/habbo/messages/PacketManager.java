@@ -23,6 +23,7 @@ import com.eu.habbo.messages.incoming.floorplaneditor.GetRoomEntryTileMessageEve
 import com.eu.habbo.messages.incoming.floorplaneditor.UpdateFloorPropertiesMessageEvent;
 import com.eu.habbo.messages.incoming.friends.*;
 import com.eu.habbo.messages.incoming.gamecenter.*;
+import com.eu.habbo.messages.incoming.games.gamehall.GameBoardMoveMessageEvent;
 import com.eu.habbo.messages.incoming.guardians.ChatReviewGuideDecidesOnOfferMessageEvent;
 import com.eu.habbo.messages.incoming.guardians.ChatReviewGuideDetachedMessageEvent;
 import com.eu.habbo.messages.incoming.guardians.ChatReviewGuideVoteMessageEvent;
@@ -447,6 +448,9 @@ public class PacketManager {
         this.registerHandler(Incoming.UpdateRoomFilterMessageEvent, UpdateRoomFilterMessageEvent.class);
         this.registerHandler(Incoming.ToggleStaffPickMessageEvent, ToggleStaffPickMessageEvent.class);
         this.registerHandler(Incoming.TogglePublicRoomMessageEvent, TogglePublicRoomMessageEvent.class);
+        this.registerHandler(Incoming.TryBusMessageEvent, TryBusMessageEvent.class);
+        this.registerHandler(Incoming.ChangeWorldMessageEvent, ChangeWorldMessageEvent.class);
+        this.registerHandler(Incoming.GameBoardMoveMessageEvent, GameBoardMoveMessageEvent.class);
         this.registerHandler(Incoming.RoomRequestBannedUsersEvent, RoomRequestBannedUsersEvent.class);
         this.registerHandler(Incoming.GetOfficialSongIdMessageEvent, GetOfficialSongIdMessageEvent.class);
         this.registerHandler(Incoming.GetSongInfoMessageEvent, GetSongInfoMessageEvent.class);

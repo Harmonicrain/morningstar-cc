@@ -183,6 +183,7 @@ public class CommandHandler {
         addCommand(new BanCommand());
         addCommand(new BlockAlertCommand());
         addCommand(new BotsCommand());
+        addCommand(new BusCommand());
         addCommand(new CalendarCommand());
         addCommand(new ChangeNameCommand());
         addCommand(new ChatTypeCommand());

@@ -280,6 +280,9 @@ public class Incoming {
     public static final int GetSongInfoMessageEvent = 3082;
     public static final int ToggleStaffPickMessageEvent = 1918;
     public static final int TogglePublicRoomMessageEvent = 1919;
+    public static final int TryBusMessageEvent = 5205;
+    public static final int ChangeWorldMessageEvent = 5206;
+    public static final int GameBoardMoveMessageEvent = 5223;
     public static final int RoomRequestBannedUsersEvent = 2267;
     public static final int GetNowPlayingMessageEvent = 1325;
     public static final int GetUserSongDisksMessageEvent = 2304;

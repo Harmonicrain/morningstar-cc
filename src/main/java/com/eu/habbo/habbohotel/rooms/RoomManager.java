@@ -34,6 +34,8 @@ import com.eu.habbo.messages.outgoing.hotelview.CloseConnectionMessageComposer;
 import com.eu.habbo.messages.outgoing.polls.PollOfferMessageComposer;
 import com.eu.habbo.messages.outgoing.polls.infobus.QuestionFinishedMessageComposer;
 import com.eu.habbo.messages.outgoing.polls.infobus.QuestionMessageComposer;
+import com.eu.habbo.habbohotel.rooms.infobus.InfobusManager;
+import com.eu.habbo.habbohotel.rooms.walkways.WalkwaysEntrance;
 import com.eu.habbo.messages.outgoing.rooms.*;
 import com.eu.habbo.messages.outgoing.rooms.items.ObjectsMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.ItemsMessageComposer;
@@ -77,6 +79,7 @@ public class RoomManager {
     private final List<String> mapNames;
     private volatile THashSet<String> publicModels;
     private volatile THashMap<String, List<PublicItem>> publicItems;
+    private volatile THashMap<Integer, List<WalkwaysEntrance>> walkways;
     private final ConcurrentHashMap<Integer, Room> activeRooms;
     private final ArrayList<Class<? extends Game>> gameTypes;
 
@@ -86,10 +89,12 @@ public class RoomManager {
         this.mapNames = new ArrayList<>();
         this.publicModels = new THashSet<>();
         this.publicItems = new THashMap<>();
+        this.walkways = new THashMap<>();
         this.activeRooms = new ConcurrentHashMap<>();
         this.loadRoomCategories();
         this.loadRoomModels();
         this.loadPublicItems();
+        this.loadWalkways();
 
         this.gameTypes = new ArrayList<>();
 
@@ -154,6 +159,85 @@ public class RoomManager {
         }
 
         return items;
+    }
+
+    public void loadWalkways() {
+        THashMap<Integer, List<WalkwaysEntrance>> loaded = new THashMap<>();
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT * FROM public_roomwalkways");
+             ResultSet set = statement.executeQuery()) {
+            while (set.next()) {
+                int roomId = set.getInt("room_id");
+                int targetRoomId = set.getInt("to_id");
+
+                List<int[]> coords = new ArrayList<>();
+                String coordsMap = set.getString("coords_map");
+                if (coordsMap != null) {
+                    for (String part : coordsMap.trim().split(" ")) {
+                        if (part.isEmpty()) {
+                            continue;
+                        }
+                        String[] xy = part.split(",");
+                        coords.add(new int[]{Integer.parseInt(xy[0].trim()), Integer.parseInt(xy[1].trim())});
+                    }
+                }
+
+                int[] destination = null;
+                String doorPosition = set.getString("door_position");
+                if (doorPosition != null && !doorPosition.trim().isEmpty()) {
+                    String[] d = doorPosition.trim().split(",");
+                    destination = new int[]{
+                            Integer.parseInt(d[0].trim()),
+                            Integer.parseInt(d[1].trim()),
+                            d.length > 2 ? Integer.parseInt(d[2].trim()) : 0,
+                            d.length > 3 ? Integer.parseInt(d[3].trim()) : 0
+                    };
+                }
+
+                List<WalkwaysEntrance> list = loaded.get(roomId);
+                if (list == null) {
+                    list = new ArrayList<>();
+                    loaded.put(roomId, list);
+                }
+                list.add(new WalkwaysEntrance(roomId, targetRoomId, coords, destination));
+            }
+
+            this.walkways = loaded;
+        } catch (SQLException e) {
+            LOGGER.error("Caught SQL exception", e);
+        }
+    }
+
+    public WalkwaysEntrance getWalkway(Room room, int x, int y) {
+        if (room == null || !room.isPublicRoom()) {
+            return null;
+        }
+        List<WalkwaysEntrance> list = this.walkways.get(room.getId());
+        if (list == null) {
+            return null;
+        }
+        for (WalkwaysEntrance entrance : list) {
+            if (entrance.matches(x, y)) {
+                return entrance;
+            }
+        }
+        return null;
+    }
+
+    public RoomTile getFirstWalkwayTile(Room room) {
+        if (room == null || room.getLayout() == null) {
+            return null;
+        }
+        List<WalkwaysEntrance> list = this.walkways.get(room.getId());
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        List<int[]> fromCoords = list.get(0).getFromCoords();
+        if (fromCoords.isEmpty()) {
+            return null;
+        }
+        int[] coord = fromCoords.get(0);
+        return room.getLayout().getTile((short) coord[0], (short) coord[1]);
     }
 
     public void refreshActivePublicRoomItems() {
@@ -950,6 +1034,11 @@ public class RoomManager {
 
         if (this.isPublicModel(room.getLayout().getName())) {
             habbo.getClient().sendResponse(new PublicRoomObjectsMessageComposer(room, this.getPublicItems(room.getLayout().getName())));
+
+            // Tell the park client the current Infobus door state (boots closed; staff :bus open it).
+            if ("park_a".equals(room.getLayout().getName())) {
+                habbo.getClient().sendResponse(new BusDoorMessageComposer(InfobusManager.isDoorOpen()));
+            }
         }
 
         if (!room.getCurrentPets().isEmpty()) {

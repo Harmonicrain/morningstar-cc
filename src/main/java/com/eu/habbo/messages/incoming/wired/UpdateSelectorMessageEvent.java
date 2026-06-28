@@ -14,7 +14,7 @@ import com.eu.habbo.messages.outgoing.wired.WiredSavedMessageComposer;
 public class UpdateSelectorMessageEvent extends MessageHandler {
     @Override
     public void handle() throws Exception {
-        int itemId = this.packet.readInt();
+        int visibleId = this.packet.readInt();
         Room room = this.client.getHabbo().getHabboInfo().getCurrentRoom();
 
         if (room == null) {
@@ -28,12 +28,14 @@ public class UpdateSelectorMessageEvent extends MessageHandler {
             return;
         }
 
+        // Client sends the room-visible id (BC furni use virtual ids); resolve to db id.
+        int itemId = room.getItemManager().resolveVisibleId(visibleId);
         InteractionWiredSelector selector = room.getRoomSpecialTypes().getSelector(itemId);
         if (selector == null) {
             return;
         }
 
-        WiredSettingsNew settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.SELECTOR);
+        WiredSettingsNew settings = InteractionWired.readSettingsNew(this.packet, WiredCategoryType.SELECTOR, room);
         if (selector.saveData(settings)) {
             selector.setWiredSourceTypes(settings.getFurniSourceTypes(), settings.getUserSourceTypes());
             this.client.sendResponse(new WiredSavedMessageComposer());

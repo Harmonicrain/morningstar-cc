@@ -5,6 +5,7 @@ import com.eu.habbo.habbohotel.achievements.AchievementManager;
 import com.eu.habbo.habbohotel.bots.Bot;
 import com.eu.habbo.habbohotel.items.ICycleable;
 import com.eu.habbo.habbohotel.items.Item;
+import com.eu.habbo.habbohotel.items.interactions.InteractionPublicQueueTile;
 import com.eu.habbo.habbohotel.pets.Pet;
 import com.eu.habbo.habbohotel.users.DanceType;
 import com.eu.habbo.habbohotel.users.Habbo;
@@ -416,12 +417,64 @@ public class RoomCycleManager {
      * @param type The type of room unit
      * @return true if the unit needs a status update
      */
+    /**
+     * Auto-advance a player standing on a public-room queue tile one square in the direction the
+     * chevron points, provided that square is walkable and unoccupied. Forms a single-file queue
+     * (e.g. the park bus queue) that flows toward the exit; idlers are pushed along so they cannot
+     * block the lane, and a player held up behind another resumes once the tile ahead frees.
+     */
+    private void processPublicQueue(RoomUnit unit) {
+        HabboItem tile = this.room.getTopItemAt(unit.getX(), unit.getY());
+
+        if (!(tile instanceof InteractionPublicQueueTile)) {
+            return;
+        }
+
+        RoomTile front = this.getQueueFrontTile(tile);
+
+        if (front != null && this.room.tileWalkable(front) && !front.hasUnits()) {
+            unit.setGoalLocation(front);
+        }
+    }
+
+    /**
+     * The tile directly in front of a queue tile, derived from its rotation (the chevron direction).
+     */
+    private RoomTile getQueueFrontTile(HabboItem tile) {
+        int x = tile.getX();
+        int y = tile.getY();
+
+        switch (tile.getRotation()) {
+            case 0: y--; break;
+            case 1: x++; y--; break;
+            case 2: x++; break;
+            case 3: x++; y++; break;
+            case 4: y++; break;
+            case 5: x--; y++; break;
+            case 6: x--; break;
+            case 7: x--; y--; break;
+            default: return null;
+        }
+
+        return this.room.getLayout().getTile((short) x, (short) y);
+    }
+
     public boolean cycleRoomUnit(RoomUnit unit, RoomUnitType type) {
         boolean update = unit.needsStatusUpdate();
 
         if (unit.hasStatus(RoomUnitStatus.SIGN)) {
             this.room.sendComposer(new UserUpdateMessageComposer(unit).compose());
             unit.removeStatus(RoomUnitStatus.SIGN);
+        }
+
+        // Public-room queue tiles (e.g. the park bus queue): auto-advance a player standing on a
+        // queue tile one square in the direction its chevron points, so the line flows toward the
+        // exit and idlers cannot block the lane. Gated to the odd cycle (every other 500ms tick =
+        // ~1s) so the queue shuffles at roughly one tile per second, matching Havana/Lisbon, whose
+        // StatusTask runs the advance on a 1s schedule. A player held up behind someone resumes the
+        // next odd cycle after the tile ahead frees.
+        if (this.cycleOdd && type == RoomUnitType.USER && !unit.isWalking() && this.room.isPublicRoom()) {
+            this.processPublicQueue(unit);
         }
 
         if (unit.isWalking() && unit.getPath() != null && !unit.getPath().isEmpty()) {
@@ -458,6 +511,15 @@ public class RoomCycleManager {
                     unit.setZ(topItem.getZ());
                     unit.setRotation(RoomUserRotation.values()[topItem.getRotation()]);
                     unit.sitUpdate = false;
+                    if (type == RoomUnitType.USER) {
+                        Habbo habbo = this.room.getHabbo(unit);
+                        if (habbo != null) {
+                            LOGGER.info("[GAMEHALL] cycle-sit user={} room={} tile={},{} itemId={} oldSitting={}",
+                                    habbo.getHabboInfo().getUsername(), this.room.getId(),
+                                    unit.getX(), unit.getY(), topItem.getId(), wasSitting);
+                            this.room.triggerGamehallSeatWalkOn(habbo);
+                        }
+                    }
                     if (!wasSitting) {
                         WiredManager.triggerUserPerformsAction(this.room, unit, WiredUserAction.SIT, "");
                     }
