@@ -22,7 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class AchievementManager {
@@ -31,10 +35,14 @@ public class AchievementManager {
     public static boolean TALENTTRACK_ENABLED = false;
 
     private final THashMap<String, Achievement> achievements;
+    private final THashMap<Integer, AchievementCategory> achievementCategories;
+    private final List<Achievement> achievementsOrdered;
     private final THashMap<TalentTrackType, LinkedHashMap<Integer, TalentTrackLevel>> talentTrackLevels;
 
     public AchievementManager() {
         this.achievements = new THashMap<>();
+        this.achievementCategories = new THashMap<>();
+        this.achievementsOrdered = new ArrayList<>();
         this.talentTrackLevels = new THashMap<>();
     }
 
@@ -249,22 +257,73 @@ public class AchievementManager {
             for (Achievement achievement : this.achievements.values()) {
                 achievement.clearLevels();
             }
+            this.achievements.clear();
+            this.achievementCategories.clear();
 
             try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
-                try (Statement statement = connection.createStatement(); ResultSet set = statement.executeQuery("SELECT * FROM achievements")) {
+
+                try (Statement statement = connection.createStatement();
+                        ResultSet set = statement.executeQuery(
+                                "SELECT * " +
+                                        "FROM achievements_categories " +
+                                        "WHERE visible = 1 " +
+                                        "ORDER BY order_num ASC, id ASC")) {
+
                     while (set.next()) {
-                        if (!this.achievements.containsKey(set.getString("name"))) {
-                            this.achievements.put(set.getString("name"), new Achievement(set));
-                        } else {
-                            this.achievements.get(set.getString("name")).addLevel(new AchievementLevel(set));
-                        }
+                        AchievementCategory category = new AchievementCategory(set);
+
+                        this.achievementCategories.put(category.getId(), category);
                     }
+
                 } catch (SQLException e) {
-                    LOGGER.error("Caught SQL exception", e);
+                    LOGGER.error("Caught SQL exception while loading achievement categories", e);
                 } catch (Exception e) {
-                    LOGGER.error("Caught exception", e);
+                    LOGGER.error("Caught exception while loading achievement categories", e);
                 }
 
+                try (Statement statement = connection.createStatement();
+                        ResultSet set = statement.executeQuery(
+                                "SELECT a.* " +
+                                        "FROM achievements a " +
+                                        "INNER JOIN achievements_categories c ON c.id = a.category_id " +
+                                        "WHERE a.visible = '1' " +
+                                        "AND c.visible = 1 " +
+                                        "ORDER BY c.order_num ASC, a.order_num ASC, a.name ASC, a.level ASC")) {
+
+                    while (set.next()) {
+                        String name = set.getString("name");
+
+                        if (!this.achievements.containsKey(name)) {
+                            Achievement achievement = new Achievement(set);
+                            AchievementCategory category = this.achievementCategories.get(achievement.getCategoryId());
+
+                            if (category == null) {
+                                LOGGER.warn("Achievement {} has invalid category_id {}", achievement.name, achievement.getCategoryId());
+                                continue;
+                            }
+                            achievement.setCategory(category);
+                            this.achievements.put(name, achievement);
+                        } else {
+                            this.achievements.get(name).addLevel(new AchievementLevel(set));
+                        }
+                    }
+
+                    this.achievementsOrdered.clear();
+                    this.achievementsOrdered.addAll(this.achievements.values());
+
+                    this.achievementsOrdered.sort(
+                        Comparator.comparingInt(
+                            (Achievement achievement) -> achievement.getCategory() != null ? achievement.getCategory().getOrderNum() : Integer.MAX_VALUE)
+                            .thenComparingInt(Achievement::getOrderNum)
+                            .thenComparing(achievement -> achievement.name)
+                            .thenComparingInt(achievement -> achievement.id)
+                    );
+
+                } catch (SQLException e) {
+                    LOGGER.error("Caught SQL exception while loading achievements", e);
+                } catch (Exception e) {
+                    LOGGER.error("Caught exception while loading achievements", e);
+                }
 
                 synchronized (this.talentTrackLevels) {
                     this.talentTrackLevels.clear();
@@ -289,6 +348,18 @@ public class AchievementManager {
         }
 
         LOGGER.info("Achievement Manager -> Loaded! ({} MS)", System.currentTimeMillis() - millis);
+    }
+
+    public THashMap<Integer, AchievementCategory> getAchievementCategories() {
+        return this.achievementCategories;
+    }
+
+    public AchievementCategory getAchievementCategory(int id) {
+        return this.achievementCategories.get(id);
+    }
+
+    public List<Achievement> getAchievementsOrdered() {
+        return this.achievementsOrdered;
     }
 
     public Achievement getAchievement(String name) {
