@@ -24,6 +24,11 @@ public class RecycleItemsMessageEvent extends MessageHandler {
         }
 
         if (Emulator.getGameEnvironment().getCatalogManager().ecotronItem != null && ItemManager.RECYCLER_ENABLED) {
+
+            int cost = Emulator.getConfig().getInt("hotel.ecotron.duckets", 0);
+            if (cost > 0 && this.client.getHabbo().getHabboInfo().getCurrencyAmount(0) - cost < 0)
+                return;
+
             THashSet<HabboItem> items = new THashSet<>();
 
             int count = this.packet.readInt();
@@ -62,7 +67,8 @@ public class RecycleItemsMessageEvent extends MessageHandler {
             this.client.sendResponse(new RecyclerFinishedMessageComposer(RecyclerFinishedMessageComposer.RECYCLING_COMPLETE));
             this.client.sendResponse(new FurniListInvalidateMessageComposer());
 
-            AchievementManager.progressAchievement(this.client.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("FurnimaticQuest"));
+            AchievementManager.progressAchievement(this.client.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement(Emulator.getConfig().getValue("hotel.ecotron.achievement", "FurnimaticQuest")));
+            this.client.getHabbo().givePoints(0, -cost);
         } else {
             this.client.sendResponse(new RecyclerFinishedMessageComposer(RecyclerFinishedMessageComposer.RECYCLING_CLOSED));
         }
