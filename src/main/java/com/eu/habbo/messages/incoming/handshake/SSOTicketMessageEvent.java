@@ -165,6 +165,11 @@ public class SSOTicketMessageEvent extends MessageHandler {
                 // this.client.sendResponse(new ForumsTestComposer());
                 this.client.sendResponse(new BadgePointLimitsMessageComposer());
 
+                if (Emulator.getGameEnvironment().getRewardTrackManager() != null
+                        && Emulator.getGameEnvironment().getRewardTrackManager().isEnabled()) {
+                    Emulator.getGameEnvironment().getRewardTrackManager().sendFullState(this.client.getHabbo(), false);
+                }
+
                 ModToolSanctions modToolSanctions = Emulator.getGameEnvironment().getModToolSanctions();
 
                 if (Emulator.getConfig().getBoolean("hotel.sanctions.enabled")) {

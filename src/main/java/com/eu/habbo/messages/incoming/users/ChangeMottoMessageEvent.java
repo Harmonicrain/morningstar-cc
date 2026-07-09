@@ -10,13 +10,19 @@ public class ChangeMottoMessageEvent extends MessageHandler {
     @Override
     public void handle() throws Exception {
         String motto = Emulator.getGameEnvironment().getWordFilter().filter(this.packet.readString(), this.client.getHabbo());
+        String oldMotto = this.client.getHabbo().getHabboInfo().getMotto();
+        boolean changed = oldMotto == null || !oldMotto.equals(motto);
         UserSavedMottoEvent event = new UserSavedMottoEvent(this.client.getHabbo(), this.client.getHabbo().getHabboInfo().getMotto(), motto);
         Emulator.getPluginManager().fireEvent(event);
         motto = event.newMotto;
+        changed = oldMotto == null || !oldMotto.equals(motto);
         
         if(motto.length() <= Emulator.getConfig().getInt("motto.max_length", 38)) {
             this.client.getHabbo().getHabboInfo().setMotto(motto);
             this.client.getHabbo().getHabboInfo().run();
+            if (changed && Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+                Emulator.getGameEnvironment().getRewardTrackManager().progress(this.client.getHabbo(), "change_motto");
+            }
         }
 
         if (this.client.getHabbo().getHabboInfo().getCurrentRoom() != null) {

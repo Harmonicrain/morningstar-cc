@@ -24,12 +24,14 @@ import com.eu.habbo.messages.incoming.floorplaneditor.UpdateFloorPropertiesMessa
 import com.eu.habbo.messages.incoming.friends.*;
 import com.eu.habbo.messages.incoming.gamecenter.*;
 import com.eu.habbo.messages.incoming.games.gamehall.GameBoardMoveMessageEvent;
+import com.eu.habbo.messages.incoming.games.gamehall.RequestGamehallLeaderboardMessageEvent;
 import com.eu.habbo.messages.incoming.guardians.ChatReviewGuideDecidesOnOfferMessageEvent;
 import com.eu.habbo.messages.incoming.guardians.ChatReviewGuideDetachedMessageEvent;
 import com.eu.habbo.messages.incoming.guardians.ChatReviewGuideVoteMessageEvent;
 import com.eu.habbo.messages.incoming.guides.*;
 import com.eu.habbo.messages.incoming.guilds.*;
 import com.eu.habbo.messages.incoming.guilds.forums.*;
+import com.eu.habbo.messages.incoming.habbicons.*;
 import com.eu.habbo.messages.incoming.handshake.*;
 import com.eu.habbo.messages.incoming.helper.GetCfhStatusMessageEvent;
 import com.eu.habbo.messages.incoming.helper.RequestTalentTrackEvent;
@@ -62,6 +64,8 @@ import com.eu.habbo.messages.incoming.rooms.promotions.PurchaseRoomAdMessageEven
 import com.eu.habbo.messages.incoming.rooms.promotions.GetRoomAdPurchaseInfoEvent;
 import com.eu.habbo.messages.incoming.rooms.promotions.UpdateRoomPromotionEvent;
 import com.eu.habbo.messages.incoming.rooms.users.*;
+import com.eu.habbo.messages.incoming.rewardtrack.ClaimRewardTrackRewardMessageEvent;
+import com.eu.habbo.messages.incoming.rewardtrack.PurchaseRewardTrackPremiumMessageEvent;
 import com.eu.habbo.messages.incoming.trading.*;
 import com.eu.habbo.messages.incoming.unknown.GetResolutionAchievementsMessageEvent;
 import com.eu.habbo.messages.incoming.unknown.GetBadgePointLimitsEvent;
@@ -122,6 +126,8 @@ public class PacketManager {
         this.registerCrafting();
         this.registerCamera();
         this.registerGameCenter();
+        this.registerRewardTrack();
+        this.registerHabbicons();
     }
 
     public PacketNames getNames() {
@@ -230,6 +236,23 @@ public class PacketManager {
     private void registerAmbassadors() throws Exception {
         this.registerHandler(Incoming.AmbassadorAlertCommandEvent, AmbassadorAlertCommandEvent.class);
         this.registerHandler(Incoming.AmbassadorVisitCommandEvent, AmbassadorVisitCommandEvent.class);
+    }
+
+    private void registerRewardTrack() throws Exception {
+        this.registerHandler(Incoming.ClaimRewardTrackRewardMessageEvent, ClaimRewardTrackRewardMessageEvent.class);
+        this.registerHandler(Incoming.PurchaseRewardTrackPremiumMessageEvent, PurchaseRewardTrackPremiumMessageEvent.class);
+    }
+
+    private void registerHabbicons() throws Exception {
+        this.registerHandler(Incoming.RequestHabbiconShopDataMessageEvent, RequestHabbiconShopDataMessageEvent.class);
+        this.registerHandler(Incoming.RequestHabbiconInfoMessageEvent, RequestHabbiconInfoMessageEvent.class);
+        this.registerHandler(Incoming.BuyHabbiconCollectionMessageEvent, BuyHabbiconCollectionMessageEvent.class);
+        this.registerHandler(Incoming.BuyHabbiconMessageEvent, BuyHabbiconMessageEvent.class);
+        this.registerHandler(Incoming.ClaimHabbiconRewardMessageEvent, ClaimHabbiconRewardMessageEvent.class);
+        this.registerHandler(Incoming.FavouriteHabbiconMessageEvent, FavouriteHabbiconMessageEvent.class);
+        this.registerHandler(Incoming.UnfavouriteHabbiconMessageEvent, UnfavouriteHabbiconMessageEvent.class);
+        this.registerHandler(Incoming.UseHabbiconInRoomMessageEvent, UseHabbiconInRoomMessageEvent.class);
+        this.registerHandler(Incoming.SendHabbiconInstantMessageEvent, SendHabbiconInstantMessageEvent.class);
     }
 
     private void registerCatalog() throws Exception {
@@ -451,6 +474,7 @@ public class PacketManager {
         this.registerHandler(Incoming.TryBusMessageEvent, TryBusMessageEvent.class);
         this.registerHandler(Incoming.ChangeWorldMessageEvent, ChangeWorldMessageEvent.class);
         this.registerHandler(Incoming.GameBoardMoveMessageEvent, GameBoardMoveMessageEvent.class);
+        this.registerHandler(Incoming.RequestGamehallLeaderboardMessageEvent, RequestGamehallLeaderboardMessageEvent.class);
         this.registerHandler(Incoming.RoomRequestBannedUsersEvent, RoomRequestBannedUsersEvent.class);
         this.registerHandler(Incoming.GetOfficialSongIdMessageEvent, GetOfficialSongIdMessageEvent.class);
         this.registerHandler(Incoming.GetSongInfoMessageEvent, GetSongInfoMessageEvent.class);

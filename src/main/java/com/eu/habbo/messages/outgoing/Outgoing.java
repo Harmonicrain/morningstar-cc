@@ -183,6 +183,17 @@ public class Outgoing {
     // ===== end Wired 2.0 outgoing =====
     public final static int PurchasableChatStylesMessageComposer = 7200;
     public final static int PurchasableChatStyleChangedMessageComposer = 7202;
+    public final static int OwnedHabbiconsMessageComposer = 7400;
+    public final static int HabbiconStatusChangedMessageComposer = 7401;
+    public final static int HabbiconShopDataMessageComposer = 7402;
+    public final static int HabbiconInfoMessageComposer = 7403;
+    public final static int RoomUserHabbiconMessageComposer = 7404;
+    public final static int HabbiconInstantMessageComposer = 7405;
+    public final static int HabbiconMessengerHistoryMessageComposer = 7406;
+    public final static int RewardTracksMessageComposer = 3794;
+    public final static int RewardTrackProgressMessageComposer = 2017;
+    public final static int RewardTrackClaimResultMessageComposer = 522;
+    public final static int RewardTrackPremiumResultMessageComposer = 58;
 
     public final static int ModeratorUserInfoMessageComposer = 2866; // PRODUCTION-201611291003-338511768
     public final static int WardrobeMessageComposer = 3315; // PRODUCTION-201611291003-338511768
@@ -333,6 +344,7 @@ public class Outgoing {
     public final static int OpenGameBoardMessageComposer = 5220;
     public final static int GameBoardUpdateMessageComposer = 5221;
     public final static int CloseGameBoardMessageComposer = 5222;
+    public final static int OpenGamehallLeaderboardMessageComposer = 5224;
     public final static int YouAreNotControllerMessageComposer = 2392; // PRODUCTION-201611291003-338511768
     public final static int GuildEditFailedMessageComposer = 3988; // PRODUCTION-201611291003-338511768
     public final static int MiniMailNewMessageMessageComposer = 1911; // PRODUCTION-201611291003-338511768

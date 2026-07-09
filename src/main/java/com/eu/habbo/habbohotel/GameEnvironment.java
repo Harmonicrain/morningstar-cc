@@ -8,6 +8,8 @@ import com.eu.habbo.habbohotel.campaign.calendar.CalendarManager;
 import com.eu.habbo.habbohotel.catalog.CatalogManager;
 import com.eu.habbo.habbohotel.commands.CommandHandler;
 import com.eu.habbo.habbohotel.crafting.CraftingManager;
+import com.eu.habbo.habbohotel.games.gamehall.leaderboard.GamehallLeaderboardManager;
+import com.eu.habbo.habbohotel.habbicons.HabbiconManager;
 import com.eu.habbo.habbohotel.guides.GuideManager;
 import com.eu.habbo.habbohotel.guilds.GuildManager;
 import com.eu.habbo.habbohotel.hotelview.HotelViewManager;
@@ -20,6 +22,7 @@ import com.eu.habbo.habbohotel.permissions.PermissionsManager;
 import com.eu.habbo.habbohotel.pets.PetManager;
 import com.eu.habbo.habbohotel.polls.PollManager;
 import com.eu.habbo.habbohotel.polls.infobus.RoomPollManager;
+import com.eu.habbo.habbohotel.rewardtrack.RewardTrackManager;
 import com.eu.habbo.habbohotel.rooms.RoomChatBubbleManager;
 import com.eu.habbo.habbohotel.rooms.RoomManager;
 import com.eu.habbo.habbohotel.users.HabboManager;
@@ -60,6 +63,9 @@ public class GameEnvironment {
     private SubscriptionManager subscriptionManager;
     private CalendarManager calendarManager;
     private RoomChatBubbleManager roomChatBubbleManager;
+    private GamehallLeaderboardManager gamehallLeaderboardManager;
+    private HabbiconManager habbiconManager;
+    private RewardTrackManager rewardTrackManager;
 
     public void load() throws Exception {
         LOGGER.info("GameEnvironment -> Loading...");
@@ -87,6 +93,9 @@ public class GameEnvironment {
         this.roomPollManager = new RoomPollManager();
         this.calendarManager = new CalendarManager();
         this.roomChatBubbleManager = new RoomChatBubbleManager();
+        this.gamehallLeaderboardManager = new GamehallLeaderboardManager();
+        this.habbiconManager = new HabbiconManager();
+        this.rewardTrackManager = new RewardTrackManager();
 
         this.roomManager.loadPublicRooms();
         this.navigatorManager.loadNavigator();
@@ -124,6 +133,9 @@ public class GameEnvironment {
         this.hotelViewManager.dispose();
         this.subscriptionManager.dispose();
         this.calendarManager.dispose();
+        this.gamehallLeaderboardManager.dispose();
+        this.rewardTrackManager.dispose();
+        this.habbiconManager.dispose();
         LOGGER.info("GameEnvironment -> Disposed!");
     }
 
@@ -225,5 +237,17 @@ public class GameEnvironment {
 
     public RoomChatBubbleManager getRoomChatBubbleManager() {
         return roomChatBubbleManager;
+    }
+
+    public GamehallLeaderboardManager getGamehallLeaderboardManager() {
+        return this.gamehallLeaderboardManager;
+    }
+
+    public HabbiconManager getHabbiconManager() {
+        return this.habbiconManager;
+    }
+
+    public RewardTrackManager getRewardTrackManager() {
+        return this.rewardTrackManager;
     }
 }
