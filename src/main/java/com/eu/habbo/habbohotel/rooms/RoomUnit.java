@@ -397,12 +397,36 @@ public class RoomUnit {
               RoomManager roomManager = Emulator.getGameEnvironment().getRoomManager();
               RoomTile destinationTile = null;
               if (destination != null) {
-                Room targetRoom = roomManager.loadRoom(targetRoomId);
+                // Force a full load (loadData=true): a public room that emptied may have unloaded its
+                // layout, which would leave getTile() null and silently drop the walkway destination
+                // (the player then lands on the model door instead of the linked tile).
+                Room targetRoom = roomManager.loadRoom(targetRoomId, true);
                 if (targetRoom != null && targetRoom.getLayout() != null) {
                   destinationTile = targetRoom.getLayout().getTile((short) destination[0], (short) destination[1]);
                 }
               }
               roomManager.enterRoom(walkingHabbo, targetRoomId, "", true, destinationTile);
+
+              // enterRoom() routes a walkway arrival through openRoom()'s teleport branch, which sets
+              // isTeleporting=true (MoveAvatar then drops every move via getControlledHabbo() -> the
+              // player is stuck), disables door-leaving, and faces a (nonexistent) teleporter item. A
+              // walkway is not a furni-teleport: clear the lock, restore door-leaving, and face the
+              // direction baked into the destination (door_position's 4th value).
+              RoomUnit arrived = walkingHabbo.getRoomUnit();
+              Room arrivedRoom = walkingHabbo.getHabboInfo().getCurrentRoom();
+              if (arrived != null) {
+                arrived.isTeleporting = false;
+                arrived.setCanLeaveRoomByDoor(true);
+                if (destination != null && destination.length > 3
+                    && destination[3] >= 0 && destination[3] < RoomUserRotation.values().length) {
+                  RoomUserRotation rotation = RoomUserRotation.values()[destination[3]];
+                  arrived.setBodyRotation(rotation);
+                  arrived.setHeadRotation(rotation);
+                }
+                if (arrivedRoom != null) {
+                  arrivedRoom.sendComposer(new UserUpdateMessageComposer(arrived).compose());
+                }
+              }
             }, 250);
           }
         } else {

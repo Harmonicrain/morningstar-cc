@@ -1357,6 +1357,10 @@ public class CatalogManager {
                 habbo.getClient().sendResponse(new PurchaseOKMessageComposer(purchasedEvent.catalogItem));
                 habbo.getClient().sendResponse(new FurniListInvalidateMessageComposer());
 
+                if (!free && Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+                    Emulator.getGameEnvironment().getRewardTrackManager().progress(habbo, "buy_from_catalogue");
+                }
+
                 THashSet<String> itemIds = new THashSet<>();
 
                 for(HabboItem ix : purchasedEvent.itemsList) {

@@ -54,6 +54,9 @@ public class AvatarExpressionMessageEvent extends MessageHandler {
 
             room.sendComposer(new ExpressionMessageComposer(habbo.getRoomUnit(), RoomUserAction.fromValue(action)).compose());
             WiredManager.triggerUserPerformsAction(room, habbo.getRoomUnit(), WiredUserAction.fromAvatarExpression(action), "");
+            if (action == RoomUserAction.WAVE.getAction() && Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+                Emulator.getGameEnvironment().getRewardTrackManager().progress(this.client.getHabbo(), "wave");
+            }
         }
     }
 }

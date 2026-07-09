@@ -1177,6 +1177,13 @@ public class RoomUnitManager {
     public void giveHandItem(RoomUnit roomUnit, int handItem) {
         roomUnit.setHandItem(handItem);
         this.room.sendComposer(new CarryObjectMessageComposer(roomUnit).compose());
+
+        if (handItem > 0 && Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+            Habbo habbo = this.room.getHabbo(roomUnit);
+            if (habbo != null) {
+                Emulator.getGameEnvironment().getRewardTrackManager().progress(habbo, "find_hand_item");
+            }
+        }
     }
 
     // ==================== IDLE AND DANCE ====================

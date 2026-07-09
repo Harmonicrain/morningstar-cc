@@ -57,6 +57,14 @@ public class InfoRetrieveMessageEvent extends MessageHandler {
 
             messages.add(new AccountPreferencesMessageComposer(this.client.getHabbo()).compose());
             messages.add(new PurchasableChatStylesMessageComposer(Emulator.getGameEnvironment().getCatalogManager().getOwnedChatStyles(this.client.getHabbo())).compose());
+            if (Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+                messages.add(new com.eu.habbo.messages.outgoing.rewardtrack.RewardTracksMessageComposer(
+                        !Emulator.getGameEnvironment().getRewardTrackManager().isEnabled(),
+                        Emulator.getGameEnvironment().getRewardTrackManager().getTracks(),
+                        Emulator.getGameEnvironment().getRewardTrackManager().loadUserStates(this.client.getHabbo()),
+                        false
+                ).compose());
+            }
 
 
 //

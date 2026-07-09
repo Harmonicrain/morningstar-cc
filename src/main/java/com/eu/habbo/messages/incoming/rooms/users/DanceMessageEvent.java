@@ -45,6 +45,9 @@ public class DanceMessageEvent extends MessageHandler {
                 this.client.getHabbo().getHabboInfo().getCurrentRoom().sendComposer(new DanceMessageComposer(habbo.getRoomUnit()).compose());
                 if (danceId > 0) {
                     WiredManager.triggerUserPerformsAction(this.client.getHabbo().getHabboInfo().getCurrentRoom(), habbo.getRoomUnit(), WiredUserAction.DANCE, WiredUserAction.danceExtra(danceId));
+                    if (Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+                        Emulator.getGameEnvironment().getRewardTrackManager().progress(this.client.getHabbo(), "dance");
+                    }
                 }
             }
         }

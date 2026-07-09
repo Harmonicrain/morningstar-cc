@@ -19,6 +19,7 @@ public class SendRoomInviteMessageEvent extends MessageHandler {
 
             message = Emulator.getGameEnvironment().getWordFilter().filter(message, this.client.getHabbo());
 
+            boolean sentInvite = false;
             for (int i : userIds) {
                 if (i == 0)
                     continue;
@@ -28,8 +29,13 @@ public class SendRoomInviteMessageEvent extends MessageHandler {
                 if (habbo != null) {
                     if (!habbo.getHabboStats().blockRoomInvites) {
                         habbo.getClient().sendResponse(new RoomInviteMessageComposer(this.client.getHabbo().getHabboInfo().getId(), message));
+                        sentInvite = true;
                     }
                 }
+            }
+
+            if (sentInvite && Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+                Emulator.getGameEnvironment().getRewardTrackManager().progress(this.client.getHabbo(), "send_messenger_invite");
             }
         }
     }

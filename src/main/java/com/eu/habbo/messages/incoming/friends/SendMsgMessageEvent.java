@@ -32,5 +32,8 @@ public class SendMsgMessageEvent extends MessageHandler {
             return;
 
         buddy.onMessageReceived(this.client.getHabbo(), message);
+        if (Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+            Emulator.getGameEnvironment().getRewardTrackManager().progress(this.client.getHabbo(), "send_messenger_message");
+        }
     }
 }
