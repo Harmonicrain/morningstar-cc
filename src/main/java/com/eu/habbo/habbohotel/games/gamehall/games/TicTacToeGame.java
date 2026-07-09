@@ -18,6 +18,7 @@ public class TicTacToeGame extends GamehallGame {
     private static final char O = 'O';
     private static final char X_WIN = '+';
     private static final char O_WIN = 'q';
+    private static final String RESULT_NOTIFICATION_KEY = "gamehall.tictactoe.result";
 
     private final char[][] board = new char[BOARD_ROWS][BOARD_COLUMNS];
     private final Map<Integer, Character> sidesByHabboId = new HashMap<>();
@@ -152,8 +153,7 @@ public class TicTacToeGame extends GamehallGame {
             }
             this.finished = true;
             this.broadcastMap();
-            this.broadcastUpdate("GAMEEND", habbo.getHabboInfo().getUsername());
-            this.broadcastUpdate("GAMEOVER");
+            this.finishWithWinner(habbo, this.getOpponent(habbo), RESULT_NOTIFICATION_KEY);
             return;
         }
 
@@ -237,6 +237,21 @@ public class TicTacToeGame extends GamehallGame {
         for (int i = 0; i < this.getSeatCount(); i++) {
             Habbo seated = this.getHabboAt(i);
             if (seated != null && seated.getHabboInfo().getId() == habboId) {
+                return seated;
+            }
+        }
+        return null;
+    }
+
+    private Habbo getOpponent(Habbo habbo) {
+        if (habbo == null || habbo.getHabboInfo() == null) {
+            return null;
+        }
+
+        int habboId = habbo.getHabboInfo().getId();
+        for (int i = 0; i < this.getSeatCount(); i++) {
+            Habbo seated = this.getHabboAt(i);
+            if (seated != null && seated.getHabboInfo() != null && seated.getHabboInfo().getId() != habboId) {
                 return seated;
             }
         }

@@ -1,10 +1,15 @@
 package com.eu.habbo.habbohotel.games.gamehall;
 
-import com.eu.habbo.habbohotel.rooms.Room;
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.users.Habbo;
+import com.eu.habbo.habbohotel.rooms.Room;
+import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.games.gamehall.CloseGameBoardMessageComposer;
 import com.eu.habbo.messages.outgoing.games.gamehall.GameBoardUpdateMessageComposer;
 import com.eu.habbo.messages.outgoing.games.gamehall.OpenGameBoardMessageComposer;
+import com.eu.habbo.messages.outgoing.generic.alerts.NotificationDialogMessageComposer;
+
+import gnu.trove.map.hash.THashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +20,9 @@ import java.util.Objects;
 public abstract class GamehallGame {
     private static final Logger LOGGER = LoggerFactory.getLogger(GamehallGame.class);
     private static final String[] NO_ARGS = new String[0];
+    private static final String RESULT_WIN = "WIN";
+    private static final String RESULT_LOSE = "LOSE";
+    private static final String DISPLAY_BUBBLE = "BUBBLE";
 
     protected final Room room;
 
@@ -179,7 +187,39 @@ public abstract class GamehallGame {
         }
     }
 
+    protected void finishWithWinner(Habbo winner, Habbo loser, String notificationKey) {
+        String winnerName = usernameOf(winner);
+        String loserName = usernameOf(loser);
+
+        sendUpdate(winner, "GAMEEND", RESULT_WIN, winnerName, loserName);
+        sendUpdate(loser, "GAMEEND", RESULT_LOSE, winnerName, loserName);
+        if (Emulator.getGameEnvironment() != null && Emulator.getGameEnvironment().getGamehallLeaderboardManager() != null) {
+            Emulator.getGameEnvironment().getGamehallLeaderboardManager().recordWin(
+                    this.type,
+                    this.room.getId(),
+                    this.stationId,
+                    winner,
+                    loser);
+        }
+        broadcastUpdate("GAMEOVER");
+        broadcastRoomResultNotification(notificationKey, winnerName, loserName);
+    }
+
     public abstract void handleCommand(Habbo habbo, String command, String[] args);
+
+    private void broadcastRoomResultNotification(String notificationKey, String winnerName, String loserName) {
+        THashMap<String, String> keys = new THashMap<>();
+        keys.put("display", DISPLAY_BUBBLE);
+        keys.put("WINNER", winnerName);
+        keys.put("LOSER", loserName);
+
+        ServerMessage message = new NotificationDialogMessageComposer(notificationKey, keys).compose();
+        for (Habbo habbo : this.room.getHabbos()) {
+            if (canSendTo(habbo)) {
+                habbo.getClient().sendResponse(message);
+            }
+        }
+    }
 
     private synchronized Habbo[] seatSnapshot() {
         return Arrays.stream(this.seats)
@@ -198,6 +238,10 @@ public abstract class GamehallGame {
 
     private static boolean canSendTo(Habbo habbo) {
         return habbo != null && habbo.getClient() != null;
+    }
+
+    private static String usernameOf(Habbo habbo) {
+        return habbo != null && habbo.getHabboInfo() != null ? habbo.getHabboInfo().getUsername() : "";
     }
 
     private static String[] normalizeArgs(String[] args) {

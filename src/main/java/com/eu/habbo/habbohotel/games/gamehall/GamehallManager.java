@@ -40,6 +40,10 @@ public class GamehallManager {
         this.room = room;
     }
 
+    public static boolean isGamehallModel(String roomModel) {
+        return roomModel != null && LEGACY_SEATS.containsKey(roomModel);
+    }
+
     public SeatAssignment resolveSeat(String roomModel, String sprite, int x, int y) {
         if (roomModel == null || sprite == null) {
             return null;

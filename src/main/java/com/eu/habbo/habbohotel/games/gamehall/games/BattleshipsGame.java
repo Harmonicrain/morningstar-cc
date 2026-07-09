@@ -15,6 +15,7 @@ public class BattleshipsGame extends GamehallGame {
     private static final int BOARD_HEIGHT = 12;
     private static final int SHIPS_PER_PLAYER = 10;
     private static final int PLAYER_COUNT = 2;
+    private static final String RESULT_NOTIFICATION_KEY = "gamehall.battleships.result";
 
     private final List<Ship>[] ships;
     private final List<Move>[] moves;
@@ -51,6 +52,11 @@ public class BattleshipsGame extends GamehallGame {
 
         if ("OPEN".equals(normalized) || "AUTOPLACE".equals(normalized)) {
             placeDefaultFleet(habbo, player);
+            return;
+        }
+
+        if ("RESTART".equals(normalized) || "STARTOVER".equals(normalized)) {
+            restartBattle();
             return;
         }
 
@@ -177,6 +183,23 @@ public class BattleshipsGame extends GamehallGame {
         broadcastUpdate("TURN", String.valueOf(this.nextTurn));
     }
 
+    private void restartBattle() {
+        if (!this.gameOver) {
+            return;
+        }
+
+        resetBattleState(false);
+        for (int player = 0; player < PLAYER_COUNT; player++) {
+            Habbo seated = getHabboAt(player);
+            if (seated == null) {
+                continue;
+            }
+
+            sendUpdate(seated, "RESTART");
+            sendFleet(seated, player);
+        }
+    }
+
     private void shoot(Habbo habbo, int player, String[] args) {
         if (!this.battleStarted || this.gameOver || this.nextTurn != player || this.turnUsed || args == null || args.length < 2) {
             return;
@@ -216,8 +239,7 @@ public class BattleshipsGame extends GamehallGame {
 
         if (isGameOver(opponent)) {
             this.gameOver = true;
-            broadcastUpdate("GAMEEND", habbo.getHabboInfo().getUsername());
-            broadcastUpdate("GAMEOVER");
+            finishWithWinner(habbo, getHabboAt(opponent), RESULT_NOTIFICATION_KEY);
             return;
         }
 

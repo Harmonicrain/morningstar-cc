@@ -886,8 +886,13 @@ public class RoomManager {
             habbo.getClient().sendResponse(new RoomPromotionMessageComposer(null, null));
         }
 
-        if (room.getOwnerId() != habbo.getHabboInfo().getId() && !habbo.getHabboStats().visitedRoom(room.getId())) {
-            AchievementManager.progressAchievement(habbo, Emulator.getGameEnvironment().getAchievementManager().getAchievement("RoomEntry"));
+        if (room.getOwnerId() != habbo.getHabboInfo().getId()) {
+            if (!habbo.getHabboStats().visitedRoom(room.getId())) {
+                AchievementManager.progressAchievement(habbo, Emulator.getGameEnvironment().getAchievementManager().getAchievement("RoomEntry"));
+            }
+            if (Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+                Emulator.getGameEnvironment().getRewardTrackManager().progress(habbo, "enter_other_users_room");
+            }
         }
     }
 
