@@ -4,6 +4,7 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.friends.RoomInviteMessageComposer;
+import com.eu.habbo.plugin.events.users.friends.UserInviteFriendEvent;
 
 public class SendRoomInviteMessageEvent extends MessageHandler {
     @Override
@@ -31,6 +32,7 @@ public class SendRoomInviteMessageEvent extends MessageHandler {
                     }
                 }
             }
+            Emulator.getPluginManager().fireEvent(new UserInviteFriendEvent(this.client.getHabbo()));
         }
     }
 }

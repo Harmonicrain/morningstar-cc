@@ -1,5 +1,6 @@
 package com.eu.habbo.habbohotel.items.interactions.games.battlebanzai;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.games.GameTeam;
 import com.eu.habbo.habbohotel.games.battlebanzai.BattleBanzaiGame;
@@ -8,6 +9,7 @@ import com.eu.habbo.habbohotel.items.interactions.InteractionPushable;
 import com.eu.habbo.habbohotel.rooms.*;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.plugin.events.users.UserKickBallEvent;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -137,7 +139,15 @@ public class InteractionBattleBanzaiPuck extends InteractionPushable {
 
     @Override
     public void onKick(Room room, RoomUnit roomUnit, int velocity, RoomUserRotation direction) {
+        if (room == null || roomUnit == null)
+            return;
 
+        Habbo habbo = room.getHabbo(roomUnit);
+
+        if (habbo == null)
+            return;
+
+        Emulator.getPluginManager().fireEvent(new UserKickBallEvent(habbo, this));
     }
 
     @Override

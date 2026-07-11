@@ -17,6 +17,7 @@ import com.eu.habbo.plugin.Event;
 import com.eu.habbo.plugin.events.roomunit.RoomUnitLookAtPointEvent;
 import com.eu.habbo.plugin.events.roomunit.RoomUnitSetGoalEvent;
 import com.eu.habbo.plugin.events.users.UserIdleEvent;
+import com.eu.habbo.plugin.events.users.UserReceiveHandItemEvent;
 import com.eu.habbo.plugin.events.users.UserTakeStepEvent;
 import com.eu.habbo.threading.runnables.RoomUnitKick;
 import com.eu.habbo.util.pathfinding.Rotation;
@@ -665,8 +666,34 @@ public class RoomUnit {
   }
 
   public void setHandItem(int handItem) {
+    int oldHandItem = this.handItem;
+
     this.handItem = handItem;
     this.handItemTimestamp = System.currentTimeMillis();
+
+    if (this.room == null) {
+      return;
+    }
+
+    if (this.roomUnitType != RoomUnitType.USER) {
+      return;
+    }
+
+    if (handItem <= 0) {
+      return;
+    }
+
+    if (oldHandItem == handItem) {
+      return;
+    }
+
+    Habbo habbo = this.room.getHabbo(this);
+
+    if (habbo == null) {
+      return;
+    }
+
+    Emulator.getPluginManager().fireEvent(new UserReceiveHandItemEvent(habbo, handItem));
   }
 
   public long getHandItemTimestamp() {

@@ -18,6 +18,7 @@ import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.messages.outgoing.rooms.users.ExpressionMessageComposer;
 import com.eu.habbo.plugin.EventHandler;
 import com.eu.habbo.plugin.events.emulator.EmulatorConfigUpdatedEvent;
+import com.eu.habbo.plugin.events.users.UserGameEvent;
 import com.eu.habbo.threading.runnables.freeze.FreezeClearEffects;
 import com.eu.habbo.threading.runnables.freeze.FreezeThrowSnowball;
 import gnu.trove.map.hash.THashMap;
@@ -290,10 +291,12 @@ public class FreezeGame extends Game {
                 if (p.getScoreAchievementValue() > 0) {
                     if (team.equals(winningTeam)) {
                         AchievementManager.progressAchievement(p.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("FreezeWinner"), p.getScoreAchievementValue());
+                        Emulator.getPluginManager().fireEvent(new UserGameEvent(p.getHabbo(), this, "freeze", true));
                         this.room.sendComposer(new ExpressionMessageComposer(p.getHabbo().getRoomUnit(), RoomUserAction.WAVE).compose());
                     }
 
                     AchievementManager.progressAchievement(p.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("FreezePlayer"));
+                    Emulator.getPluginManager().fireEvent(new UserGameEvent(p.getHabbo(), this, "freeze", false));
                 }
             }
         }

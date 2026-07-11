@@ -16,6 +16,8 @@ import com.eu.habbo.messages.outgoing.rooms.pets.PetRespectNotificationMessageCo
 import com.eu.habbo.messages.outgoing.rooms.users.UserRemoveMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.ChatMessageComposer;
 import com.eu.habbo.plugin.events.pets.PetTalkEvent;
+import com.eu.habbo.plugin.events.users.pets.UserPetLevelEvent;
+
 import gnu.trove.map.hash.THashMap;
 import gnu.trove.set.hash.THashSet;
 import org.slf4j.Logger;
@@ -678,7 +680,11 @@ public class Pet implements ISerialize, Runnable {
             this.addHappiness(100);
             this.roomUnit.setStatus(RoomUnitStatus.GESTURE, "exp");
             this.gestureTickTimeout = Emulator.getIntUnixTimestamp();
-            AchievementManager.progressAchievement(Emulator.getGameEnvironment().getHabboManager().getHabbo(this.userId), Emulator.getGameEnvironment().getAchievementManager().getAchievement("PetLevelUp"));
+            
+            Habbo owner = Emulator.getGameEnvironment().getHabboManager().getHabbo(this.userId);
+            AchievementManager.progressAchievement(owner, Emulator.getGameEnvironment().getAchievementManager().getAchievement("PetLevelUp"));
+            Emulator.getPluginManager().fireEvent(new UserPetLevelEvent(owner, this, this.level));
+
             this.room.sendComposer(new PetLevelUpdateMessageComposer(this).compose());
         }
 

@@ -9,6 +9,7 @@ import com.eu.habbo.habbohotel.rooms.RoomTile;
 import com.eu.habbo.habbohotel.rooms.RoomUnitStatus;
 import com.eu.habbo.habbohotel.rooms.RoomUserRotation;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.plugin.events.users.UserTeleportEvent;
 
 class TeleportActionThree implements Runnable {
     private final HabboItem currentTeleport;
@@ -79,6 +80,7 @@ class TeleportActionThree implements Runnable {
         //LOGGER.info((targetTeleport.getX() + " | " + targetTeleport.getY());
         this.client.getHabbo().getHabboInfo().setCurrentRoom(targetRoom);
         //Emulator.getThreading().run(new HabboItemNewState(this.currentTeleport, this.room, "0"), 500);
+        Emulator.getPluginManager().fireEvent(new UserTeleportEvent(this.client.getHabbo(), this.currentTeleport));
         Emulator.getThreading().run(new TeleportActionFour(targetTeleport, targetRoom, this.client), this.currentTeleport instanceof InteractionTeleportTile ? 0 : 500);
 
     }

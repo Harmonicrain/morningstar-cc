@@ -43,6 +43,10 @@ import com.eu.habbo.messages.incoming.polls.AnswerPollEvent;
 import com.eu.habbo.messages.incoming.polls.CancelPollEvent;
 import com.eu.habbo.messages.incoming.polls.GetPollDataEvent;
 import com.eu.habbo.messages.incoming.polls.infobus.VotePollCounterEvent;
+import com.eu.habbo.messages.incoming.quests.AcceptQuestEvent;
+import com.eu.habbo.messages.incoming.quests.GetQuestsEvent;
+import com.eu.habbo.messages.incoming.quests.OpenQuestTrackerEvent;
+import com.eu.habbo.messages.incoming.quests.RejectQuestEvent;
 import com.eu.habbo.messages.incoming.rooms.*;
 import com.eu.habbo.messages.incoming.rooms.bots.RemoveBotFromFlatMessageEvent;
 import com.eu.habbo.messages.incoming.rooms.bots.PlaceBotMessageEvent;
@@ -118,6 +122,7 @@ public class PacketManager {
         this.registerCrafting();
         this.registerCamera();
         this.registerGameCenter();
+        this.registerQuests();
     }
 
     public PacketNames getNames() {
@@ -652,5 +657,12 @@ public class PacketManager {
         this.registerHandler(Incoming.GameUnloadedMessageEvent, GameUnloadedMessageEvent.class);
         this.registerHandler(Incoming.GetWeeklyGameRewardEvent, GetWeeklyGameRewardEvent.class);
         this.registerHandler(Incoming.Game2GetAccountGameStatusMessageEvent, Game2GetAccountGameStatusMessageEvent.class);
+    }
+
+    void registerQuests() throws Exception {
+        this.registerHandler(Incoming.GetQuestsEvent, GetQuestsEvent.class);
+        this.registerHandler(Incoming.AcceptQuestEvent, AcceptQuestEvent.class);
+        this.registerHandler(Incoming.RejectQuestEvent, RejectQuestEvent.class);
+        this.registerHandler(Incoming.OpenQuestTrackerEvent, OpenQuestTrackerEvent.class);
     }
 }

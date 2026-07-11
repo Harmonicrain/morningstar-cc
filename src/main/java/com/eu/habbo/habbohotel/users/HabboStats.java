@@ -8,6 +8,9 @@ import com.eu.habbo.habbohotel.achievements.AchievementManager;
 import com.eu.habbo.habbohotel.achievements.TalentTrackType;
 import com.eu.habbo.habbohotel.catalog.CatalogItem;
 import com.eu.habbo.habbohotel.permissions.Permission;
+import com.eu.habbo.habbohotel.quests.Quest;
+import com.eu.habbo.habbohotel.quests.QuestManager;
+import com.eu.habbo.habbohotel.quests.QuestUserProgress;
 import com.eu.habbo.habbohotel.rooms.RoomChatMessageBubbles;
 import com.eu.habbo.habbohotel.rooms.RoomTrade;
 import com.eu.habbo.habbohotel.users.cache.HabboOfferPurchase;
@@ -49,6 +52,7 @@ public class HabboStats implements Runnable {
     private final THashMap<Achievement, Integer> achievementProgress;
     private final THashMap<Achievement, Integer> achievementCache;
     private final THashMap<Integer, CatalogItem> recentPurchases;
+    private final THashMap<Integer, QuestUserProgress> questProgress;
     private final TIntArrayList favoriteRooms;
     private final TIntArrayList ignoredUsers;
     private TIntArrayList roomsVists;
@@ -126,6 +130,7 @@ public class HabboStats implements Runnable {
         this.roomsVists = new TIntArrayList(0);
         this.secretRecipes = new TIntArrayList(0);
         this.calendarRewardsClaimed = new ArrayList<>();
+        this.questProgress = new THashMap<>(0);
 
         this.habboInfo = habboInfo;
 
@@ -326,6 +331,20 @@ public class HabboStats implements Runnable {
 
                             if (achievement != null) {
                                 stats.achievementProgress.put(achievement, set.getInt("progress"));
+                            }
+                        }
+                    }
+                }
+                try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM users_quests WHERE user_id = ?")) {
+                    statement.setInt(1, habboInfo.getId());
+
+                    try (ResultSet set = statement.executeQuery()) {
+                        while (set.next()) {
+                            Quest quest = Emulator.getGameEnvironment().getQuestManager().getQuest(set.getInt("quest_id"));
+
+                            if (quest != null) {
+                                QuestUserProgress progress = new QuestUserProgress(set);
+                                stats.getQuestProgress().put(quest.getId(), progress);
                             }
                         }
                     }
@@ -1130,5 +1149,31 @@ public class HabboStats implements Runnable {
             usersSettingsHasNewNavigatorColumn = hasColumns;
             return hasColumns;
         }
+    }
+
+    public THashMap<Integer, QuestUserProgress> getQuestProgress() {
+        return this.questProgress;
+    }
+
+    public QuestUserProgress getQuestProgress(Quest quest) {
+        if (quest == null) return null;
+
+        return this.questProgress.get(quest.getId());
+    }
+
+    public QuestUserProgress getQuestProgress(int questId) {
+        return this.questProgress.get(questId);
+    }
+
+    public void setQuestProgress(QuestUserProgress progress) {
+        if (progress == null) return;
+
+        this.questProgress.put(progress.getQuestId(), progress);
+    }
+
+    public int getQuestCompletedSteps(Quest quest) {
+        QuestUserProgress progress = this.getQuestProgress(quest);
+
+        return progress != null ? progress.getCompletedSteps() : 0;
     }
 }

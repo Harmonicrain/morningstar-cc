@@ -1,11 +1,14 @@
 package com.eu.habbo.habbohotel.items.interactions;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.bots.Bot;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.pets.Pet;
 import com.eu.habbo.habbohotel.rooms.*;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.plugin.events.users.UserSwimEvent;
+
 import gnu.trove.set.hash.THashSet;
 import org.apache.commons.math3.util.Pair;
 
@@ -71,6 +74,13 @@ public class InteractionWater extends InteractionDefault {
     @Override
     public void onWalkOn(RoomUnit roomUnit, Room room, Object[] objects) throws Exception {
         super.onWalkOn(roomUnit, room, objects);
+
+        Habbo habbo = room.getHabbo(roomUnit);
+
+        if (habbo != null) {
+            Emulator.getPluginManager().fireEvent(new UserSwimEvent(habbo));
+            return;
+        }
 
         Pet pet = room.getPet(roomUnit);
 

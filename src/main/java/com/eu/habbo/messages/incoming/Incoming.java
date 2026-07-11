@@ -379,6 +379,10 @@ public class Incoming {
     public static final int UpdateThreadMessageEvent = 3045;
     public static final int GuildForumMarkAsReadEvent = 1855;
 
+    public static final int GetQuestsEvent = 3333;
+    public static final int AcceptQuestEvent = 3604;
+    public static final int RejectQuestEvent = 2397;
+    public static final int OpenQuestTrackerEvent = 2750;
 
     public static final int UNKNOWN_SNOWSTORM_6000 = 6000;
     public static final int UNKNOWN_SNOWSTORM_6001 = 6001;

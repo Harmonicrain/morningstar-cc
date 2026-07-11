@@ -1,11 +1,13 @@
 package com.eu.habbo.messages.incoming.rooms.items.lovelock;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.items.interactions.InteractionLoveLock;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.rooms.items.lovelock.FriendFurniCancelLockMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.lovelock.FriendFurniOtherLockConfirmedMessageComposer;
+import com.eu.habbo.plugin.events.users.UserFriendFurniLockedEvent;
 
 public class FriendFurniConfirmLockMessageEvent extends MessageHandler {
     @Override
@@ -40,6 +42,8 @@ public class FriendFurniConfirmLockMessageEvent extends MessageHandler {
                         this.client.sendResponse(new FriendFurniCancelLockMessageComposer((InteractionLoveLock) item));
 
                         ((InteractionLoveLock) item).lock(habbo, this.client.getHabbo(), this.client.getHabbo().getHabboInfo().getCurrentRoom());
+
+                        Emulator.getPluginManager().fireEvent(new UserFriendFurniLockedEvent(this.client.getHabbo(), habbo, item));
                     }
                 }
             }

@@ -1,6 +1,9 @@
 package com.eu.habbo.messages.outgoing.quests;
 
-import com.eu.habbo.messages.ISerialize;
+import com.eu.habbo.Emulator;
+import com.eu.habbo.habbohotel.quests.Quest;
+import com.eu.habbo.habbohotel.quests.QuestUserProgress;
+import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.MessageComposer;
 import com.eu.habbo.messages.outgoing.Outgoing;
@@ -8,10 +11,12 @@ import com.eu.habbo.messages.outgoing.Outgoing;
 import java.util.List;
 
 public class QuestsMessageComposer extends MessageComposer {
+    private final Habbo habbo;
     private final List<Quest> quests;
     private final boolean unknownBoolean;
 
-    public QuestsMessageComposer(List<Quest> quests, boolean unknownBoolean) {
+    public QuestsMessageComposer(Habbo habbo, List<Quest> quests, boolean unknownBoolean) {
+        this.habbo = habbo;
         this.quests = quests;
         this.unknownBoolean = unknownBoolean;
     }
@@ -20,140 +25,44 @@ public class QuestsMessageComposer extends MessageComposer {
     protected ServerMessage composeInternal() {
         this.response.init(Outgoing.QuestsMessageComposer);
         this.response.appendInt(this.quests.size());
+
         for (Quest quest : this.quests) {
-            this.response.append(quest);
+            QuestUserProgress progress = this.habbo.getHabboStats().getQuestProgress(quest);
+
+            int completedQuestsInCampaign = Emulator.getGameEnvironment().getQuestManager().getCompletedQuestsInCampaign(this.habbo, quest.getCampaignId());
+            
+            int questCountInCampaign = Emulator.getGameEnvironment().getQuestManager().getQuestCountInCampaign(quest.getCampaignId());
+
+            if (questCountInCampaign > 0 && completedQuestsInCampaign >= questCountInCampaign) {
+                this.serializeCompletedCampaign(quest, completedQuestsInCampaign, questCountInCampaign);
+                continue;
+            }
+
+            quest.serialize(this.response, progress, completedQuestsInCampaign, questCountInCampaign);
         }
+
         this.response.appendBoolean(this.unknownBoolean);
         return this.response;
     }
 
-    public static class Quest implements ISerialize {
-        private final String campaignCode;
-        private final int completedQuestsInCampaign;
-        private final int questCountInCampaign;
-        private final int activityPointType;
-        private final int id;
-        private final boolean accepted;
-        private final String type;
-        private final String imageVersion;
-        private final int rewardCurrencyAmount;
-        private final String localizationCode;
-        private final int completedSteps;
-        private final int totalSteps;
-        private final int sortOrder;
-        private final String catalogPageName;
-        private final String chainCode;
-        private final boolean easy;
+    private void serializeCompletedCampaign(Quest quest, int completedQuestsInCampaign, int questCountInCampaign) {
+        this.response.appendString(quest.getCampaignCode());
+        this.response.appendInt(completedQuestsInCampaign);
+        this.response.appendInt(questCountInCampaign);
+        this.response.appendInt(quest.getActivityPointType());
 
-        public Quest(String campaignCode, int completedQuestsInCampaign, int questCountInCampaign, int activityPointType, int id, boolean accepted, String type, String imageVersion, int rewardCurrencyAmount, String localizationCode, int completedSteps, int totalSteps, int sortOrder, String catalogPageName, String chainCode, boolean easy) {
-            this.campaignCode = campaignCode;
-            this.completedQuestsInCampaign = completedQuestsInCampaign;
-            this.questCountInCampaign = questCountInCampaign;
-            this.activityPointType = activityPointType;
-            this.id = id;
-            this.accepted = accepted;
-            this.type = type;
-            this.imageVersion = imageVersion;
-            this.rewardCurrencyAmount = rewardCurrencyAmount;
-            this.localizationCode = localizationCode;
-            this.completedSteps = completedSteps;
-            this.totalSteps = totalSteps;
-            this.sortOrder = sortOrder;
-            this.catalogPageName = catalogPageName;
-            this.chainCode = chainCode;
-            this.easy = easy;
-        }
+        this.response.appendInt(0); // id < 1 = campaign completed on client
 
-        @Override
-        public void serialize(ServerMessage message) {
-            message.appendString(this.campaignCode);
-            message.appendInt(this.completedQuestsInCampaign);
-            message.appendInt(this.questCountInCampaign);
-            message.appendInt(this.activityPointType);
-            message.appendInt(this.id);
-            message.appendBoolean(this.accepted);
-            message.appendString(this.type);
-            message.appendString(this.imageVersion);
-            message.appendInt(this.rewardCurrencyAmount);
-            message.appendString(this.localizationCode);
-            message.appendInt(this.completedSteps);
-            message.appendInt(this.totalSteps);
-            message.appendInt(this.sortOrder);
-            message.appendString(this.catalogPageName);
-            message.appendString(this.chainCode);
-            message.appendBoolean(this.easy);
-        }
-
-        public String getCampaignCode() {
-            return campaignCode;
-        }
-
-        public int getCompletedQuestsInCampaign() {
-            return completedQuestsInCampaign;
-        }
-
-        public int getQuestCountInCampaign() {
-            return questCountInCampaign;
-        }
-
-        public int getActivityPointType() {
-            return activityPointType;
-        }
-
-        public int getId() {
-            return id;
-        }
-
-        public boolean isAccepted() {
-            return accepted;
-        }
-
-        public String getType() {
-            return type;
-        }
-
-        public String getImageVersion() {
-            return imageVersion;
-        }
-
-        public int getRewardCurrencyAmount() {
-            return rewardCurrencyAmount;
-        }
-
-        public String getLocalizationCode() {
-            return localizationCode;
-        }
-
-        public int getCompletedSteps() {
-            return completedSteps;
-        }
-
-        public int getTotalSteps() {
-            return totalSteps;
-        }
-
-        public int getSortOrder() {
-            return sortOrder;
-        }
-
-        public String getCatalogPageName() {
-            return catalogPageName;
-        }
-
-        public String getChainCode() {
-            return chainCode;
-        }
-
-        public boolean isEasy() {
-            return easy;
-        }
-    }
-
-    public List<Quest> getQuests() {
-        return quests;
-    }
-
-    public boolean isUnknownBoolean() {
-        return unknownBoolean;
+        this.response.appendBoolean(false); // accepted
+        this.response.appendString("");     // type
+        this.response.appendString("");     // imageVersion
+        this.response.appendInt(0);         // rewardCurrencyAmount
+        this.response.appendString("");     // localizationCode
+        this.response.appendInt(0);         // completedSteps
+        this.response.appendInt(0);         // totalSteps
+        this.response.appendInt(quest.getSortOrder());
+        this.response.appendString("");     // catalogPageName
+        this.response.appendString(quest.getChainCode());
+        this.response.appendBoolean(false); // easy
     }
 }

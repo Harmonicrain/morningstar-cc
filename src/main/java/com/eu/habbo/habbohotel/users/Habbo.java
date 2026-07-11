@@ -6,6 +6,7 @@ import com.eu.habbo.habbohotel.bots.Bot;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.messenger.Messenger;
 import com.eu.habbo.habbohotel.pets.Pet;
+import com.eu.habbo.habbohotel.quests.QuestManager;
 import com.eu.habbo.habbohotel.rooms.*;
 import com.eu.habbo.habbohotel.users.inventory.BadgesComponent;
 import com.eu.habbo.messages.outgoing.generic.alerts.*;
@@ -195,6 +196,7 @@ public class Habbo implements Runnable {
             this.messenger.dispose();
             this.disconnected = true;
             AchievementManager.saveAchievements(this);
+            QuestManager.saveQuests(this);
 
             this.habboStats.dispose();
         } catch (Exception e) {

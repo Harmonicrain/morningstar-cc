@@ -15,6 +15,7 @@ import com.eu.habbo.messages.outgoing.rooms.FlatAccessDeniedMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.SleepMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.IgnoreResultMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.UserUpdateMessageComposer;
+import com.eu.habbo.plugin.events.rooms.RoomPulseEvent;
 import com.eu.habbo.plugin.events.users.UserExitRoomEvent;
 import gnu.trove.iterator.TIntObjectIterator;
 import gnu.trove.map.TIntObjectMap;
@@ -41,6 +42,7 @@ public class RoomCycleManager {
     private int idleCycles;
     private int idleHostingCycles;
     private long rollerCycle = System.currentTimeMillis();
+    private int questRoomPulseCycles;
 
     public RoomCycleManager(Room room) {
         this.room = room;
@@ -48,6 +50,7 @@ public class RoomCycleManager {
         this.cycleTimestamp = 0;
         this.idleCycles = 0;
         this.idleHostingCycles = 0;
+        this.questRoomPulseCycles = 0;
     }
 
     /**
@@ -83,6 +86,8 @@ public class RoomCycleManager {
 
             if (!this.room.getCurrentHabbos().isEmpty()) {
                 this.idleCycles = 0;
+
+                processQuestRoomPulse();
 
                 THashSet<RoomUnit> updatedUnit = new THashSet<>();
                 ArrayList<Habbo> toKick = new ArrayList<>();
@@ -488,5 +493,31 @@ public class RoomCycleManager {
         }
 
         return update;
+    }
+
+    private int getQuestRoomPulseCycles() {
+        int seconds = Emulator.getConfig().getInt("hotel.quest.room_pulse.interval", 5);
+        return Math.max(1, seconds * 2); // room cycle = 500ms
+    }
+
+    private void processQuestRoomPulse() {
+        if (this.questRoomPulseCycles < getQuestRoomPulseCycles()) {
+            this.questRoomPulseCycles++;
+            return;
+        }
+
+        this.questRoomPulseCycles = 0;
+
+        if (this.room.getCurrentHabbos().isEmpty()) {
+            return;
+        }
+
+        for (Habbo habbo : this.room.getCurrentHabbos().values()) {
+            if (habbo == null || !habbo.isOnline()) {
+                continue;
+            }
+
+            Emulator.getPluginManager().fireEvent(new RoomPulseEvent(this.room, habbo));
+        }
     }
 }

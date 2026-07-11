@@ -1,5 +1,6 @@
 package com.eu.habbo.messages.incoming.friends;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.messenger.MessengerBuddy;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.friends.FriendListUpdateMessageComposer;
@@ -14,6 +15,7 @@ public class SetRelationshipStatusMessageEvent extends MessageHandler {
         MessengerBuddy buddy = this.client.getHabbo().getMessenger().getFriends().get(userId);
         if (buddy != null && relationId >= 0 && relationId <= 3) {
             UserRelationShipEvent event = new UserRelationShipEvent(this.client.getHabbo(), buddy, relationId);
+            Emulator.getPluginManager().fireEvent(event);
             if (!event.isCancelled()) {
                 buddy.setRelation(event.relationShip);
                 this.client.sendResponse(new FriendListUpdateMessageComposer(this.client.getHabbo(), buddy, 0));

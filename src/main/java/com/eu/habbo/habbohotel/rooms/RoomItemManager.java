@@ -1601,7 +1601,7 @@ public class RoomItemManager {
      */
     public FurnitureMovementError placeFloorFurniAt(HabboItem item, RoomTile tile, int rotation, Habbo owner) {
         boolean pluginHelper = false;
-        if (Emulator.getPluginManager().isRegistered(FurniturePlacedEvent.class, true)) {
+        if (Emulator.getPluginManager().isRegistered(FurniturePlacedEvent.class, false)) {
             FurniturePlacedEvent event = Emulator.getPluginManager()
                     .fireEvent(new FurniturePlacedEvent(item, owner, tile));
 
@@ -1631,7 +1631,7 @@ public class RoomItemManager {
             }
         }
 
-        if (Emulator.getPluginManager().isRegistered(FurnitureBuildheightEvent.class, true)) {
+        if (Emulator.getPluginManager().isRegistered(FurnitureBuildheightEvent.class, false)) {
             FurnitureBuildheightEvent event = Emulator.getPluginManager()
                     .fireEvent(new FurnitureBuildheightEvent(item, owner, 0.00, height));
             if (event.hasChangedHeight()) {
@@ -1673,7 +1673,7 @@ public class RoomItemManager {
             return FurnitureMovementError.NO_RIGHTS;
         }
 
-        if (Emulator.getPluginManager().isRegistered(FurniturePlacedEvent.class, true)) {
+        if (Emulator.getPluginManager().isRegistered(FurniturePlacedEvent.class, false)) {
             Event furniturePlacedEvent = new FurniturePlacedEvent(item, owner, null);
             Emulator.getPluginManager().fireEvent(furniturePlacedEvent);
 
@@ -1724,7 +1724,7 @@ public class RoomItemManager {
         RoomTile oldLocation = layout.getTile(item.getX(), item.getY());
 
         boolean pluginHelper = false;
-        if (Emulator.getPluginManager().isRegistered(FurnitureMovedEvent.class, true)) {
+        if (Emulator.getPluginManager().isRegistered(FurnitureMovedEvent.class, false)) {
             FurnitureMovedEvent event = Emulator.getPluginManager()
                     .fireEvent(new FurnitureMovedEvent(item, actor, oldLocation, tile));
             if (event.isCancelled()) {
@@ -1793,7 +1793,7 @@ public class RoomItemManager {
 
         if (oldRotation != rotation) {
             item.setRotation(rotation);
-            if (Emulator.getPluginManager().isRegistered(FurnitureRotatedEvent.class, true)) {
+            if (Emulator.getPluginManager().isRegistered(FurnitureRotatedEvent.class, false)) {
                 Event furnitureRotatedEvent = new FurnitureRotatedEvent(item, actor, oldRotation);
                 Emulator.getPluginManager().fireEvent(furnitureRotatedEvent);
 
