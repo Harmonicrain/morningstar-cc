@@ -367,8 +367,6 @@ public class QuestManager {
             habbo.getClient().sendResponse(new QuestMessageComposer(habbo, quest));
         }
 
-        saveQuests(habbo);
-
         return true;
     }
 
@@ -399,7 +397,6 @@ public class QuestManager {
             progress.setAccepted(true);
         }
 
-        saveQuests(habbo);
     }
 
     public static Quest rejectActiveQuest(Habbo habbo) {
@@ -427,10 +424,6 @@ public class QuestManager {
             }
         }
 
-        if (rejectedQuest != null) {
-            saveQuests(habbo);
-        }
-
         return rejectedQuest;
     }
 
@@ -440,8 +433,6 @@ public class QuestManager {
 
         if (quest == null)
             return;
-
-        boolean changed = false;
 
         synchronized (habbo.getHabboStats().getQuestProgress()) {
             QuestUserProgress progress = habbo.getHabboStats().getQuestProgress(quest);
@@ -456,11 +447,6 @@ public class QuestManager {
                 return;
 
             progress.setClaimedAt((int) (System.currentTimeMillis() / 1000));
-            changed = true;
-        }
-
-        if (changed) {
-            saveQuests(habbo);
         }
     }
 
