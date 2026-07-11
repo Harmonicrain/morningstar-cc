@@ -13,12 +13,12 @@ import java.util.List;
 public class QuestsMessageComposer extends MessageComposer {
     private final Habbo habbo;
     private final List<Quest> quests;
-    private final boolean unknownBoolean;
+    private final boolean openWindow;
 
-    public QuestsMessageComposer(Habbo habbo, List<Quest> quests, boolean unknownBoolean) {
+    public QuestsMessageComposer(Habbo habbo, List<Quest> quests, boolean openWindow) {
         this.habbo = habbo;
         this.quests = quests;
-        this.unknownBoolean = unknownBoolean;
+        this.openWindow = openWindow;
     }
 
     @Override
@@ -41,7 +41,7 @@ public class QuestsMessageComposer extends MessageComposer {
             quest.serialize(this.response, progress, completedQuestsInCampaign, questCountInCampaign);
         }
 
-        this.response.appendBoolean(this.unknownBoolean);
+        this.response.appendBoolean(this.openWindow);
         return this.response;
     }
 

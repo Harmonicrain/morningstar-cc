@@ -4,7 +4,6 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.outgoing.quests.QuestCompletedMessageComposer;
 import com.eu.habbo.messages.outgoing.quests.QuestMessageComposer;
-import com.eu.habbo.messages.outgoing.quests.QuestsMessageComposer;
 
 import gnu.trove.map.hash.THashMap;
 import org.slf4j.Logger;
@@ -359,11 +358,7 @@ public class QuestManager {
         if (completedNow) {
             habbo.getClient().sendResponse(new QuestCompletedMessageComposer(habbo, quest, true));
 
-            Quest nextQuest = Emulator.getGameEnvironment().getQuestManager().getVisibleQuestForCampaign(habbo,
-                    quest.getCampaignId());
-
-            List<Quest> quests = Emulator.getGameEnvironment().getQuestManager().getVisibleQuests(habbo);
-            habbo.getClient().sendResponse(new QuestsMessageComposer(habbo, quests, true));
+            Quest nextQuest = Emulator.getGameEnvironment().getQuestManager().getVisibleQuestForCampaign(habbo, quest.getCampaignId());
 
             if (nextQuest != null && nextQuest.getId() != quest.getId()) {
                 habbo.getClient().sendResponse(new QuestMessageComposer(habbo, nextQuest));
