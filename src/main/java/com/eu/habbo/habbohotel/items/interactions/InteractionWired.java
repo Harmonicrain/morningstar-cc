@@ -77,6 +77,11 @@ public abstract class InteractionWired extends InteractionDefault {
      * Default: 5 minutes
      */
     private static final long CACHE_EXPIRY_MS = 5 * 60 * 1000;
+
+    /** Defensive limits for counted Wired 2.0 fields. */
+    private static final int MAX_WIRED_INT_PARAMS = 64;
+    private static final int MAX_WIRED_SOURCE_TYPES = 32;
+    private static final int MAX_WIRED_VARIABLE_IDS = 32;
     
     private long cooldown;
     private long lastBoxAnimationMs;
@@ -559,32 +564,18 @@ public abstract class InteractionWired extends InteractionDefault {
 
     public static WiredSettings readSettings(ClientMessage packet, boolean isEffect)
     {
-        int intParamCount = packet.readInt();
-        int[] intParams = new int[intParamCount];
-
-        for(int i = 0; i < intParamCount; i++)
-        {
-            intParams[i] = packet.readInt();
-        }
-
-        String stringParam = packet.readString();
-
-        int itemCount = packet.readInt();
-        int[] itemIds = new int[itemCount];
-
-        for(int i = 0; i < itemCount; i++)
-        {
-            itemIds[i] = packet.readInt();
-        }
+        int[] intParams = readCountedInts(packet, MAX_WIRED_INT_PARAMS, "legacy int parameters");
+        String stringParam = readRequiredString(packet, "legacy string parameter");
+        int[] itemIds = readCountedInts(packet, getFurniSelectionLimit(), "legacy furni selections");
 
         WiredSettings settings = new WiredSettings(intParams, stringParam, itemIds, -1);
 
         if(isEffect)
         {
-            settings.setDelay(packet.readInt());
+            settings.setDelay(readRequiredInt(packet, "legacy delay"));
         }
 
-        settings.setStuffTypeSelectionCode(packet.readInt());
+        settings.setStuffTypeSelectionCode(readRequiredInt(packet, "legacy selection code"));
         return settings;
     }
 
@@ -598,11 +589,12 @@ public abstract class InteractionWired extends InteractionDefault {
     public static WiredSettingsNew readSettingsNew(ClientMessage packet, WiredCategoryType category, Room room)
     {
         // Common prefix
-        int[] intParams = readCountedInts(packet);
-        String stringParam = packet.readString();
+        int[] intParams = readCountedInts(packet, MAX_WIRED_INT_PARAMS, "int parameters");
+        String stringParam = readRequiredString(packet, "string parameter");
         // Furni selections arrive as room-visible ids (BC furni use virtual ids); resolve
         // them back to real db ids so downstream getHabboItem(dbId) lookups succeed.
-        int[] furniIds = resolveVisibleIds(room, readCountedInts(packet));
+        int[] furniIds = resolveVisibleIds(room,
+                readCountedInts(packet, getFurniSelectionLimit(), "furni selections"));
 
         // Type-specific block
         int delay = 0;
@@ -611,24 +603,25 @@ public abstract class InteractionWired extends InteractionDefault {
         boolean isInvert = false;
         switch (category) {
             case EFFECT:
-                delay = packet.readInt();
+                delay = readRequiredInt(packet, "delay");
                 break;
             case CONDITION:
-                quantifierCode = packet.readInt();
+                quantifierCode = readRequiredInt(packet, "quantifier code");
                 break;
             case SELECTOR:
-                isFilter = packet.readBoolean();
-                isInvert = packet.readBoolean();
+                isFilter = readRequiredBoolean(packet, "filter flag");
+                isInvert = readRequiredBoolean(packet, "invert flag");
                 break;
             default:
                 break; // TRIGGER, ADDON, VARIABLE: no type-specific field
         }
 
         // Common suffix
-        int[] furniSourceTypes = readCountedInts(packet);
-        int[] userSourceTypes = readCountedInts(packet);
-        String[] variableIds = readCountedStrings(packet);
-        int[] furniIds2 = resolveVisibleIds(room, readCountedInts(packet));
+        int[] furniSourceTypes = readCountedInts(packet, MAX_WIRED_SOURCE_TYPES, "furni source types");
+        int[] userSourceTypes = readCountedInts(packet, MAX_WIRED_SOURCE_TYPES, "user source types");
+        String[] variableIds = readCountedStrings(packet, MAX_WIRED_VARIABLE_IDS, "variable ids");
+        int[] furniIds2 = resolveVisibleIds(room,
+                readCountedInts(packet, getFurniSelectionLimit(), "second furni selections"));
 
         return new WiredSettingsNew(intParams, stringParam, furniIds, furniIds2, variableIds,
                 furniSourceTypes, userSourceTypes, delay, quantifierCode, isFilter, isInvert);
@@ -640,28 +633,77 @@ public abstract class InteractionWired extends InteractionDefault {
         if (room == null || ids == null) {
             return ids;
         }
-        int[] out = new int[ids.length];
         for (int i = 0; i < ids.length; i++) {
-            out[i] = room.getItemManager().resolveVisibleId(ids[i]);
+            ids[i] = room.getItemManager().resolveVisibleId(ids[i]);
+        }
+        return ids;
+    }
+
+    private static int[] readCountedInts(ClientMessage packet, int maximum, String fieldName) {
+        int count = readRequiredInt(packet, fieldName + " count");
+        validateCount(packet, count, maximum, Integer.BYTES, fieldName);
+        int[] out = new int[count];
+        for (int i = 0; i < count; i++) {
+            out[i] = readRequiredInt(packet, fieldName + " value");
         }
         return out;
     }
 
-    private static int[] readCountedInts(ClientMessage packet) {
-        int count = packet.readInt();
-        int[] out = new int[Math.max(count, 0)];
+    private static String[] readCountedStrings(ClientMessage packet, int maximum, String fieldName) {
+        int count = readRequiredInt(packet, fieldName + " count");
+        validateCount(packet, count, maximum, Short.BYTES, fieldName);
+        String[] out = new String[count];
         for (int i = 0; i < count; i++) {
-            out[i] = packet.readInt();
+            out[i] = readRequiredString(packet, fieldName + " value");
         }
         return out;
     }
 
-    private static String[] readCountedStrings(ClientMessage packet) {
-        int count = packet.readInt();
-        String[] out = new String[Math.max(count, 0)];
-        for (int i = 0; i < count; i++) {
-            out[i] = packet.readString();
+    private static int getFurniSelectionLimit() {
+        return Math.max(0, WiredManager.MAXIMUM_FURNI_SELECTION);
+    }
+
+    private static void validateCount(ClientMessage packet, int count, int maximum, int minimumBytesPerEntry,
+                                      String fieldName) {
+        if (count < 0) {
+            throw malformedPacket(fieldName + " count is negative");
         }
-        return out;
+        if (count > maximum) {
+            throw malformedPacket(fieldName + " count exceeds limit");
+        }
+        if ((long) count * minimumBytesPerEntry > packet.bytesAvailable()) {
+            throw malformedPacket(fieldName + " count exceeds remaining packet bytes");
+        }
+    }
+
+    private static int readRequiredInt(ClientMessage packet, String fieldName) {
+        if (packet.bytesAvailable() < Integer.BYTES) {
+            throw malformedPacket("missing " + fieldName);
+        }
+        return packet.readInt();
+    }
+
+    private static boolean readRequiredBoolean(ClientMessage packet, String fieldName) {
+        if (packet.bytesAvailable() < 1) {
+            throw malformedPacket("missing " + fieldName);
+        }
+        return packet.readBoolean();
+    }
+
+    private static String readRequiredString(ClientMessage packet, String fieldName) {
+        if (packet.bytesAvailable() < Short.BYTES) {
+            throw malformedPacket("missing " + fieldName + " length");
+        }
+
+        int readerIndex = packet.getBuffer().readerIndex();
+        int length = packet.getBuffer().getShort(readerIndex);
+        if (length < 0 || (long) Short.BYTES + length > packet.bytesAvailable()) {
+            throw malformedPacket("invalid " + fieldName + " length");
+        }
+        return packet.readString();
+    }
+
+    private static IllegalArgumentException malformedPacket(String message) {
+        return new IllegalArgumentException("Malformed wired settings packet: " + message);
     }
 }

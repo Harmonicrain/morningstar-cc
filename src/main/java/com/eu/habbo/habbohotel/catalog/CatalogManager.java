@@ -1007,7 +1007,7 @@ public class CatalogManager {
                 return;
             }
 
-            if (amount <= 0) {
+            if (!CatalogPurchaseLimits.isValidAmount(amount)) {
                 habbo.getClient().sendResponse(new PurchaseNotAllowedMessageComposer(PurchaseNotAllowedMessageComposer.ILLEGAL));
                 return;
             }
@@ -1042,8 +1042,9 @@ public class CatalogManager {
                     if (amount == item.getAmount()) {
                         amount = 1;
                     } else {
-                        if (amount * item.getAmount() > 100) {
-                            habbo.alert("Whoops! You tried to buy this " + (amount * item.getAmount()) + " times. This must've been a mistake.");
+                        long requestedItemCount = (long) amount * item.getAmount();
+                        if (requestedItemCount < 0 || requestedItemCount > CatalogPurchaseLimits.MAXIMUM_QUANTITY) {
+                            habbo.alert("Whoops! You tried to buy this " + requestedItemCount + " times. This must've been a mistake.");
                             habbo.getClient().sendResponse(new PurchaseNotAllowedMessageComposer(PurchaseNotAllowedMessageComposer.ILLEGAL));
                             return;
                         }
@@ -1075,12 +1076,23 @@ public class CatalogManager {
                 int totalCredits = free ? 0 : this.calculateDiscountedPrice(item.getCredits(), amount, item);
                 int totalPoints = free ? 0 : this.calculateDiscountedPrice(item.getPoints(), amount, item);
 
+                if (totalCredits < 0 || totalPoints < 0) {
+                    habbo.getClient().sendResponse(new PurchaseNotAllowedMessageComposer(PurchaseNotAllowedMessageComposer.ILLEGAL));
+                    return;
+                }
+
                 if (totalCredits > 0 && habbo.getHabboInfo().getCredits() - totalCredits < 0) return;
                 if (totalPoints > 0 && habbo.getHabboInfo().getCurrencyAmount(item.getPointsType()) - totalPoints < 0)
                     return;
 
                 if (item.isSubscriptionOffer()) {
-                    int totalDays = item.getSubscriptionDays() * amount;
+                    long totalDaysLong = (long) item.getSubscriptionDays() * amount;
+                    long subscriptionSeconds = totalDaysLong * 86400L;
+                    if (totalDaysLong <= 0 || totalDaysLong > Integer.MAX_VALUE || subscriptionSeconds > Integer.MAX_VALUE) {
+                        habbo.getClient().sendResponse(new PurchaseNotAllowedMessageComposer(PurchaseNotAllowedMessageComposer.ILLEGAL));
+                        return;
+                    }
+                    int totalDays = (int) totalDaysLong;
 
                     if (!free && !habbo.hasPermission(Permission.ACC_INFINITE_CREDITS) && totalCredits > 0) {
                         habbo.giveCredits(-totalCredits);
@@ -1090,7 +1102,7 @@ public class CatalogManager {
                         habbo.givePoints(item.getPointsType(), -totalPoints);
                     }
 
-                    if (habbo.getHabboStats().createSubscription(item.getSubscriptionType(), totalDays * 86400) == null) {
+                    if (habbo.getHabboStats().createSubscription(item.getSubscriptionType(), (int) subscriptionSeconds) == null) {
                         habbo.getClient().sendResponse(new PurchaseErrorMessageComposer(PurchaseErrorMessageComposer.SERVER_ERROR));
                         return;
                     }
@@ -1457,7 +1469,8 @@ public class CatalogManager {
     }
 
     private int calculateDiscountedPrice(int originalPrice, int amount, CatalogItem item) {
-        if (!CatalogItem.haveOffer(item)) return originalPrice * amount;
+        if (originalPrice < 0 || !CatalogPurchaseLimits.isValidAmount(amount)) return -1;
+        if (!CatalogItem.haveOffer(item)) return CatalogPurchaseLimits.checkedPriceProduct(originalPrice, amount);
 
         int basicDiscount = amount / BundleDiscountRulesetMessageComposer.DISCOUNT_BATCH_SIZE;
 
@@ -1477,6 +1490,6 @@ public class CatalogManager {
 
         int totalDiscountedItems = (basicDiscount * BundleDiscountRulesetMessageComposer.DISCOUNT_AMOUNT_PER_BATCH) + bonusDiscount + additionalDiscounts;
 
-        return Math.max(0, originalPrice * (amount - totalDiscountedItems));
+        return CatalogPurchaseLimits.checkedPriceProduct(originalPrice, Math.max(0, amount - totalDiscountedItems));
     }
 }

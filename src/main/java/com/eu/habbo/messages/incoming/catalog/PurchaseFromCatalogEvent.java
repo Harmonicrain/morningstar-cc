@@ -46,6 +46,11 @@ public class PurchaseFromCatalogEvent extends MessageHandler {
             String extraData = this.packet.readString();
             int count = this.packet.readInt();
 
+            if (!CatalogPurchaseLimits.isValidAmount(count)) {
+                this.client.sendResponse(new PurchaseNotAllowedMessageComposer(PurchaseNotAllowedMessageComposer.ILLEGAL));
+                return;
+            }
+
             try {
                 if (this.client.getHabbo().getInventory().getItemsComponent().itemCount() > HabboInventory.MAXIMUM_ITEMS) {
                     this.client.sendResponse(new PurchaseErrorMessageComposer(PurchaseErrorMessageComposer.SERVER_ERROR).compose());
@@ -153,15 +158,21 @@ public class PurchaseFromCatalogEvent extends MessageHandler {
                     return;
                 }
 
-                int totalDays = 0;
-                int totalCredits = 0;
-                int totalDuckets = 0;
+                long totalDaysLong = (long) item.getDays() * count;
+                long totalCreditsLong = (long) item.getCredits() * count;
+                long totalDucketsLong = (long) item.getPoints() * count;
+                long subscriptionSeconds = totalDaysLong * 86400L;
 
-                for (int i = 0; i < count; i++) {
-                    totalDays += item.getDays();
-                    totalCredits += item.getCredits();
-                    totalDuckets += item.getPoints();
+                if (totalDaysLong <= 0 || totalCreditsLong < 0 || totalDucketsLong < 0
+                        || totalDaysLong > Integer.MAX_VALUE || totalCreditsLong > Integer.MAX_VALUE
+                        || totalDucketsLong > Integer.MAX_VALUE || subscriptionSeconds > Integer.MAX_VALUE) {
+                    this.client.sendResponse(new PurchaseNotAllowedMessageComposer(PurchaseNotAllowedMessageComposer.ILLEGAL));
+                    return;
                 }
+
+                int totalDays = (int) totalDaysLong;
+                int totalCredits = (int) totalCreditsLong;
+                int totalDuckets = (int) totalDucketsLong;
 
                 if (totalDays > 0) {
                     if (this.client.getHabbo().getHabboInfo().getCurrencyAmount(item.getPointsType()) < totalDuckets)
@@ -177,7 +188,7 @@ public class PurchaseFromCatalogEvent extends MessageHandler {
                         this.client.getHabbo().givePoints(item.getPointsType(), -totalDuckets);
 
 
-                    if(this.client.getHabbo().getHabboStats().createSubscription(Subscription.HABBO_CLUB, (totalDays * 86400)) == null) {
+                    if(this.client.getHabbo().getHabboStats().createSubscription(Subscription.HABBO_CLUB, (int) subscriptionSeconds) == null) {
                         this.client.sendResponse(new PurchaseErrorMessageComposer(PurchaseErrorMessageComposer.SERVER_ERROR).compose());
                         throw new Exception("Unable to create or extend subscription");
                     }
