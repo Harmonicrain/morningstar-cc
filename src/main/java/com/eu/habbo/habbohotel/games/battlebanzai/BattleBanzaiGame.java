@@ -14,6 +14,8 @@ import com.eu.habbo.habbohotel.rooms.RoomUserAction;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.messages.outgoing.rooms.users.ExpressionMessageComposer;
+import com.eu.habbo.plugin.events.users.UserGameBBLockTilesEvent;
+import com.eu.habbo.plugin.events.users.UserGameEvent;
 import com.eu.habbo.threading.runnables.BattleBanzaiTilesFlicker;
 import gnu.trove.map.hash.THashMap;
 import gnu.trove.set.hash.THashSet;
@@ -199,6 +201,7 @@ public class BattleBanzaiGame extends Game {
                 for (GamePlayer player : team.getMembers()) {
                     if (player.getScoreAchievementValue() > 0) {
                         AchievementManager.progressAchievement(player.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("BattleBallPlayer"));
+                        Emulator.getPluginManager().fireEvent(new UserGameEvent(player.getHabbo(), this, "battle_banzai", false));
                     }
                 }
             }
@@ -214,6 +217,7 @@ public class BattleBanzaiGame extends Game {
                     if (player.getScoreAchievementValue() > 0) {
                         this.room.sendComposer(new ExpressionMessageComposer(player.getHabbo().getRoomUnit(), RoomUserAction.WAVE).compose());
                         AchievementManager.progressAchievement(player.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("BattleBallWinner"));
+                        Emulator.getPluginManager().fireEvent(new UserGameEvent(player.getHabbo(), this, "battle_banzai", true));
                     }
                 }
             }
@@ -282,6 +286,7 @@ public class BattleBanzaiGame extends Game {
 
             if (habbo != null) {
                 AchievementManager.progressAchievement(habbo, Emulator.getGameEnvironment().getAchievementManager().getAchievement("BattleBallTilesLocked"));
+                Emulator.getPluginManager().fireEvent(new UserGameBBLockTilesEvent(habbo, 1, false));
             }
 
             if (doNotCheckFill) return;
@@ -328,7 +333,10 @@ public class BattleBanzaiGame extends Game {
 
                     this.refreshCounters(teamColor);
                     if (habbo != null) {
-                        habbo.getHabboInfo().getGamePlayer().addScore(BattleBanzaiGame.POINTS_LOCK_TILE * largestAreaOfAll.get().size());
+                        int lockedAreaSize = largestAreaOfAll.get().size();
+                        habbo.getHabboInfo().getGamePlayer().addScore(BattleBanzaiGame.POINTS_LOCK_TILE * lockedAreaSize);
+
+                        Emulator.getPluginManager().fireEvent(new UserGameBBLockTilesEvent(habbo, lockedAreaSize, true));
                     }
                 }
             });

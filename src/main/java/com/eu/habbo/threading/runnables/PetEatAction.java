@@ -8,12 +8,15 @@ import com.eu.habbo.habbohotel.pets.Pet;
 import com.eu.habbo.habbohotel.pets.PetTasks;
 import com.eu.habbo.habbohotel.pets.PetVocalsType;
 import com.eu.habbo.habbohotel.rooms.RoomUnitStatus;
+import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.outgoing.rooms.items.ObjectRemoveMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.UserUpdateMessageComposer;
+import com.eu.habbo.plugin.events.users.pets.UserPetEatEvent;
 
 public class PetEatAction implements Runnable {
     private final Pet pet;
     private final InteractionPetFood food;
+    private boolean questTriggered = false;
 
     public PetEatAction(Pet pet, InteractionPetFood food) {
         this.pet = pet;
@@ -45,6 +48,15 @@ public class PetEatAction implements Runnable {
                 // Advance food state (each bite uses up a portion)
                 this.food.setExtradata((currentState + 1) + "");
                 this.pet.getRoom().updateItem(this.food);
+
+                if (!this.questTriggered) {
+                    Habbo owner = Emulator.getGameEnvironment().getHabboManager().getHabbo(this.pet.getUserId());
+
+                    if (owner != null) {
+                        Emulator.getPluginManager().fireEvent(new UserPetEatEvent(owner, this.pet, this.food));
+                        this.questTriggered = true;
+                    }
+                }
 
                 if (this.pet instanceof GnomePet) {
                     if (this.pet.getPetData().getType() == 26) {

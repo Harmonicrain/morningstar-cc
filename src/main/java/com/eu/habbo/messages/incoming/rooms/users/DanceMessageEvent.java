@@ -7,6 +7,7 @@ import com.eu.habbo.habbohotel.wired.WiredUserAction;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.rooms.users.DanceMessageComposer;
+import com.eu.habbo.plugin.events.users.UserDanceEvent;
 import com.eu.habbo.plugin.events.users.UserIdleEvent;
 
 public class DanceMessageEvent extends MessageHandler {
@@ -35,6 +36,9 @@ public class DanceMessageEvent extends MessageHandler {
 
                 UserIdleEvent event = new UserIdleEvent(this.client.getHabbo(), UserIdleEvent.IdleReason.DANCE, false);
                 Emulator.getPluginManager().fireEvent(event);
+
+                UserDanceEvent danceEvent = new UserDanceEvent(this.client.getHabbo(), DanceType.values()[danceId]);
+                Emulator.getPluginManager().fireEvent(danceEvent);
 
                 if (!event.isCancelled()) {
                     if (!event.idle) {

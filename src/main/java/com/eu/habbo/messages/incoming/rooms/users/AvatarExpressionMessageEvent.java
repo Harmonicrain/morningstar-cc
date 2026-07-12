@@ -8,6 +8,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.rooms.users.ExpressionMessageComposer;
+import com.eu.habbo.plugin.events.users.UserAvatarExpressionEvent;
 import com.eu.habbo.plugin.events.users.UserIdleEvent;
 
 public class AvatarExpressionMessageEvent extends MessageHandler {
@@ -52,7 +53,9 @@ public class AvatarExpressionMessageEvent extends MessageHandler {
 
             }
 
-            room.sendComposer(new ExpressionMessageComposer(habbo.getRoomUnit(), RoomUserAction.fromValue(action)).compose());
+            RoomUserAction userAction = RoomUserAction.fromValue(action);
+            Emulator.getPluginManager().fireEvent(new UserAvatarExpressionEvent(habbo, userAction));
+            room.sendComposer(new ExpressionMessageComposer(habbo.getRoomUnit(), userAction).compose());
             WiredManager.triggerUserPerformsAction(room, habbo.getRoomUnit(), WiredUserAction.fromAvatarExpression(action), "");
             if (action == RoomUserAction.WAVE.getAction() && Emulator.getGameEnvironment().getRewardTrackManager() != null) {
                 Emulator.getGameEnvironment().getRewardTrackManager().progress(this.client.getHabbo(), "wave");

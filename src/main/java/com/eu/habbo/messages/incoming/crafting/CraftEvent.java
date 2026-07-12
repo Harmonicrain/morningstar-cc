@@ -10,6 +10,7 @@ import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.catalog.LimitedEditionSoldOutMessageComposer;
 import com.eu.habbo.messages.outgoing.crafting.CraftingResultMessageComposer;
 import com.eu.habbo.messages.outgoing.inventory.UnseenItemsMessageComposer;
+import com.eu.habbo.plugin.events.users.UserCraftProductEvent;
 import com.eu.habbo.messages.outgoing.inventory.FurniListInvalidateMessageComposer;
 import com.eu.habbo.messages.outgoing.inventory.FurniListRemoveMessageComposer;
 import com.eu.habbo.threading.runnables.QueryDeleteHabboItems;
@@ -67,6 +68,7 @@ public class CraftEvent extends MessageHandler {
                 this.client.sendResponse(new FurniListInvalidateMessageComposer());
 
                 Emulator.getThreading().run(new QueryDeleteHabboItems(toRemove));
+                Emulator.getPluginManager().fireEvent(new UserCraftProductEvent(this.client.getHabbo(), recipe.getReward()));
                 return;
             }
 

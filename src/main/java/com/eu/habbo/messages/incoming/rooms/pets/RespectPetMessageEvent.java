@@ -7,6 +7,7 @@ import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomTile;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.incoming.MessageHandler;
+import com.eu.habbo.plugin.events.users.pets.UserPetRespectEvent;
 import com.eu.habbo.threading.runnables.RoomUnitWalkToLocation;
 
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ public class RespectPetMessageEvent extends MessageHandler {
             List<Runnable> tasks = new ArrayList<>();
             tasks.add(() -> {
                 pet.scratched(habbo);
+                Emulator.getPluginManager().fireEvent(new UserPetRespectEvent(habbo, pet));
                 Emulator.getThreading().run(pet);
             });
 

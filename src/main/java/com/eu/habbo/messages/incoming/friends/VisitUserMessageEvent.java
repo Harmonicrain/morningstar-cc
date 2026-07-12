@@ -9,6 +9,7 @@ import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.friends.FollowFriendFailedMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.RoomForwardMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.WhisperMessageComposer;
+import com.eu.habbo.plugin.events.users.friends.UserFollowFriendEvent;
 
 public class VisitUserMessageEvent extends MessageHandler {
     @Override
@@ -41,6 +42,7 @@ public class VisitUserMessageEvent extends MessageHandler {
 
         if (habbo.getHabboInfo().getCurrentRoom() != this.client.getHabbo().getHabboInfo().getCurrentRoom()) {
             this.client.sendResponse(new RoomForwardMessageComposer(habbo.getHabboInfo().getCurrentRoom().getId()));
+            Emulator.getPluginManager().fireEvent(new UserFollowFriendEvent(this.client.getHabbo(), buddy));
             if (Emulator.getGameEnvironment().getRewardTrackManager() != null) {
                 Emulator.getGameEnvironment().getRewardTrackManager().progress(this.client.getHabbo(), "follow_friend");
             }

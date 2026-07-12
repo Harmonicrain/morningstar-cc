@@ -8,8 +8,10 @@ import com.eu.habbo.habbohotel.items.interactions.InteractionPushable;
 import com.eu.habbo.habbohotel.items.interactions.games.InteractionGameTeamItem;
 import com.eu.habbo.habbohotel.items.interactions.games.football.goals.InteractionFootballGoal;
 import com.eu.habbo.habbohotel.rooms.*;
+import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.messages.outgoing.rooms.items.OneWayDoorStatusMessageComposer;
+import com.eu.habbo.plugin.events.users.UserKickBallEvent;
 import com.eu.habbo.util.pathfinding.Rotation;
 
 import java.math.BigDecimal;
@@ -201,7 +203,15 @@ public class InteractionFootball extends InteractionPushable {
 
     @Override
     public void onKick(Room room, RoomUnit roomUnit, int velocity, RoomUserRotation direction) {
+        if (room == null || roomUnit == null)
+            return;
 
+        Habbo habbo = room.getHabbo(roomUnit);
+
+        if (habbo == null)
+            return;
+
+        Emulator.getPluginManager().fireEvent(new UserKickBallEvent(habbo, this));
     }
 
     @Override

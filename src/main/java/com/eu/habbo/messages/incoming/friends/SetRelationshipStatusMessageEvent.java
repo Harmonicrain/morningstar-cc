@@ -16,6 +16,7 @@ public class SetRelationshipStatusMessageEvent extends MessageHandler {
         if (buddy != null && relationId >= 0 && relationId <= 3) {
             short oldRelation = buddy.getRelation();
             UserRelationShipEvent event = new UserRelationShipEvent(this.client.getHabbo(), buddy, relationId);
+            Emulator.getPluginManager().fireEvent(event);
             if (!event.isCancelled()) {
                 buddy.setRelation(event.relationShip);
                 this.client.sendResponse(new FriendListUpdateMessageComposer(this.client.getHabbo(), buddy, 0));

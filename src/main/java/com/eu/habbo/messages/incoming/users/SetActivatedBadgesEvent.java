@@ -5,6 +5,7 @@ import com.eu.habbo.habbohotel.users.HabboBadge;
 import com.eu.habbo.habbohotel.users.inventory.BadgesComponent;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.users.UserBadgesMessageComposer;
+import com.eu.habbo.plugin.events.users.UserWearBadgeEvent;
 
 import java.util.ArrayList;
 
@@ -32,6 +33,8 @@ public class SetActivatedBadgesEvent extends MessageHandler {
                 badge.needsUpdate(true);
                 Emulator.getThreading().run(badge);
                 updatedBadges.add(badge);
+
+                Emulator.getPluginManager().fireEvent(new UserWearBadgeEvent(this.client.getHabbo(), badge));
             }
         }
 

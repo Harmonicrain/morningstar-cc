@@ -23,6 +23,7 @@ import com.eu.habbo.habbohotel.pets.PetManager;
 import com.eu.habbo.habbohotel.polls.PollManager;
 import com.eu.habbo.habbohotel.polls.infobus.RoomPollManager;
 import com.eu.habbo.habbohotel.rewardtrack.RewardTrackManager;
+import com.eu.habbo.habbohotel.quests.QuestManager;
 import com.eu.habbo.habbohotel.rooms.RoomChatBubbleManager;
 import com.eu.habbo.habbohotel.rooms.RoomManager;
 import com.eu.habbo.habbohotel.users.HabboManager;
@@ -66,6 +67,7 @@ public class GameEnvironment {
     private GamehallLeaderboardManager gamehallLeaderboardManager;
     private HabbiconManager habbiconManager;
     private RewardTrackManager rewardTrackManager;
+    private QuestManager questManager;
 
     public void load() throws Exception {
         LOGGER.info("GameEnvironment -> Loading...");
@@ -96,6 +98,8 @@ public class GameEnvironment {
         this.gamehallLeaderboardManager = new GamehallLeaderboardManager();
         this.habbiconManager = new HabbiconManager();
         this.rewardTrackManager = new RewardTrackManager();
+        this.questManager = new QuestManager();
+        this.questManager.reload();
 
         this.roomManager.loadPublicRooms();
         this.navigatorManager.loadNavigator();
@@ -249,5 +253,9 @@ public class GameEnvironment {
 
     public RewardTrackManager getRewardTrackManager() {
         return this.rewardTrackManager;
+    }
+
+    public QuestManager getQuestManager() {
+        return this.questManager;
     }
 }
