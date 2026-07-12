@@ -4,6 +4,7 @@ import com.eu.habbo.habbohotel.catalog.marketplace.MarketPlace;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWired;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
 import com.eu.habbo.messages.ClientMessage;
+import com.eu.habbo.messages.MalformedPacketException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,7 @@ class SecurityBoundsTest {
         ByteBuf buffer = Unpooled.buffer(Integer.BYTES).writeInt(Integer.MAX_VALUE);
         try {
             ClientMessage packet = new ClientMessage(0, buffer);
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(MalformedPacketException.class,
                     () -> InteractionWired.readSettingsNew(packet, WiredCategoryType.TRIGGER, null));
         } finally {
             buffer.release();
@@ -55,7 +56,30 @@ class SecurityBoundsTest {
         ByteBuf buffer = Unpooled.buffer(Integer.BYTES).writeInt(Integer.MAX_VALUE);
         try {
             ClientMessage packet = new ClientMessage(0, buffer);
-            assertThrows(IllegalArgumentException.class, () -> InteractionWired.readSettings(packet, false));
+            assertThrows(MalformedPacketException.class, () -> InteractionWired.readSettings(packet, false));
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Test
+    void boundedCountRejectsPayloadThatCannotFitRemainingBytes() {
+        ByteBuf buffer = Unpooled.buffer().writeInt(2).writeInt(1);
+        try {
+            ClientMessage packet = new ClientMessage(0, buffer);
+            assertThrows(MalformedPacketException.class,
+                    () -> packet.readBoundedCount(10, Integer.BYTES));
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Test
+    void boundedStringRejectsOversizedLengthBeforeAllocation() {
+        ByteBuf buffer = Unpooled.buffer().writeShort(32001);
+        try {
+            ClientMessage packet = new ClientMessage(0, buffer);
+            assertThrows(MalformedPacketException.class, () -> packet.readBoundedString(32000));
         } finally {
             buffer.release();
         }

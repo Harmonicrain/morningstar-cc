@@ -9,10 +9,10 @@ public class SendRoomInviteMessageEvent extends MessageHandler {
     @Override
     public void handle() throws Exception {
         if (this.client.getHabbo().getHabboStats().allowTalk()) {
-            int[] userIds = new int[this.packet.readInt()];
+            int[] userIds = new int[this.packet.readBoundedCount(300, Integer.BYTES)];
 
             for (int i = 0; i < userIds.length; i++) {
-                userIds[i] = this.packet.readInt();
+                userIds[i] = this.packet.readRequiredInt();
             }
 
             String message = this.packet.readString();

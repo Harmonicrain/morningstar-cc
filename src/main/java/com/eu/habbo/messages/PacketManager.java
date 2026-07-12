@@ -224,6 +224,11 @@ public class PacketManager {
                     handler.handle();
                 }
             }
+        } catch (MalformedPacketException e) {
+            LOGGER.warn("Disconnecting client for malformed packet {}: {}", packet.getMessageId(), e.getMessage());
+            if (client.getChannel() != null) {
+                client.getChannel().close();
+            }
         } catch (Exception e) {
             LOGGER.error("Caught exception", e);
         }

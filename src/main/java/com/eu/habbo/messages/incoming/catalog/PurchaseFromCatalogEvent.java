@@ -44,7 +44,7 @@ public class PurchaseFromCatalogEvent extends MessageHandler {
             int pageId = this.packet.readInt();
             int itemId = this.packet.readInt();
             String extraData = this.packet.readString();
-            int count = this.packet.readInt();
+            int count = this.packet.readBoundedCount(CatalogPurchaseLimits.MAXIMUM_QUANTITY, 0);
 
             if (!CatalogPurchaseLimits.isValidAmount(count)) {
                 this.client.sendResponse(new PurchaseNotAllowedMessageComposer(PurchaseNotAllowedMessageComposer.ILLEGAL));

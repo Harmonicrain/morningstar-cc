@@ -82,6 +82,7 @@ public abstract class InteractionWired extends InteractionDefault {
     private static final int MAX_WIRED_INT_PARAMS = 64;
     private static final int MAX_WIRED_SOURCE_TYPES = 32;
     private static final int MAX_WIRED_VARIABLE_IDS = 32;
+    private static final int MAX_WIRED_STRING_LENGTH = 32000;
     
     private long cooldown;
     private long lastBoxAnimationMs;
@@ -565,17 +566,17 @@ public abstract class InteractionWired extends InteractionDefault {
     public static WiredSettings readSettings(ClientMessage packet, boolean isEffect)
     {
         int[] intParams = readCountedInts(packet, MAX_WIRED_INT_PARAMS, "legacy int parameters");
-        String stringParam = readRequiredString(packet, "legacy string parameter");
+        String stringParam = packet.readBoundedString(MAX_WIRED_STRING_LENGTH);
         int[] itemIds = readCountedInts(packet, getFurniSelectionLimit(), "legacy furni selections");
 
         WiredSettings settings = new WiredSettings(intParams, stringParam, itemIds, -1);
 
         if(isEffect)
         {
-            settings.setDelay(readRequiredInt(packet, "legacy delay"));
+            settings.setDelay(packet.readRequiredInt());
         }
 
-        settings.setStuffTypeSelectionCode(readRequiredInt(packet, "legacy selection code"));
+        settings.setStuffTypeSelectionCode(packet.readRequiredInt());
         return settings;
     }
 
@@ -590,7 +591,7 @@ public abstract class InteractionWired extends InteractionDefault {
     {
         // Common prefix
         int[] intParams = readCountedInts(packet, MAX_WIRED_INT_PARAMS, "int parameters");
-        String stringParam = readRequiredString(packet, "string parameter");
+        String stringParam = packet.readBoundedString(MAX_WIRED_STRING_LENGTH);
         // Furni selections arrive as room-visible ids (BC furni use virtual ids); resolve
         // them back to real db ids so downstream getHabboItem(dbId) lookups succeed.
         int[] furniIds = resolveVisibleIds(room,
@@ -603,14 +604,14 @@ public abstract class InteractionWired extends InteractionDefault {
         boolean isInvert = false;
         switch (category) {
             case EFFECT:
-                delay = readRequiredInt(packet, "delay");
+                delay = packet.readRequiredInt();
                 break;
             case CONDITION:
-                quantifierCode = readRequiredInt(packet, "quantifier code");
+                quantifierCode = packet.readRequiredInt();
                 break;
             case SELECTOR:
-                isFilter = readRequiredBoolean(packet, "filter flag");
-                isInvert = readRequiredBoolean(packet, "invert flag");
+                isFilter = packet.readRequiredBoolean();
+                isInvert = packet.readRequiredBoolean();
                 break;
             default:
                 break; // TRIGGER, ADDON, VARIABLE: no type-specific field
@@ -640,21 +641,19 @@ public abstract class InteractionWired extends InteractionDefault {
     }
 
     private static int[] readCountedInts(ClientMessage packet, int maximum, String fieldName) {
-        int count = readRequiredInt(packet, fieldName + " count");
-        validateCount(packet, count, maximum, Integer.BYTES, fieldName);
+        int count = packet.readBoundedCount(maximum, Integer.BYTES);
         int[] out = new int[count];
         for (int i = 0; i < count; i++) {
-            out[i] = readRequiredInt(packet, fieldName + " value");
+            out[i] = packet.readRequiredInt();
         }
         return out;
     }
 
     private static String[] readCountedStrings(ClientMessage packet, int maximum, String fieldName) {
-        int count = readRequiredInt(packet, fieldName + " count");
-        validateCount(packet, count, maximum, Short.BYTES, fieldName);
+        int count = packet.readBoundedCount(maximum, Short.BYTES);
         String[] out = new String[count];
         for (int i = 0; i < count; i++) {
-            out[i] = readRequiredString(packet, fieldName + " value");
+            out[i] = packet.readBoundedString(MAX_WIRED_STRING_LENGTH);
         }
         return out;
     }
@@ -663,47 +662,4 @@ public abstract class InteractionWired extends InteractionDefault {
         return Math.max(0, WiredManager.MAXIMUM_FURNI_SELECTION);
     }
 
-    private static void validateCount(ClientMessage packet, int count, int maximum, int minimumBytesPerEntry,
-                                      String fieldName) {
-        if (count < 0) {
-            throw malformedPacket(fieldName + " count is negative");
-        }
-        if (count > maximum) {
-            throw malformedPacket(fieldName + " count exceeds limit");
-        }
-        if ((long) count * minimumBytesPerEntry > packet.bytesAvailable()) {
-            throw malformedPacket(fieldName + " count exceeds remaining packet bytes");
-        }
-    }
-
-    private static int readRequiredInt(ClientMessage packet, String fieldName) {
-        if (packet.bytesAvailable() < Integer.BYTES) {
-            throw malformedPacket("missing " + fieldName);
-        }
-        return packet.readInt();
-    }
-
-    private static boolean readRequiredBoolean(ClientMessage packet, String fieldName) {
-        if (packet.bytesAvailable() < 1) {
-            throw malformedPacket("missing " + fieldName);
-        }
-        return packet.readBoolean();
-    }
-
-    private static String readRequiredString(ClientMessage packet, String fieldName) {
-        if (packet.bytesAvailable() < Short.BYTES) {
-            throw malformedPacket("missing " + fieldName + " length");
-        }
-
-        int readerIndex = packet.getBuffer().readerIndex();
-        int length = packet.getBuffer().getShort(readerIndex);
-        if (length < 0 || (long) Short.BYTES + length > packet.bytesAvailable()) {
-            throw malformedPacket("invalid " + fieldName + " length");
-        }
-        return packet.readString();
-    }
-
-    private static IllegalArgumentException malformedPacket(String message) {
-        return new IllegalArgumentException("Malformed wired settings packet: " + message);
-    }
 }

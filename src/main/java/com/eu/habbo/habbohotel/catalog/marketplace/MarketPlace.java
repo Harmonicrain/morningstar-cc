@@ -286,10 +286,13 @@ public class MarketPlace {
                                         if ((MARKETPLACE_CURRENCY == 0 && price > client.getHabbo().getHabboInfo().getCredits()) || (MARKETPLACE_CURRENCY > 0 && price > client.getHabbo().getHabboInfo().getCurrencyAmount(MARKETPLACE_CURRENCY))) {
                                             client.sendResponse(new MarketplaceBuyOfferResultMessageComposer(MarketplaceBuyOfferResultMessageComposer.NOT_ENOUGH_CREDITS, 0, offerId, price));
                                         } else {
-                                            try (PreparedStatement updateOffer = connection.prepareStatement("UPDATE marketplace_items SET state = 2, sold_timestamp = ? WHERE id = ?")) {
+                                            try (PreparedStatement updateOffer = connection.prepareStatement("UPDATE marketplace_items SET state = 2, sold_timestamp = ? WHERE id = ? AND state = 1")) {
                                                 updateOffer.setInt(1, Emulator.getIntUnixTimestamp());
                                                 updateOffer.setInt(2, offerId);
-                                                updateOffer.execute();
+                                                if (updateOffer.executeUpdate() == 0) {
+                                                    sendErrorMessage(client, set.getInt("item_id"), offerId);
+                                                    return;
+                                                }
                                             }
 
                                             item.setUserId(client.getHabbo().getHabboInfo().getId());

@@ -12,10 +12,10 @@ public class PurchaseTargetedOfferEvent extends MessageHandler {
 
     @Override
     public void handle() throws Exception {
-        int offerId = this.packet.readInt();
-        int amount = this.packet.readInt();
+        int offerId = this.packet.readRequiredInt();
+        int amount = this.packet.readRequiredInt();
 
-        if (!CatalogPurchaseLimits.isValidAmount(amount)) return;
+        if (offerId <= 0 || !CatalogPurchaseLimits.isValidAmount(amount)) return;
 
 
         if (Emulator.getIntUnixTimestamp() - this.client.getHabbo().getHabboStats().lastPurchaseTimestamp >= CatalogManager.PURCHASE_COOLDOWN) {
@@ -34,6 +34,7 @@ public class PurchaseTargetedOfferEvent extends MessageHandler {
                 if (offer.getExpirationTime() > now) {
                     purchase.update(amount, now);
                     CatalogItem item = Emulator.getGameEnvironment().getCatalogManager().getCatalogItem(offer.getCatalogItem());
+                    if (item == null) return;
                     if (item.isLimited()) {
                         amount = 1;
                     }
