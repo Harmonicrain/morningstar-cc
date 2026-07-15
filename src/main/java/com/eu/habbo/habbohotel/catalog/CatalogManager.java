@@ -1265,7 +1265,7 @@ public class CatalogManager {
                         return;
                 }
 
-                UserCatalogItemPurchasedEvent purchasedEvent = new UserCatalogItemPurchasedEvent(habbo, item, itemsList, totalCredits, totalPoints, badges);
+                UserCatalogItemPurchasedEvent purchasedEvent = new UserCatalogItemPurchasedEvent(habbo, item, itemsList, totalCredits, totalPoints, badges, amount, free);
                 Emulator.getPluginManager().fireEvent(purchasedEvent);
 
                 if (!free && !habbo.getClient().getHabbo().hasPermission(Permission.ACC_INFINITE_CREDITS)) {

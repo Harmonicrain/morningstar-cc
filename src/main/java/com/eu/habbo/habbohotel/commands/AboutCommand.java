@@ -5,6 +5,9 @@ import com.eu.habbo.habbohotel.catalog.CatalogManager;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.messages.outgoing.generic.alerts.MOTDNotificationMessageComposer;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +29,8 @@ public class AboutCommand extends Command {
         long hours = TimeUnit.SECONDS.toHours(seconds) - (day * 24L);
         long minute = TimeUnit.SECONDS.toMinutes(seconds) - (TimeUnit.SECONDS.toHours(seconds) * 60);
         long second = TimeUnit.SECONDS.toSeconds(seconds) - (TimeUnit.SECONDS.toMinutes(seconds) * 60);
+        ZoneId serverZone = ZoneId.systemDefault();
+        String serverTime = OffsetDateTime.now(serverZone).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss O"));
 
         String message = "<b>" + Emulator.version + "</b>\r\n";
 
@@ -40,7 +45,8 @@ public class AboutCommand extends Command {
                     "- Uptime: " + day + (day > 1 ? " days, " : " day, ") + hours + (hours > 1 ? " hours, " : " hour, ") + minute + (minute > 1 ? " minutes, " : " minute, ") + second + (second > 1 ? " seconds!" : " second!") + "\r" +
                     "- RAM Usage: " + (Emulator.getRuntime().totalMemory() - Emulator.getRuntime().freeMemory()) / (1024 * 1024) + "/" + (Emulator.getRuntime().freeMemory()) / (1024 * 1024) + "MB\r" +
                     "- CPU Cores: " + Emulator.getRuntime().availableProcessors() + "\r" +
-                    "- Total Memory: " + Emulator.getRuntime().maxMemory() / (1024 * 1024) + "MB" + "\r\n";
+                    "- Total Memory: " + Emulator.getRuntime().maxMemory() / (1024 * 1024) + "MB" + "\r" +
+                    "- Server Time: " + serverTime + " (" + serverZone.getId() + ")\r\n";
         }
 
         message += "\r" +

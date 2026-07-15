@@ -12,6 +12,7 @@ import com.eu.habbo.messages.outgoing.generic.alerts.NotificationDialogMessageCo
 import com.eu.habbo.messages.outgoing.generic.alerts.BubbleAlertKeys;
 import com.eu.habbo.messages.outgoing.inventory.FurniListRemoveMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.ItemAddMessageComposer;
+import com.eu.habbo.plugin.events.users.UserPostItOtherUsersRoomEvent;
 
 public class PlacePostItMessageEvent extends MessageHandler {
     @Override
@@ -42,6 +43,7 @@ public class PlacePostItMessageEvent extends MessageHandler {
                         if (room.getOwnerId() != this.client.getHabbo().getHabboInfo().getId()) {
                             AchievementManager.progressAchievement(room.getOwnerId(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("NotesReceived"));
                             AchievementManager.progressAchievement(this.client.getHabbo().getHabboInfo().getId(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("NotesLeft"));
+                            Emulator.getPluginManager().fireEvent(new UserPostItOtherUsersRoomEvent(this.client.getHabbo(), item, room));
                         }
 
                     }

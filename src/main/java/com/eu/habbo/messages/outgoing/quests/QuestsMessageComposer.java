@@ -29,9 +29,9 @@ public class QuestsMessageComposer extends MessageComposer {
         for (Quest quest : this.quests) {
             QuestUserProgress progress = this.habbo.getHabboStats().getQuestProgress(quest);
 
-            int completedQuestsInCampaign = Emulator.getGameEnvironment().getQuestManager().getCompletedQuestsInCampaign(this.habbo, quest.getCampaignId());
+            int completedQuestsInCampaign = Emulator.getGameEnvironment().getQuestManager().getCompletedQuestsInCampaign(this.habbo, quest.getCampaignCode());
             
-            int questCountInCampaign = Emulator.getGameEnvironment().getQuestManager().getQuestCountInCampaign(quest.getCampaignId());
+            int questCountInCampaign = Emulator.getGameEnvironment().getQuestManager().getQuestCountInCampaign(quest.getCampaignCode());
 
             if (questCountInCampaign > 0 && completedQuestsInCampaign >= questCountInCampaign) {
                 this.serializeCompletedCampaign(quest, completedQuestsInCampaign, questCountInCampaign);

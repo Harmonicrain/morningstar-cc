@@ -8,10 +8,17 @@ import com.eu.habbo.messages.outgoing.users.UserBadgesMessageComposer;
 import com.eu.habbo.plugin.events.users.UserWearBadgeEvent;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 public class SetActivatedBadgesEvent extends MessageHandler {
     @Override
     public void handle() throws Exception {
+        Set<String> previouslyWornBadges = new HashSet<>();
+        for (HabboBadge badge : this.client.getHabbo().getInventory().getBadgesComponent().getWearingBadges()) {
+            previouslyWornBadges.add(badge.getCode().toLowerCase());
+        }
+
         BadgesComponent.resetSlots(this.client.getHabbo());
 
         ArrayList<HabboBadge> updatedBadges = new ArrayList<>();
@@ -34,7 +41,9 @@ public class SetActivatedBadgesEvent extends MessageHandler {
                 Emulator.getThreading().run(badge);
                 updatedBadges.add(badge);
 
-                Emulator.getPluginManager().fireEvent(new UserWearBadgeEvent(this.client.getHabbo(), badge));
+                if (!previouslyWornBadges.contains(badge.getCode().toLowerCase())) {
+                    Emulator.getPluginManager().fireEvent(new UserWearBadgeEvent(this.client.getHabbo(), badge));
+                }
             }
         }
 

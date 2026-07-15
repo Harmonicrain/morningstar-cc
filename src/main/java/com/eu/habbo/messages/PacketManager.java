@@ -44,9 +44,17 @@ import com.eu.habbo.messages.incoming.polls.CancelPollEvent;
 import com.eu.habbo.messages.incoming.polls.GetPollDataEvent;
 import com.eu.habbo.messages.incoming.polls.infobus.VotePollCounterEvent;
 import com.eu.habbo.messages.incoming.quests.AcceptQuestEvent;
+import com.eu.habbo.messages.incoming.quests.ActivateQuestEvent;
+import com.eu.habbo.messages.incoming.quests.CommunityGoalVoteEvent;
+import com.eu.habbo.messages.incoming.quests.GetDailyQuestEvent;
+import com.eu.habbo.messages.incoming.quests.GetNextQuestEvent;
 import com.eu.habbo.messages.incoming.quests.GetQuestsEvent;
-import com.eu.habbo.messages.incoming.quests.OpenQuestTrackerEvent;
+import com.eu.habbo.messages.incoming.quests.GetSeasonalQuestsEvent;
+import com.eu.habbo.messages.incoming.quests.QuestUnknown2Event;
+import com.eu.habbo.messages.incoming.quests.QuestUnknownEvent;
+import com.eu.habbo.messages.incoming.quests.RejectDailyQuestEvent;
 import com.eu.habbo.messages.incoming.quests.RejectQuestEvent;
+import com.eu.habbo.messages.incoming.quests.StartCampaignEvent;
 import com.eu.habbo.messages.incoming.rooms.*;
 import com.eu.habbo.messages.incoming.rooms.bots.RemoveBotFromFlatMessageEvent;
 import com.eu.habbo.messages.incoming.rooms.bots.PlaceBotMessageEvent;
@@ -262,6 +270,7 @@ public class PacketManager {
         this.registerHandler(Incoming.GetClubDataEvent, RequestClubDataEvent.class);
         this.registerHandler(Incoming.GetClubGiftInfoEvent, GetClubGiftInfoEvent.class);
         this.registerHandler(Incoming.GetProductOfferEvent, GetProductOfferEvent.class);
+        this.registerHandler(Incoming.GetSeasonalCalendarDailyOfferEvent, GetSeasonalCalendarDailyOfferEvent.class);
         this.registerHandler(Incoming.PurchaseTargetedOfferEvent, PurchaseTargetedOfferEvent.class);
         this.registerHandler(Incoming.SetTargetedOfferStateEvent, SetTargetedOfferStateEvent.class);
         this.registerHandler(Incoming.SelectClubGiftEvent, SelectClubGiftEvent.class);
@@ -352,6 +361,7 @@ public class PacketManager {
         this.registerHandler(Incoming.NewNavigatorInitEvent, NewNavigatorInitEvent.class);
         this.registerHandler(Incoming.NewNavigatorSearchEvent, NewNavigatorSearchEvent.class);
         this.registerHandler(Incoming.ForwardToSomeRoomMessageEvent, ForwardToSomeRoomMessageEvent.class);
+        this.registerHandler(Incoming.ForwardToARandomPromotedRoomMessageComposer, ForwardToARandomPromotedRoomMessageEvent.class);
         this.registerHandler(Incoming.GetUserEventCatsMessageEvent, GetUserEventCatsMessageEvent.class);
         this.registerHandler(Incoming.SetNewNavigatorWindowPreferencesMessageEvent, SetNewNavigatorWindowPreferencesMessageEvent.class);
         this.registerHandler(Incoming.DeleteRoomMessageEvent, DeleteRoomMessageEvent.class);
@@ -371,6 +381,9 @@ public class PacketManager {
         this.registerHandler(Incoming.HotelViewClaimBadgeRewardEvent, HotelViewClaimBadgeRewardEvent.class);
         this.registerHandler(Incoming.GetLimitedOfferAppearingNextEvent, GetLimitedOfferAppearingNextEvent.class);
         this.registerHandler(Incoming.GetSecondsUntilMessageEvent, GetSecondsUntilMessageEvent.class);
+        this.registerHandler(Incoming.HotelViewRequestCommunityGoalEvent, HotelViewRequestCommunityGoalEvent.class);
+        this.registerHandler(Incoming.HotelViewRequestConcurrentUsersEvent, HotelViewRequestConcurrentUsersEvent.class);
+        this.registerHandler(Incoming.HotelViewConcurrentUsersButtonEvent, HotelViewConcurrentUsersButtonEvent.class);
     }
 
     private void registerInventory() throws Exception {
@@ -661,8 +674,17 @@ public class PacketManager {
 
     void registerQuests() throws Exception {
         this.registerHandler(Incoming.GetQuestsEvent, GetQuestsEvent.class);
+        this.registerHandler(Incoming.GetNextQuestEvent, GetNextQuestEvent.class);
+        this.registerHandler(Incoming.ActivateQuestEvent, ActivateQuestEvent.class);
         this.registerHandler(Incoming.AcceptQuestEvent, AcceptQuestEvent.class);
-        this.registerHandler(Incoming.RejectQuestEvent, RejectQuestEvent.class);
-        this.registerHandler(Incoming.OpenQuestTrackerEvent, OpenQuestTrackerEvent.class);
+        this.registerHandler(Incoming.CancelQuestEvent, RejectQuestEvent.class);
+        this.registerHandler(Incoming.GetDailyQuestEvent, GetDailyQuestEvent.class);
+        this.registerHandler(Incoming.RejectDailyQuestEvent, RejectDailyQuestEvent.class);
+        this.registerHandler(Incoming.GetSeasonalQuestsEvent, GetSeasonalQuestsEvent.class);
+        this.registerHandler(Incoming.StartCampaignEvent, StartCampaignEvent.class);
+        this.registerHandler(Incoming.QuestUnknownEvent, QuestUnknownEvent.class);
+        this.registerHandler(Incoming.CommunityGoalVoteEvent, CommunityGoalVoteEvent.class);
+        this.registerHandler(Incoming.CommunityGoalVoteEventLegacy, CommunityGoalVoteEvent.class);
+        this.registerHandler(Incoming.QuestUnknown2Event, QuestUnknown2Event.class);
     }
 }

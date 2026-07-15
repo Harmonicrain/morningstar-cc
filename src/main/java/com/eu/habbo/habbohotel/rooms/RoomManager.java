@@ -25,6 +25,8 @@ import com.eu.habbo.habbohotel.pets.PetData;
 import com.eu.habbo.habbohotel.pets.PetTasks;
 import com.eu.habbo.habbohotel.polls.Poll;
 import com.eu.habbo.habbohotel.polls.PollManager;
+import com.eu.habbo.habbohotel.quests.Quest;
+import com.eu.habbo.habbohotel.quests.QuestManager;
 import com.eu.habbo.habbohotel.users.*;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.users.subscriptions.SubscriptionBuildersClub;
@@ -40,6 +42,7 @@ import com.eu.habbo.messages.outgoing.rooms.items.ItemsMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.pets.PetFigureUpdateMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.promotions.RoomPromotionMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.*;
+import com.eu.habbo.messages.outgoing.quests.QuestMessageComposer;
 import com.eu.habbo.messages.outgoing.users.RemainingMutePeriodMessageComposer;
 import com.eu.habbo.plugin.events.navigator.NavigatorRoomCreatedEvent;
 import com.eu.habbo.plugin.events.rooms.RoomFloorItemsLoadEvent;
@@ -908,6 +911,10 @@ public class RoomManager {
         }
 
         habbo.getClient().sendResponse(new RoomEntryInfoMessageComposer(room, room.isOwner(habbo)));
+        Quest activeQuest = QuestManager.getActiveQuest(habbo);
+        if (activeQuest != null) {
+            habbo.getClient().sendResponse(new QuestMessageComposer(habbo, activeQuest));
+        }
 
         habbo.getClient().sendResponse(new RoomVisualizationSettingsMessageComposer(room));
 
