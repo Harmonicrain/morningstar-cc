@@ -217,7 +217,7 @@ public abstract class HabboItem implements Runnable, IEventTriggers {
     }
 
     public void setRotation(int rotation) {
-        this.rotation = (byte) (rotation % 8);
+        this.rotation = (byte) (((rotation % 8) + 8) % 8);
     }
 
     public String getExtradata() {
