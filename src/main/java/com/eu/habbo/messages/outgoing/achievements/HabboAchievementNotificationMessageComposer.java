@@ -31,7 +31,7 @@ public class HabboAchievementNotificationMessageComposer extends MessageComposer
         this.response.appendInt(10);
         this.response.appendInt(21);
         this.response.appendString(level.level > 1 ? "ACH_" + this.achievement.name + (level.level - 1) : "");
-        this.response.appendString(this.achievement.category.name());
+        this.response.appendString(this.achievement.getCategory().getName());
         this.response.appendBoolean(true);
         return this.response;
     }
