@@ -23,7 +23,7 @@ public class MoveObjectMessageEvent extends MessageHandler {
 
         int x = this.packet.readInt();
         int y = this.packet.readInt();
-        int rotation = this.packet.readInt();
+        int rotation = RoomLayout.normalizeRotation(this.packet.readInt());
         RoomTile tile = room.getLayout().getTile((short) x, (short) y);
 
         FurnitureMovementError error = room.canPlaceFurnitureAt(item, this.client.getHabbo(), tile, rotation);
