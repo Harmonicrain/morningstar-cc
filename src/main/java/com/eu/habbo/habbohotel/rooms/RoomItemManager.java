@@ -1504,7 +1504,8 @@ public class RoomItemManager {
             return FurnitureMovementError.INVALID_MOVE;
         }
 
-        rotation %= 8;
+        rotation = RoomLayout.normalizeRotation(rotation);
+
         if (this.room.hasRights(habbo) || this.room.getGuildRightLevel(habbo)
                 .isEqualOrGreaterThan(RoomRightLevels.GUILD_RIGHTS)
                 || habbo.hasPermission(
