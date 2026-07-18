@@ -300,6 +300,27 @@ public class QuestManager {
         return acceptQuest(habbo, quest) ? quest : null;
     }
 
+    public static Quest activateNextQuestAfterLastCompletedQuest(Habbo habbo) {
+        if (!isQuestSystemEnabled())
+            return null;
+
+        if (habbo == null)
+            return null;
+
+        QuestManager questManager = Emulator.getGameEnvironment().getQuestManager();
+        Quest lastCompletedQuest = questManager.getLastCompletedRegularQuest(habbo);
+
+        if (lastCompletedQuest == null)
+            return activateNextQuest(habbo);
+
+        Quest quest = questManager.getNextVisibleUncompletedQuestForCampaign(habbo, lastCompletedQuest.getCampaignCode());
+
+        if (quest == null)
+            return null;
+
+        return acceptQuest(habbo, quest) ? quest : null;
+    }
+
     public static boolean progressQuest(Habbo habbo, QuestType type) {
         return handleTrigger(habbo, type);
     }
@@ -888,6 +909,55 @@ public class QuestManager {
         List<Quest> campaignQuests = this.getQuestsByCampaign(campaignCode);
 
         return this.getVisibleQuestFromList(habbo, campaignQuests);
+    }
+
+    private Quest getNextVisibleUncompletedQuestForCampaign(Habbo habbo, String campaignCode) {
+        Quest quest = this.getVisibleQuestForCampaign(habbo, campaignCode);
+
+        if (quest == null)
+            return null;
+
+        QuestUserProgress progress = habbo.getHabboStats().getQuestProgress(quest);
+
+        if (progress != null && progress.isCompleted(quest))
+            return null;
+
+        return quest;
+    }
+
+    private Quest getLastCompletedRegularQuest(Habbo habbo) {
+        if (habbo == null)
+            return null;
+
+        Quest lastQuest = null;
+        int lastCompletedAt = -1;
+
+        synchronized (habbo.getHabboStats().getQuestProgress()) {
+            for (QuestUserProgress progress : habbo.getHabboStats().getQuestProgress().values()) {
+                Quest quest = this.getQuest(progress.getQuestId());
+
+                if (quest == null)
+                    continue;
+
+                if (quest.isDaily() || quest.isSeasonal())
+                    continue;
+
+                if (!progress.isCompleted(quest))
+                    continue;
+
+                if (progress.getCompletedAt() > lastCompletedAt) {
+                    lastQuest = quest;
+                    lastCompletedAt = progress.getCompletedAt();
+                    continue;
+                }
+
+                if (progress.getCompletedAt() == lastCompletedAt && lastQuest != null && quest.getId() > lastQuest.getId()) {
+                    lastQuest = quest;
+                }
+            }
+        }
+
+        return lastQuest;
     }
 
     private Quest getVisibleQuestFromList(Habbo habbo, List<Quest> campaignQuests) {

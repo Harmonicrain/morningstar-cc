@@ -12,7 +12,7 @@ public class GetNextQuestEvent extends MessageHandler {
         Quest quest = QuestManager.getActiveQuest(this.client.getHabbo());
 
         if (quest == null) {
-            quest = QuestManager.activateNextQuest(this.client.getHabbo());
+            quest = QuestManager.activateNextQuestAfterLastCompletedQuest(this.client.getHabbo());
         }
 
         if (quest == null)
