@@ -71,7 +71,7 @@ public abstract class HabboItem implements Runnable, IEventTriggers {
         this.x = set.getShort("x");
         this.y = set.getShort("y");
         this.z = set.getDouble("z");
-        this.rotation = set.getInt("rot");
+        this.rotation = ((set.getInt("rot") % 8) + 8) % 8;
         this.extradata = set.getString("extra_data").isEmpty() ? "0" : set.getString("extra_data");
 
         String ltdData = set.getString("limited_data");
@@ -217,7 +217,7 @@ public abstract class HabboItem implements Runnable, IEventTriggers {
     }
 
     public void setRotation(int rotation) {
-        this.rotation = (byte) (rotation % 8);
+        this.rotation = ((rotation % 8) + 8) % 8;
     }
 
     public String getExtradata() {

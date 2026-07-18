@@ -2,6 +2,7 @@ package com.eu.habbo.messages.incoming.catalog;
 
 import com.eu.habbo.habbohotel.items.FurnitureType;
 import com.eu.habbo.habbohotel.rooms.FurnitureMovementError;
+import com.eu.habbo.habbohotel.rooms.RoomLayout;
 import com.eu.habbo.habbohotel.rooms.RoomState;
 import com.eu.habbo.habbohotel.rooms.RoomTile;
 import com.eu.habbo.habbohotel.users.HabboItem;
@@ -18,7 +19,7 @@ public class BuildersClubPlaceRoomItemMessageEvent extends MessageHandler {
         String extraData = this.packet.readString();
         short x = this.packet.readInt().shortValue();
         short y = this.packet.readInt().shortValue();
-        int rotation = this.packet.readInt();
+        int rotation = RoomLayout.normalizeRotation(this.packet.readInt());
         boolean confirmHideRoom = this.packet.readBoolean();
 
         // Check trial warning condition before validate() reserves a slot.

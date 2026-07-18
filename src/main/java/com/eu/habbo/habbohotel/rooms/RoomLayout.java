@@ -82,8 +82,12 @@ public class RoomLayout {
         Math.abs(one.y - two.y) > 1);
   }
 
+  public static int normalizeRotation(int rotation) {
+    return ((rotation % 8) + 8) % 8;
+  }
+
   public static Rectangle getRectangle(int x, int y, int width, int length, int rotation) {
-    rotation = (rotation % 8);
+    rotation = normalizeRotation(rotation);
 
     if (rotation == 2 || rotation == 6) {
       return new Rectangle(x, y, length, width);
@@ -383,6 +387,7 @@ public class RoomLayout {
   }
 
   public boolean fitsOnMap(RoomTile tile, int width, int length, int rotation) {
+    rotation = normalizeRotation(rotation);
     if (tile != null) {
       if (rotation == 0 || rotation == 4) {
         for (short i = tile.x; i <= (tile.x + (width - 1)); i++) {
@@ -416,6 +421,7 @@ public class RoomLayout {
   }
 
   public THashSet<RoomTile> getTilesAt(RoomTile tile, int width, int length, int rotation) {
+    rotation = normalizeRotation(rotation);
     THashSet<RoomTile> pointList = new THashSet<>(width * length, 0.1f);
 
     if (tile != null) {

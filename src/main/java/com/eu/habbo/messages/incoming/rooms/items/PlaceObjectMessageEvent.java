@@ -55,7 +55,7 @@ public class PlaceObjectMessageEvent extends MessageHandler {
         if (item.getBaseItem().getType() == FurnitureType.FLOOR) {
             short x = Short.parseShort(values[1]);
             short y = Short.parseShort(values[2]);
-            int rotation = Integer.parseInt(values[3]);
+            int rotation = RoomLayout.normalizeRotation(Integer.parseInt(values[3]));
 
             RoomTile tile = room.getLayout().getTile(x, y);
 

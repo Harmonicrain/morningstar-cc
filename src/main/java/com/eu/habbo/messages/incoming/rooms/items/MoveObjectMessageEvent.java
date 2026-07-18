@@ -2,6 +2,7 @@ package com.eu.habbo.messages.incoming.rooms.items;
 
 import com.eu.habbo.habbohotel.rooms.FurnitureMovementError;
 import com.eu.habbo.habbohotel.rooms.Room;
+import com.eu.habbo.habbohotel.rooms.RoomLayout;
 import com.eu.habbo.habbohotel.rooms.RoomTile;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.messages.incoming.MessageHandler;
@@ -23,7 +24,7 @@ public class MoveObjectMessageEvent extends MessageHandler {
 
         int x = this.packet.readInt();
         int y = this.packet.readInt();
-        int rotation = this.packet.readInt();
+        int rotation = RoomLayout.normalizeRotation(this.packet.readInt());
         RoomTile tile = room.getLayout().getTile((short) x, (short) y);
 
         FurnitureMovementError error = room.canPlaceFurnitureAt(item, this.client.getHabbo(), tile, rotation);
