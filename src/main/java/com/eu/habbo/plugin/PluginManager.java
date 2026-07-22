@@ -19,6 +19,7 @@ import com.eu.habbo.habbohotel.modtool.WordFilter;
 import com.eu.habbo.habbohotel.navigation.EventCategory;
 import com.eu.habbo.habbohotel.navigation.NavigatorManager;
 import com.eu.habbo.habbohotel.pets.PetManager;
+import com.eu.habbo.habbohotel.communitygoals.listeners.CommunityGoalEventListener;
 import com.eu.habbo.habbohotel.quests.listeners.QuestEventListener;
 import com.eu.habbo.habbohotel.rooms.*;
 import com.eu.habbo.habbohotel.users.clothingvalidation.ClothingValidationManager;
@@ -49,6 +50,7 @@ import com.eu.habbo.plugin.events.navigator.NavigatorRoomCreatedEvent;
 import com.eu.habbo.plugin.events.rooms.RoomPulseEvent;
 import com.eu.habbo.plugin.events.roomunit.RoomUnitLookAtPointEvent;
 import com.eu.habbo.plugin.events.users.*;
+import com.eu.habbo.plugin.events.users.catalog.UserEcotronRecycleEvent;
 import com.eu.habbo.plugin.events.users.catalog.UserCatalogItemPurchasedEvent;
 import com.eu.habbo.plugin.events.users.friends.UserFollowFriendEvent;
 import com.eu.habbo.plugin.events.users.friends.UserFriendChatEvent;
@@ -518,13 +520,12 @@ public class PluginManager {
             this.methods.add(QuestEventListener.class.getMethod("onUserRespectedEvent", UserRespectedEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserWearBadgeEvent", UserWearBadgeEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserAvatarExpressionEvent", UserAvatarExpressionEvent.class));
-            this.methods.add(QuestEventListener.class.getMethod("onUserDanceEvent", UserDanceEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onFurniturePlacedEvent", FurniturePlacedEvent.class));
+            this.methods.add(QuestEventListener.class.getMethod("onUserPostItOtherUsersRoomEvent", UserPostItOtherUsersRoomEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onFurnitureMovedEvent", FurnitureMovedEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onFurnitureRotatedEvent", FurnitureRotatedEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserCatalogItemPurchasedEvent", UserCatalogItemPurchasedEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserWalkEvent", UserTakeStepEvent.class));
-            this.methods.add(QuestEventListener.class.getMethod("onUserCraftProductEvent", UserCraftProductEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserCraftProductEvent", UserCraftProductEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserRequestFriendshipEvent", UserRequestFriendshipEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserFriendChatEvent", UserFriendChatEvent.class));
@@ -536,11 +537,13 @@ public class PluginManager {
             this.methods.add(QuestEventListener.class.getMethod("onUserPetLevelEvent", UserPetLevelEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserPetEatEvent", UserPetEatEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserKickBallEvent", UserKickBallEvent.class));
-            this.methods.add(QuestEventListener.class.getMethod("onUserSwimEvent", UserSwimEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onNavigatorRoomCreatedEvent", NavigatorRoomCreatedEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserFriendFurniLockedEvent", UserFriendFurniLockedEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserGameBBLockTilesEvent", UserGameBBLockTilesEvent.class));
             this.methods.add(QuestEventListener.class.getMethod("onUserGameEvent", UserGameEvent.class));
+            this.methods.add(CommunityGoalEventListener.class.getMethod("onUserCatalogItemPurchasedEvent", UserCatalogItemPurchasedEvent.class));
+            this.methods.add(CommunityGoalEventListener.class.getMethod("onUserEcotronRecycleEvent", UserEcotronRecycleEvent.class));
+
         } catch (NoSuchMethodException e) {
             LOGGER.info("Failed to define default events!");
             LOGGER.error("Caught exception", e);

@@ -234,6 +234,7 @@ public class CommandHandler {
         addCommand(new PluginsCommand());
         addCommand(new PointsCommand());
         addCommand(new PromoteTargetOfferCommand());
+        addCommand(new ProcessCommunityGoalsCommand());
         addCommand(new PullCommand());
         addCommand(new PushCommand());
         addCommand(new RedeemCommand());
@@ -298,6 +299,9 @@ public class CommandHandler {
         addCommand(new SubscriptionCommand());
         addCommand(new UpdateChatBubblesCommand());
         addCommand(new UpdateQuests());
+        addCommand(new GiveQuestCommand());
+        addCommand(new CompleteQuestCommand());
+        addCommand(new ResetQuestsCommand());
 
         addCommand(new TestCommand());
     }

@@ -42,16 +42,20 @@ public class CommunityGoalProgressMessageComposer extends MessageComposer {
     @Override
     protected ServerMessage composeInternal() {
         this.response.init(Outgoing.CommunityGoalProgressMessageComposer);
-        this.response.appendBoolean(this.achieved); //Achieved?
-        this.response.appendInt(this.personalContributionScore); //User Amount
-        this.response.appendInt(this.personalRank); //User Rank
-        this.response.appendInt(this.personalRank); //Total Amount
-        this.response.appendInt(this.totalAmount); //Community Highest Achieved
-        this.response.appendInt(this.communityHighestAchievedLevel); //Community Score Untill Next Level
-        this.response.appendInt(this.scoreRemainingUntilNextLevel); //Percent Completed Till Next Level
+        this.response.appendBoolean(this.achieved);
+        this.response.appendInt(this.personalContributionScore);
+        this.response.appendInt(this.personalRank);
+        this.response.appendInt(this.totalAmount);
+        this.response.appendInt(this.communityHighestAchievedLevel);
+        this.response.appendInt(this.scoreRemainingUntilNextLevel);
+        this.response.appendInt(this.percentCompletionTowardsNextLevel);
         this.response.appendString(this.competitionName);
-        this.response.appendInt(this.timeLeft); //Timer
-        this.response.appendInt(this.rankData.length); //Rank Count
+        this.response.appendInt(this.timeLeft);
+        this.response.appendInt(this.rankData != null ? this.rankData.length : 0);
+        if (this.rankData == null) {
+            return this.response;
+        }
+
         for (int i : this.rankData) {
             this.response.appendInt(i);
         }

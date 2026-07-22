@@ -1,8 +1,12 @@
 package com.eu.habbo.habbohotel.quests.listeners;
 
+import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.quests.QuestManager;
+import com.eu.habbo.habbohotel.quests.Quest;
 import com.eu.habbo.habbohotel.quests.QuestType;
+import com.eu.habbo.habbohotel.rooms.RoomTile;
 import com.eu.habbo.habbohotel.users.DanceType;
+import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.plugin.events.furniture.FurnitureMovedEvent;
 import com.eu.habbo.plugin.events.furniture.FurniturePlacedEvent;
 import com.eu.habbo.plugin.events.furniture.FurnitureRotatedEvent;
@@ -11,18 +15,17 @@ import com.eu.habbo.plugin.events.navigator.NavigatorRoomCreatedEvent;
 import com.eu.habbo.plugin.events.rooms.RoomPulseEvent;
 import com.eu.habbo.plugin.events.users.UserAvatarExpressionEvent;
 import com.eu.habbo.plugin.events.users.UserCraftProductEvent;
-import com.eu.habbo.plugin.events.users.UserDanceEvent;
 import com.eu.habbo.plugin.events.users.UserEnterRoomEvent;
 import com.eu.habbo.plugin.events.users.UserFriendFurniLockedEvent;
 import com.eu.habbo.plugin.events.users.UserGameBBLockTilesEvent;
 import com.eu.habbo.plugin.events.users.UserGameEvent;
 import com.eu.habbo.plugin.events.users.UserKickBallEvent;
 import com.eu.habbo.plugin.events.users.UserPublishPictureEvent;
+import com.eu.habbo.plugin.events.users.UserPostItOtherUsersRoomEvent;
 import com.eu.habbo.plugin.events.users.UserReceiveHandItemEvent;
 import com.eu.habbo.plugin.events.users.UserRespectedEvent;
 import com.eu.habbo.plugin.events.users.UserSavedLookEvent;
 import com.eu.habbo.plugin.events.users.UserSavedMottoEvent;
-import com.eu.habbo.plugin.events.users.UserSwimEvent;
 import com.eu.habbo.plugin.events.users.UserTakeStepEvent;
 import com.eu.habbo.plugin.events.users.UserTalkEvent;
 import com.eu.habbo.plugin.events.users.UserTeleportEvent;
@@ -63,6 +66,10 @@ public class QuestEventListener {
 
         if (tile == null)
             return;
+
+        if (event.habbo.getRoomUnit().getDanceType() != DanceType.NONE) {
+            QuestManager.handleTrigger(event.habbo, QuestType.DANCE, getQuestRoomPulseSeconds());
+        }
         
         for (var item : event.room.getItemsAt(tile)) {
             if (item == null || item.getBaseItem() == null)
@@ -140,22 +147,19 @@ public class QuestEventListener {
                 QuestManager.handleTrigger(event.habbo, QuestType.WAVE);
                 break;
 
+            case BLOW_KISS:
+                if (event.habbo.getHabboInfo().getCurrentRoom() != null) {
+                    for (var habbo : event.habbo.getHabboInfo().getCurrentRoom().getHabbos()) {
+                        if (habbo == null || habbo == event.habbo)
+                            continue;
+                        QuestManager.handleTrigger(habbo, QuestType.RECEIVE_BLOW_KISS);
+                    }
+                }
+                break;
+
             default:
                 break;
         }
-    }
-
-    public static void onUserDanceEvent(UserDanceEvent event) {
-        if (event.habbo == null)
-            return;
-
-        if(event.danceType == null)
-            return;
-
-        if(event.danceType == DanceType.NONE)
-            return;
-        
-        QuestManager.handleTrigger(event.habbo, QuestType.DANCE);
     }
 
     public static void onFurniturePlacedEvent(FurniturePlacedEvent event) {
@@ -169,6 +173,16 @@ public class QuestEventListener {
             return;
 
         QuestManager.handleTrigger(event.habbo, QuestType.PLACE_ITEM, "base_item_id", String.valueOf(event.furniture.getBaseItem().getId()));
+    }
+
+    public static void onUserPostItOtherUsersRoomEvent(UserPostItOtherUsersRoomEvent event) {
+        if (event.habbo == null)
+            return;
+
+        if (event.postIt == null || event.postIt.getBaseItem() == null)
+            return;
+
+        QuestManager.handleTrigger(event.habbo, QuestType.POST_IT_OTHER_USERS_ROOM, "base_item_id", String.valueOf(event.postIt.getBaseItem().getId()));
     }
     
     public static void onFurnitureMovedEvent(FurnitureMovedEvent event) {
@@ -218,17 +232,53 @@ public class QuestEventListener {
             return;
 
         var room = event.habbo.getRoomUnit().getRoom();
-        var tile = event.habbo.getRoomUnit().getCurrentLocation();
+        var tile = event.toLocation != null ? event.toLocation : event.habbo.getRoomUnit().getCurrentLocation();
 
         if (tile == null)
             return;
+
+        int distance = getStepDistance(event.fromLocation, tile);
 
         for (var item : room.getItemsAt(tile)) {
             if (item == null || item.getBaseItem() == null)
                 continue;
 
-            QuestManager.handleTrigger(event.habbo, QuestType.WALK_OVER_STUFF, "base_item_id", String.valueOf(item.getBaseItem().getId()));
+            QuestManager.handleTrigger(event.habbo, QuestType.WALK_OVER_STUFF, "base_item_id", String.valueOf(item.getBaseItem().getId()), distance);
         }
+
+        if (!isBaseItemSwimQuest(event.habbo))
+            return;
+
+        var swimTile = event.toLocation;
+
+        if (swimTile == null)
+            return;
+
+        for (var item : room.getItemsAt(swimTile)) {
+            if (item == null || item.getBaseItem() == null)
+                continue;
+
+            QuestManager.handleTrigger(event.habbo, QuestType.SWIM, "base_item_id", String.valueOf(item.getBaseItem().getId()), distance);
+        }
+    }
+
+    private static boolean isBaseItemSwimQuest(Habbo habbo) {
+        Quest activeQuest = QuestManager.getActiveQuest(habbo);
+
+        return activeQuest != null &&
+                activeQuest.getTriggerType() == QuestType.SWIM &&
+                "base_item_id".equalsIgnoreCase(activeQuest.getTargetType());
+    }
+
+    private static int getStepDistance(RoomTile fromLocation, RoomTile toLocation) {
+        if (fromLocation == null || toLocation == null)
+            return 1;
+
+        return Math.max(1, Math.max(Math.abs(toLocation.x - fromLocation.x), Math.abs(toLocation.y - fromLocation.y)));
+    }
+
+    private static int getQuestRoomPulseSeconds() {
+        return Math.max(1, Emulator.getConfig().getInt("hotel.quest.room_pulse.interval", 5));
     }
 
     public static void onUserCraftProductEvent(UserCraftProductEvent event) {
@@ -297,6 +347,9 @@ public class QuestEventListener {
             return;
         }
 
+        if (event.pet.getPetData() != null)
+            QuestManager.handleTrigger(event.habbo, QuestType.FIND_STUFF, "pet_type", String.valueOf(event.pet.getPetData().getType()));
+
         QuestManager.handleTrigger(event.habbo, QuestType.PET_RESPECT, "pet_id", String.valueOf(event.pet.getId()));
     }
     
@@ -337,13 +390,6 @@ public class QuestEventListener {
         }
 
         QuestManager.handleTrigger(event.habbo, QuestType.KICK_BALL, "base_item_id", String.valueOf(event.ball.getBaseItem().getId()));
-    }
-
-    public static void onUserSwimEvent(UserSwimEvent event) {
-        if (event.habbo == null)
-            return;
-
-        QuestManager.handleTrigger(event.habbo, QuestType.SWIM);
     }
 
     public static void onNavigatorRoomCreatedEvent(NavigatorRoomCreatedEvent event) {

@@ -220,6 +220,7 @@ public class Incoming {
     public static final int NewNavigatorSearchEvent = 249;
     public static final int CustomizeAvatarWithFurniMessageEvent = 3374;
     public static final int ForwardToSomeRoomMessageEvent = 1703;
+    public static final int ForwardToARandomPromotedRoomMessageComposer = 10;
     public static final int PlacePostItMessageEvent = 2248;
     public static final int GetItemDataMessageEvent = 3964;
     public static final int SetItemDataMessageEvent = 3666;
@@ -255,6 +256,7 @@ public class Incoming {
     public static final int UpdateRoomFilterMessageEvent = 3001;
     public static final int GetUserTagsMessageEvent = 17;
     public static final int GetProductOfferEvent = 2594;
+    public static final int GetSeasonalCalendarDailyOfferEvent = 3257;
     public static final int GetOfficialSongIdMessageEvent = 3189;
     public static final int GetSongInfoMessageEvent = 3082;
     public static final int ToggleStaffPickMessageEvent = 1918;
@@ -380,9 +382,18 @@ public class Incoming {
     public static final int GuildForumMarkAsReadEvent = 1855;
 
     public static final int GetQuestsEvent = 3333;
+    public static final int GetNextQuestEvent = 2750;
+    public static final int ActivateQuestEvent = 793;
     public static final int AcceptQuestEvent = 3604;
-    public static final int RejectQuestEvent = 2397;
-    public static final int OpenQuestTrackerEvent = 2750;
+    public static final int CancelQuestEvent = 2397;
+    public static final int GetDailyQuestEvent = 2486;
+    public static final int RejectDailyQuestEvent = 3133;
+    public static final int GetSeasonalQuestsEvent = 1190;
+    public static final int StartCampaignEvent = 1697;
+    public static final int QuestUnknownEvent = 90;
+    public static final int CommunityGoalVoteEvent = 3536;
+    public static final int CommunityGoalVoteEventLegacy = 2167;
+    public static final int QuestUnknown2Event = 2688;
 
     public static final int UNKNOWN_SNOWSTORM_6000 = 6000;
     public static final int UNKNOWN_SNOWSTORM_6001 = 6001;

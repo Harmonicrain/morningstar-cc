@@ -13,6 +13,7 @@ import com.eu.habbo.messages.outgoing.inventory.FurniListInvalidateMessageCompos
 import com.eu.habbo.messages.outgoing.inventory.FurniListRemoveMessageComposer;
 import com.eu.habbo.threading.runnables.QueryDeleteHabboItem;
 import com.eu.habbo.threading.runnables.ShutdownEmulator;
+import com.eu.habbo.plugin.events.users.catalog.UserEcotronRecycleEvent;
 import gnu.trove.set.hash.THashSet;
 
 public class RecycleItemsMessageEvent extends MessageHandler {
@@ -62,6 +63,7 @@ public class RecycleItemsMessageEvent extends MessageHandler {
             this.client.sendResponse(new RecyclerFinishedMessageComposer(RecyclerFinishedMessageComposer.RECYCLING_COMPLETE));
             this.client.sendResponse(new FurniListInvalidateMessageComposer());
 
+            Emulator.getPluginManager().fireEvent(new UserEcotronRecycleEvent(this.client.getHabbo(), items));
             AchievementManager.progressAchievement(this.client.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("FurnimaticQuest"));
         } else {
             this.client.sendResponse(new RecyclerFinishedMessageComposer(RecyclerFinishedMessageComposer.RECYCLING_CLOSED));

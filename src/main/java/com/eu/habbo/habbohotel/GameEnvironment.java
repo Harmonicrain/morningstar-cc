@@ -7,6 +7,7 @@ import com.eu.habbo.habbohotel.bots.BotManager;
 import com.eu.habbo.habbohotel.campaign.calendar.CalendarManager;
 import com.eu.habbo.habbohotel.catalog.CatalogManager;
 import com.eu.habbo.habbohotel.commands.CommandHandler;
+import com.eu.habbo.habbohotel.communitygoals.CommunityGoalManager;
 import com.eu.habbo.habbohotel.crafting.CraftingManager;
 import com.eu.habbo.habbohotel.guides.GuideManager;
 import com.eu.habbo.habbohotel.guilds.GuildManager;
@@ -20,6 +21,7 @@ import com.eu.habbo.habbohotel.permissions.PermissionsManager;
 import com.eu.habbo.habbohotel.pets.PetManager;
 import com.eu.habbo.habbohotel.polls.PollManager;
 import com.eu.habbo.habbohotel.polls.infobus.RoomPollManager;
+import com.eu.habbo.habbohotel.quests.QuestMidnightScheduler;
 import com.eu.habbo.habbohotel.quests.QuestManager;
 import com.eu.habbo.habbohotel.rooms.RoomChatBubbleManager;
 import com.eu.habbo.habbohotel.rooms.RoomManager;
@@ -62,6 +64,8 @@ public class GameEnvironment {
     private CalendarManager calendarManager;
     private RoomChatBubbleManager roomChatBubbleManager;
     private QuestManager questManager;
+    private QuestMidnightScheduler questMidnightScheduler;
+    private CommunityGoalManager communityGoalManager;
 
     public void load() throws Exception {
         LOGGER.info("GameEnvironment -> Loading...");
@@ -69,8 +73,10 @@ public class GameEnvironment {
         this.permissionsManager = new PermissionsManager();
         this.habboManager = new HabboManager();
         this.hotelViewManager = new HotelViewManager();
+        this.communityGoalManager = new CommunityGoalManager();
         this.itemManager = new ItemManager();
         this.itemManager.load();
+        this.communityGoalManager.startRewardScheduler();
         this.botManager = new BotManager();
         this.petManager = new PetManager();
         this.guildManager = new GuildManager();
@@ -91,6 +97,7 @@ public class GameEnvironment {
         this.roomChatBubbleManager = new RoomChatBubbleManager();
         this.questManager = new QuestManager();
         this.questManager.reload();
+        this.questMidnightScheduler = new QuestMidnightScheduler();
 
         this.roomManager.loadPublicRooms();
         this.navigatorManager.loadNavigator();
@@ -114,6 +121,7 @@ public class GameEnvironment {
     }
 
     public void dispose() {
+        this.questMidnightScheduler.dispose();
         this.pointsScheduler.setDisposed(true);
         this.pixelScheduler.setDisposed(true);
         this.creditsScheduler.setDisposed(true);
@@ -126,6 +134,7 @@ public class GameEnvironment {
         this.roomManager.dispose();
         this.itemManager.dispose();
         this.hotelViewManager.dispose();
+        this.communityGoalManager.dispose();
         this.subscriptionManager.dispose();
         this.calendarManager.dispose();
         LOGGER.info("GameEnvironment -> Disposed!");
@@ -153,6 +162,10 @@ public class GameEnvironment {
 
     public HotelViewManager getHotelViewManager() {
         return this.hotelViewManager;
+    }
+
+    public CommunityGoalManager getCommunityGoalManager() {
+        return this.communityGoalManager;
     }
 
     public RoomManager getRoomManager() {

@@ -11,7 +11,6 @@ import java.util.List;
 
 public class Quest implements ISerialize {
     private final int id;
-    private final int campaignId;
     private final String campaignCode;
     private final int activityPointType;
     private final QuestType triggerType;
@@ -25,12 +24,13 @@ public class Quest implements ISerialize {
     private final String catalogPageName;
     private final String chainCode;
     private final boolean easy;
+    private final boolean daily;
+    private final boolean seasonal;
 
     private final List<QuestCondition> conditions = new ArrayList<>();
 
     public Quest(ResultSet set) throws SQLException {
         this.id = set.getInt("id");
-        this.campaignId = set.getInt("campaign_id");
         this.campaignCode = set.getString("campaign_code");
         this.activityPointType = set.getInt("activity_point_type");
         this.triggerType = QuestType.fromString(set.getString("trigger_type"));
@@ -44,6 +44,8 @@ public class Quest implements ISerialize {
         this.catalogPageName = set.getString("catalog_page_name");
         this.chainCode = set.getString("chain_code");
         this.easy = set.getBoolean("easy");
+        this.daily = set.getBoolean("daily");
+        this.seasonal = set.getBoolean("seasonal");
     }
 
     public void serialize(ServerMessage message, QuestUserProgress progress, int completedQuestsInCampaign, int questCountInCampaign) {
@@ -61,7 +63,7 @@ public class Quest implements ISerialize {
         message.appendInt(this.totalSteps);
         message.appendInt(this.sortOrder);
         message.appendString(this.catalogPageName);
-        message.appendString(this.chainCode);
+        message.appendString(this.getClientChainCode());
         message.appendBoolean(this.easy);
     }
 
@@ -76,10 +78,6 @@ public class Quest implements ISerialize {
 
     public int getId() {
         return this.id;
-    }
-
-    public int getCampaignId() {
-        return this.campaignId;
     }
 
     public String getCampaignCode() {
@@ -130,8 +128,28 @@ public class Quest implements ISerialize {
         return this.chainCode;
     }
 
+    public String getClientChainCode() {
+        if (this.daily) {
+            return this.localizationCode;
+        }
+
+        if (this.chainCode != null && !this.chainCode.trim().isEmpty()) {
+            return this.chainCode;
+        }
+
+        return this.localizationCode;
+    }
+
     public boolean isEasy() {
         return this.easy;
+    }
+
+    public boolean isDaily() {
+        return this.daily;
+    }
+
+    public boolean isSeasonal() {
+        return this.seasonal;
     }
 
     public void addCondition(QuestCondition condition) {

@@ -17,7 +17,9 @@ public class AcceptQuestEvent extends MessageHandler {
         if (quest == null)
             return;
 
-        QuestManager.acceptQuest(this.client.getHabbo(), quest);
+        if (!QuestManager.acceptQuest(this.client.getHabbo(), quest))
+            return;
+
         this.client.sendResponse(new QuestMessageComposer(this.client.getHabbo(), quest));
 
         // On Habbo, the quest window stays open after accepting a quest. This is a workaround.

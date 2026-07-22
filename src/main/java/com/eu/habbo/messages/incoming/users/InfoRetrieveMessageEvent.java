@@ -4,6 +4,7 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.achievements.AchievementManager;
 import com.eu.habbo.habbohotel.campaign.calendar.CalendarCampaign;
 import com.eu.habbo.habbohotel.catalog.TargetOffer;
+import com.eu.habbo.habbohotel.quests.QuestManager;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.catalog.TargetedOfferMessageComposer;
@@ -125,6 +126,8 @@ public class InfoRetrieveMessageEvent extends MessageHandler {
                 deleteStatement.execute();
             }
         }
+
+        QuestManager.drainQuestProgressQueue(this.client.getHabbo());
 
         if (Emulator.getConfig().getBoolean("hotel.calendar.enabled")) {
             CalendarCampaign campaign = Emulator.getGameEnvironment().getCalendarManager().getCalendarCampaign(Emulator.getConfig().getValue("hotel.calendar.default"));

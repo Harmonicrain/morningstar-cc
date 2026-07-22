@@ -238,7 +238,6 @@ public class Outgoing {
     public final static int ObjectDataUpdateMessageComposer = 2547; // PRODUCTION-201611291003-338511768
     public final static int UpdateMessageMessageComposer = 324; // PRODUCTION-201611291003-338511768
     //NotSure Needs Testing
-    public final static int QuestionInfoComposer = -1; // PRODUCTION-201611291003-338511768
     public final static int EmailStatusResultMessageComposer = 612; // PRODUCTION-201611291003-338511768
     public final static int ChangeEmailResultMessageComposer = 1815; // PRODUCTION-201611291003-338511768
     public final static int AvatarEffectSelectedMessageComposer = 3473; // PRODUCTION-201611291003-338511768
@@ -371,13 +370,14 @@ public class Outgoing {
     public final static int InventoryAddEffectComposer = -1;//error 404
     public final static int TalentLevelUpMessageComposer = 638; // PRODUCTION-201611291003-338511768
     public final static int GuideTicketCreationResultMessageComposer = 3285; // PRODUCTION-201611291003-338511768
-    public final static int UnknownQuestComposer3 = 1122; // PRODUCTION-201611291003-338511768
+    public final static int SeasonalQuestsComposer = 1122; // PRODUCTION-201611291003-338511768
     public final static int FriendToolbarNotificationComposer = 3082; // PRODUCTION-201611291003-338511768
     public final static int MessengerErrorComposer = 896; // PRODUCTION-201611291003-338511768
     public final static int InitCameraMessageComposer = 3878; // PRODUCTION-201611291003-338511768
     public final static int NestBreedingSuccessMessageComposer = 2527; // PRODUCTION-201611291003-338511768
     public final static int UserUnbannedFromRoomMessageComposer = 3429; // PRODUCTION-201611291003-338511768
     public final static int CommunityGoalProgressMessageComposer = 2525; // PRODUCTION-201611291003-338511768
+    public final static int CommunityGoalEarnedPrizesComposer = 3319; // PRODUCTION-201611291003-338511768
     public final static int UserClassificationMessageComposer = 966; // PRODUCTION-201611291003-338511768
     public final static int CanCreateRoomEventMessageComposer = 2599; // PRODUCTION-201611291003-338511768
     public final static int GroupDetailsChangedMessageComposer = 1459; // PRODUCTION-201611291003-338511768
@@ -431,7 +431,6 @@ public class Outgoing {
     public final static int Game2AccountGameStatusMessageComposer = 2893; // PRODUCTION-201611291003-338511768
     public final static int UnknowComposer_1390 = 2270; // PRODUCTION-201611291003-338511768
     public final static int LoadGameMessageMessageComposer = 3654; // PRODUCTION-201611291003-338511768
-    public final static int UnknowComposer_1427 = 3319; // PRODUCTION-201611291003-338511768
     public final static int CampaignCalendarDataMessageComposer = 2531; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_152 = 3954; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_1577 = 2641; // PRODUCTION-201611291003-338511768

@@ -48,6 +48,9 @@ public class QuestCondition {
             case ROOM_ITEM_STATE:
                 return this.matchesRoomItemState(habbo);
 
+            case ROOM_USERS_MIN:
+                return this.matchesRoomUsersMin(habbo);
+
             default:
                 return false;
         }
@@ -125,5 +128,27 @@ public class QuestCondition {
         }
 
         return false;
+    }
+
+    private boolean matchesRoomUsersMin(Habbo habbo) {
+        if (habbo.getHabboInfo() == null) {
+            return false;
+        }
+
+        Room room = habbo.getHabboInfo().getCurrentRoom();
+
+        if (room == null) {
+            return false;
+        }
+
+        if (this.conditionValue == null || this.conditionValue.isEmpty()) {
+            return false;
+        }
+
+        try {
+            return room.getHabbos().size() >= Integer.parseInt(this.conditionValue);
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 }

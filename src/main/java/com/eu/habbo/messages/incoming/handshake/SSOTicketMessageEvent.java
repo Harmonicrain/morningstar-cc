@@ -39,6 +39,9 @@ import gnu.trove.map.hash.THashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -140,7 +143,7 @@ public class SSOTicketMessageEvent extends MessageHandler {
                         new InfoFeedEnableMessageComposer(Emulator.getConfig().getBoolean("bubblealerts.enabled", true))
                                 .compose());
                 messages.add(new AchievementsScoreMessageComposer(this.client.getHabbo()).compose());
-                messages.add(new IsFirstLoginOfDayComposer(true).compose());
+                messages.add(new IsFirstLoginOfDayComposer(this.isFirstLoginOfDay(habbo)).compose());
                 messages.add(new MysteryBoxKeysMessageComposer().compose());
                 messages.add(new BuildersClubSubscriptionStatusMessageComposer(this.client.getHabbo()).compose());
                 messages.add(new com.eu.habbo.messages.outgoing.catalog.BuildersClubFurniCountMessageComposer(
@@ -258,5 +261,18 @@ public class SSOTicketMessageEvent extends MessageHandler {
         } else {
             Emulator.getGameServer().getGameClientManager().disposeClient(this.client);
         }
+    }
+
+    private boolean isFirstLoginOfDay(Habbo habbo) {
+        int lastOnline = habbo.getHabboInfo().getLastOnline();
+
+        if (lastOnline <= 0)
+            return true;
+
+        ZoneId zoneId = ZoneId.systemDefault();
+        LocalDate lastOnlineDate = Instant.ofEpochSecond(lastOnline).atZone(zoneId).toLocalDate();
+        LocalDate today = Instant.ofEpochSecond(Emulator.getIntUnixTimestamp()).atZone(zoneId).toLocalDate();
+
+        return lastOnlineDate.isBefore(today);
     }
 }

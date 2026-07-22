@@ -36,6 +36,10 @@ public class AddSpamWallPostItMessageEvent extends MessageHandler {
             String text = this.packet.readString();
 
             Room room = this.client.getHabbo().getHabboInfo().getCurrentRoom();
+
+            if (room == null)
+                return;
+
             HabboItem sticky = room.getHabboItem(itemId);
 
             if (sticky != null) {

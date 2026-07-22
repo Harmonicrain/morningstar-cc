@@ -37,6 +37,8 @@ public enum QuestType {
     GAME_BB_LOCK_TILE,
     GAME_PLAY_GAME,
     GAME_WIN_GAME,
+    RECEIVE_BLOW_KISS,
+    POST_IT_OTHER_USERS_ROOM,
 
     // need to test
     PUBLISH_PICTURE,
