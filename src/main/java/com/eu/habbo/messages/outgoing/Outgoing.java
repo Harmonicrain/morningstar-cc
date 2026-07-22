@@ -431,7 +431,6 @@ public class Outgoing {
     public final static int Game2AccountGameStatusMessageComposer = 2893; // PRODUCTION-201611291003-338511768
     public final static int UnknowComposer_1390 = 2270; // PRODUCTION-201611291003-338511768
     public final static int LoadGameMessageMessageComposer = 3654; // PRODUCTION-201611291003-338511768
-    public final static int UnknowComposer_1427 = 3319; // PRODUCTION-201611291003-338511768
     public final static int CampaignCalendarDataMessageComposer = 2531; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_152 = 3954; // PRODUCTION-201611291003-338511768
     public final static int UnknownComposer_1577 = 2641; // PRODUCTION-201611291003-338511768

@@ -386,8 +386,6 @@ public class Incoming {
     public static final int ActivateQuestEvent = 793;
     public static final int AcceptQuestEvent = 3604;
     public static final int CancelQuestEvent = 2397;
-    public static final int RejectQuestEvent = 2397;
-    public static final int OpenQuestTrackerEvent = 2750;
     public static final int GetDailyQuestEvent = 2486;
     public static final int RejectDailyQuestEvent = 3133;
     public static final int GetSeasonalQuestsEvent = 1190;
