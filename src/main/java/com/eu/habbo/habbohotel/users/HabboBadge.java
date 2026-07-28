@@ -1,6 +1,7 @@
 package com.eu.habbo.habbohotel.users;
 
 import com.eu.habbo.Emulator;
+import com.eu.habbo.habbohotel.leaderboards.BadgeLeaderboardManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,6 +11,7 @@ public class HabboBadge implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(HabboBadge.class);
     private int id;
     private String code;
+    private String persistedCode;
     private int slot;
     private Habbo habbo;
     private boolean needsUpdate;
@@ -18,6 +20,7 @@ public class HabboBadge implements Runnable {
     public HabboBadge(ResultSet set, Habbo habbo) throws SQLException {
         this.id = set.getInt("id");
         this.code = set.getString("badge_code");
+        this.persistedCode = this.code;
         this.slot = set.getInt("slot_id");
         this.habbo = habbo;
         this.needsUpdate = false;
@@ -27,6 +30,7 @@ public class HabboBadge implements Runnable {
     public HabboBadge(int id, String code, int slot, Habbo habbo) {
         this.id = id;
         this.code = code;
+        this.persistedCode = null;
         this.slot = slot;
         this.habbo = habbo;
         this.needsUpdate = false;
@@ -69,7 +73,10 @@ public class HabboBadge implements Runnable {
                     }
                 }
                 this.needsInsert = false;
+                this.persistedCode = this.code;
+                BadgeLeaderboardManager.getInstance().badgeOwnershipChanged(this.code);
             } else if (this.needsUpdate) {
+                String previousCode = this.persistedCode;
                 try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("UPDATE users_badges SET slot_id = ?, badge_code = ? WHERE id = ? AND user_id = ?")) {
                     statement.setInt(1, this.slot);
                     statement.setString(2, this.code);
@@ -78,6 +85,12 @@ public class HabboBadge implements Runnable {
                     statement.execute();
                 }
                 this.needsUpdate = false;
+                this.persistedCode = this.code;
+
+                if (previousCode != null && !previousCode.equalsIgnoreCase(this.code)) {
+                    BadgeLeaderboardManager.getInstance().badgeOwnershipChanged(previousCode);
+                    BadgeLeaderboardManager.getInstance().badgeOwnershipChanged(this.code);
+                }
             }
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);

@@ -275,6 +275,7 @@ public class CommandHandler {
         addCommand(new UnloadRoomCommand());
         addCommand(new UnmuteCommand());
         addCommand(new UpdateAchievements());
+        addCommand(new UpdateBadgeLeaderboardsCommand());
         addCommand(new UpdateBotsCommand());
         addCommand(new UpdateCalendarCommand());
         addCommand(new UpdateCatalogCommand());

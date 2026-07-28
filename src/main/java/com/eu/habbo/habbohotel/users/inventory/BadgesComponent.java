@@ -2,6 +2,7 @@ package com.eu.habbo.habbohotel.users.inventory;
 
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.permissions.Rank;
+import com.eu.habbo.habbohotel.leaderboards.BadgeLeaderboardManager;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboBadge;
 import gnu.trove.set.hash.THashSet;
@@ -98,7 +99,11 @@ public class BadgesComponent {
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("DELETE users_badges FROM users_badges WHERE user_id = ? AND badge_code LIKE ?")) {
             statement.setInt(1, userId);
             statement.setString(2, badge);
-            statement.execute();
+            int removed = statement.executeUpdate();
+
+            if (removed > 0) {
+                BadgeLeaderboardManager.getInstance().badgeOwnershipChanged(badge);
+            }
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);
         }
