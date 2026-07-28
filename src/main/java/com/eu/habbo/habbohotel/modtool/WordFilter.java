@@ -17,6 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.Normalizer;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WordFilter {
@@ -88,6 +89,12 @@ public class WordFilter {
                 .replace("ß", "b").trim()).replaceAll(" ");
     }
 
+    static String replaceIgnoreCase(String message, String word, String replacement) {
+        return Pattern.compile(Pattern.quote(word), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)
+                .matcher(message)
+                .replaceAll(Matcher.quoteReplacement(replacement));
+    }
+
     public boolean autoReportCheck(RoomChatMessage roomChatMessage) {
         String message = this.normalise(roomChatMessage.getMessage()).toLowerCase();
 
@@ -151,7 +158,7 @@ public class WordFilter {
                     if (Emulator.getPluginManager().fireEvent(new UserTriggerWordFilterEvent(habbo, word)).isCancelled())
                         continue;
                 }
-                filteredMessage = filteredMessage.replace("(?i)" + word.key, word.replacement);
+                filteredMessage = replaceIgnoreCase(filteredMessage, word.key, word.replacement);
                 foundShit = true;
 
                 if (habbo != null && word.muteTime > 0) {
@@ -168,7 +175,7 @@ public class WordFilter {
     }
 
     public void filter(RoomChatMessage roomChatMessage, Habbo habbo) {
-        String message = roomChatMessage.getMessage().toLowerCase();
+        String message = roomChatMessage.getMessage();
 
         if (Emulator.getConfig().getBoolean("hotel.wordfilter.normalise")) {
             message = this.normalise(message);
@@ -185,7 +192,7 @@ public class WordFilter {
                         continue;
                 }
 
-                message = message.replace(word.key, word.replacement);
+                message = replaceIgnoreCase(message, word.key, word.replacement);
                 roomChatMessage.filtered = true;
             }
         }
