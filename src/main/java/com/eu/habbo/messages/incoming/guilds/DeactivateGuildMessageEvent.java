@@ -4,6 +4,7 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.guilds.Guild;
 import com.eu.habbo.habbohotel.guilds.GuildMember;
 import com.eu.habbo.habbohotel.permissions.Permission;
+import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.messages.incoming.MessageHandler;
 import com.eu.habbo.messages.outgoing.guilds.FavoriteMembershipUpdateMessageComposer;
@@ -32,7 +33,11 @@ public class DeactivateGuildMessageEvent extends MessageHandler {
 
                 Emulator.getGameEnvironment().getGuildManager().deleteGuild(guild);
                 Emulator.getPluginManager().fireEvent(new GuildDeletedEvent(guild, this.client.getHabbo()));
-                Emulator.getGameEnvironment().getRoomManager().getRoom(guild.getRoomId()).sendComposer(new HabboGroupDeactivatedMessageComposer(guildId).compose());
+
+                Room room = Emulator.getGameEnvironment().getRoomManager().getRoom(guild.getRoomId());
+                if (room != null) {
+                    room.sendComposer(new HabboGroupDeactivatedMessageComposer(guildId).compose());
+                }
 
                 if (this.client.getHabbo().getHabboInfo().getCurrentRoom() != null) {
                     if (guild.getRoomId() == this.client.getHabbo().getHabboInfo().getCurrentRoom().getId()) {
