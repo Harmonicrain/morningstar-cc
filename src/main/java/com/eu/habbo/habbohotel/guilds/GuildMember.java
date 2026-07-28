@@ -3,7 +3,7 @@ package com.eu.habbo.habbohotel.guilds;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class GuildMember implements Comparable<GuildMember> {
+public class GuildMember {
     private int userId;
     private String username;
     private String look;
@@ -56,11 +56,6 @@ public class GuildMember implements Comparable<GuildMember> {
 
     public void setRank(GuildRank rank) {
         this.rank = rank;
-    }
-
-    @Override
-    public int compareTo(GuildMember o) {
-        return 0;
     }
 
     public GuildMembershipStatus getMembershipStatus() {
