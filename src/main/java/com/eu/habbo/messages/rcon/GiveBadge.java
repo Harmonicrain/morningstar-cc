@@ -3,6 +3,7 @@ package com.eu.habbo.messages.rcon;
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboBadge;
+import com.eu.habbo.habbohotel.leaderboards.BadgeLeaderboardManager;
 import com.eu.habbo.messages.outgoing.users.BadgeReceivedMessageComposer;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
@@ -76,6 +77,7 @@ public class GiveBadge extends RCONMessage<GiveBadge.GiveBadgeJSON> {
                             statement.execute();
                         }
 
+                        BadgeLeaderboardManager.getInstance().badgeOwnershipChanged(badgeCode);
                         this.message = Emulator.getTexts().getValue("commands.succes.cmd_badge.given").replace("%user%", username).replace("%badge%", badgeCode);
                     }
                 }

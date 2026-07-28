@@ -558,5 +558,6 @@ public class Outgoing {
     public static final int SnowStormGenericErrorComposer = 5028;
     public static final int SnowStormUserRematchedComposer = 5029;
 
+    public final static int BadgeLeaderboardResultMessageComposer = 7800;
 
 }

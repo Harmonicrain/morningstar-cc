@@ -328,6 +328,7 @@ public class PacketManager {
         this.registerHandler(Incoming.ChangeUserNameMessageEvent, ChangeUserNameMessageEvent.class);
         this.registerHandler(Incoming.SetChatStylePreferenceEvent, SetChatStylePreferenceEvent.class);
         this.registerHandler(Incoming.SetUIFlagsMessageEvent, SetUIFlagsMessageEvent.class);
+        this.registerHandler(Incoming.GetBadgeLeaderboardMessageEvent, BadgeLeaderboardMessageEvent.class);
     }
 
     private void registerNavigator() throws Exception {
