@@ -66,7 +66,18 @@ public class CrackableReward {
         type = (type == null) ? "s" : type.trim().toLowerCase();
 
         if (itemIdsRaw == null || itemIdsRaw.trim().isEmpty()) {
-            LOGGER.error("items_crackable: empty item_ids (crackable_id={}, tier={}). Skipping row.", this.crackableId, tierId);
+            // A subscription-only crackable, such as a club gift box, has no furniture payout by
+            // design: its reward comes from subscription_type/subscription_duration and is granted
+            // in InteractionCrackable, which never consults the tier outcomes. Read those columns
+            // from this row rather than the instance, because addRow is also called for additional
+            // tier rows of an already-loaded crackable.
+            int rowSubscriptionDuration = set.getInt("subscription_duration");
+            RedeemableSubscriptionType rowSubscriptionType =
+                    RedeemableSubscriptionType.fromString(set.getString("subscription_type"));
+
+            if (rowSubscriptionType == null || rowSubscriptionDuration <= 0) {
+                LOGGER.error("items_crackable: empty item_ids and no subscription reward (crackable_id={}, tier={}). Skipping row.", this.crackableId, tierId);
+            }
             return;
         }
 
