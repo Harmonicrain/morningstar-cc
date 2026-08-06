@@ -18,7 +18,7 @@ public class WiredSelectorDataMessageComposer extends MessageComposer {
     @Override
     protected ServerMessage composeInternal() {
         this.response.init(Outgoing.WiredSelectorDataMessageComposer);
-        this.selector.serializeWiredDataNew(this.response, this.room);
+        this.selector.serializeWiredDataV2(this.response, this.room);
         this.selector.needsUpdate(true);
         return this.response;
     }
