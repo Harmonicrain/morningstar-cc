@@ -10,7 +10,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredConditionTeamHasScore extends WiredConditionPhase3Base {
+public class WiredConditionTeamHasScore extends WiredConditionConfigBase {
     public static final WiredConditionType type = WiredConditionType.TEAM_HAS_SCORE;
 
     public WiredConditionTeamHasScore(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }

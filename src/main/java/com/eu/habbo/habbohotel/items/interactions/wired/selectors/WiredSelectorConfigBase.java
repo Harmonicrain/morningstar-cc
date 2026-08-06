@@ -3,7 +3,7 @@ package com.eu.habbo.habbohotel.items.interactions.wired.selectors;
 import com.eu.habbo.habbohotel.bots.Bot;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredSelector;
-import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsNew;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsV2;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.habbohotel.rooms.RoomUnitType;
@@ -24,7 +24,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-abstract class WiredSelectorPhase4Base extends InteractionWiredSelector {
+abstract class WiredSelectorConfigBase extends InteractionWiredSelector {
     protected final List<HabboItem> items = new ArrayList<>();
     protected int[] intParams = new int[0];
     protected String stringParam = "";
@@ -33,27 +33,33 @@ abstract class WiredSelectorPhase4Base extends InteractionWiredSelector {
     protected String[] variableIds = new String[0];
     protected int[] furniIds2 = new int[0];
 
-    protected WiredSelectorPhase4Base(ResultSet set, Item baseItem) throws SQLException {
+    protected WiredSelectorConfigBase(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
     }
 
-    protected WiredSelectorPhase4Base(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) {
+    protected WiredSelectorConfigBase(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) {
         super(id, userId, item, extradata, limitedStack, limitedSells);
     }
 
     @Override
-    public boolean saveData(WiredSettingsNew settings) {
+    public boolean saveData(WiredSettingsV2 settings) {
+        if (settings == null) {
+            return false;
+        }
         Room room = com.eu.habbo.Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId());
         if (room == null) {
             return false;
         }
         saveBase(settings);
-        this.intParams = settings.getIntParams();
-        this.stringParam = settings.getStringParam();
-        this.furniSourceTypes = settings.getFurniSourceTypes();
-        this.userSourceTypes = settings.getUserSourceTypes();
-        this.variableIds = settings.getVariableIds();
-        this.furniIds2 = settings.getFurniIds2();
+        this.intParams = settings.getIntParams() == null ? new int[0] : settings.getIntParams();
+        this.stringParam = settings.getStringParam() == null ? "" : settings.getStringParam();
+        this.furniSourceTypes = settings.getFurniSourceTypes() == null
+                ? new int[0] : settings.getFurniSourceTypes();
+        this.userSourceTypes = settings.getUserSourceTypes() == null
+                ? new int[0] : settings.getUserSourceTypes();
+        this.variableIds = settings.getVariableIds() == null
+                ? new String[0] : settings.getVariableIds();
+        this.furniIds2 = toDatabaseIds(room, settings.getFurniIds2());
         this.items.clear();
         for (int visibleId : settings.getFurniIds()) {
             HabboItem item = room.getHabboItem(visibleId);
@@ -81,21 +87,28 @@ abstract class WiredSelectorPhase4Base extends InteractionWiredSelector {
         if (wiredData == null || !wiredData.startsWith("{")) {
             return;
         }
-        JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
-        setSelectorFlags(data.filter, data.invert);
-        this.intParams = data.intParams != null ? data.intParams : new int[0];
-        this.stringParam = data.stringParam != null ? data.stringParam : "";
-        this.furniSourceTypes = data.furniSourceTypes != null ? data.furniSourceTypes : new int[0];
-        this.userSourceTypes = data.userSourceTypes != null ? data.userSourceTypes : new int[0];
-        this.variableIds = data.variableIds != null ? data.variableIds : new String[0];
-        this.furniIds2 = data.furniIds2 != null ? data.furniIds2 : new int[0];
-        if (data.itemIds != null) {
-            for (Integer id : data.itemIds) {
-                HabboItem item = room.getHabboItemByDatabaseId(id);
-                if (item != null) {
-                    this.items.add(item);
+        try {
+            JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
+            if (data == null) {
+                return;
+            }
+            setSelectorFlags(data.filter, data.invert);
+            this.intParams = data.intParams != null ? data.intParams : new int[0];
+            this.stringParam = data.stringParam != null ? data.stringParam : "";
+            this.furniSourceTypes = data.furniSourceTypes != null ? data.furniSourceTypes : new int[0];
+            this.userSourceTypes = data.userSourceTypes != null ? data.userSourceTypes : new int[0];
+            this.variableIds = data.variableIds != null ? data.variableIds : new String[0];
+            this.furniIds2 = data.furniIds2 != null ? data.furniIds2 : new int[0];
+            if (data.itemIds != null) {
+                for (Integer id : data.itemIds) {
+                    HabboItem item = room.getHabboItemByDatabaseId(id);
+                    if (item != null) {
+                        this.items.add(item);
+                    }
                 }
             }
+        } catch (RuntimeException ignored) {
+            onPickUp();
         }
     }
 
@@ -104,12 +117,33 @@ abstract class WiredSelectorPhase4Base extends InteractionWiredSelector {
         this.items.clear();
         this.intParams = new int[0];
         this.stringParam = "";
+        this.furniSourceTypes = new int[0];
+        this.userSourceTypes = new int[0];
+        this.variableIds = new String[0];
+        this.furniIds2 = new int[0];
         setSelectorFlags(false, false);
     }
 
     @Override
     protected Collection<HabboItem> getSelectedItems() {
         return this.items;
+    }
+
+    @Override
+    protected Collection<HabboItem> getSelectedItems2() {
+        if (this.furniIds2.length == 0) {
+            return List.of();
+        }
+        var environment = com.eu.habbo.Emulator.getGameEnvironment();
+        Room room = environment == null
+                ? null : environment.getRoomManager().getRoom(this.getRoomId());
+        if (room == null) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(this.furniIds2)
+                .mapToObj(room::getHabboItemByDatabaseId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     @Override
@@ -139,7 +173,21 @@ abstract class WiredSelectorPhase4Base extends InteractionWiredSelector {
 
     @Override
     protected int[] getSelectedItem2VisibleIds() {
-        return this.furniIds2;
+        return getSelectedItems2().stream()
+                .mapToInt(HabboItem::getRoomVisibleId)
+                .toArray();
+    }
+
+    private int[] toDatabaseIds(Room room, int[] visibleIds) {
+        if (visibleIds == null || visibleIds.length == 0) {
+            return new int[0];
+        }
+        return java.util.Arrays.stream(visibleIds)
+                .mapToObj(room::getHabboItem)
+                .filter(java.util.Objects::nonNull)
+                .mapToInt(HabboItem::getId)
+                .distinct()
+                .toArray();
     }
 
     protected boolean supportsFurniPickingWhenEmpty() {
@@ -207,6 +255,10 @@ abstract class WiredSelectorPhase4Base extends InteractionWiredSelector {
             }
         }
         return names;
+    }
+
+    protected static String normalizeExtraData(String value) {
+        return value == null ? "" : value.trim();
     }
 
     protected boolean groupMatches(Room room, RoomUnit unit) {

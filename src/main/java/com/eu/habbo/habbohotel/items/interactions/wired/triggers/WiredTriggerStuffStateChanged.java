@@ -15,7 +15,9 @@ import gnu.trove.set.hash.THashSet;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -26,23 +28,19 @@ import java.util.stream.Collectors;
 public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
     private static final WiredTriggerType type = WiredTriggerType.STUFF_STATE;
 
-    private THashSet<HabboItem> items;
+    private HashMap<HabboItem, String> items;
 
-    /**
-     * May intParams[0]: state-trigger mode radio. Persisted for round-trip;
-     * fine-grained semantics (specific captured state vs any change) need an
-     * official capture and currently both fire on any state change.
-     */
+    /** July intParams[0]: 0 = every state, 1 = the state captured on save. */
     private int stateMode = 1;
 
     public WiredTriggerStuffStateChanged(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
-        this.items = new THashSet<>();
+        this.items = new HashMap<>();
     }
 
     public WiredTriggerStuffStateChanged(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) {
         super(id, userId, item, extradata, limitedStack, limitedSells);
-        this.items = new THashSet<>();
+        this.items = new HashMap<>();
     }
 
     @Override
@@ -51,7 +49,24 @@ public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
             return false;
         }
         HabboItem sourceItem = event.getSourceItem().orElse(null);
-        return sourceItem != null && this.items.contains(sourceItem);
+        if (sourceItem == null || !this.items.containsKey(sourceItem)) {
+            return false;
+        }
+        if (this.stateMode == 0) {
+            return true;
+        }
+
+        String savedState = this.items.get(sourceItem);
+        int stateCount = sourceItem.getBaseItem().getStateCount();
+        if (savedState == null || stateCount <= 0) {
+            return false;
+        }
+        try {
+            int nextState = (Integer.parseInt(sourceItem.getExtradata()) + 1) % stateCount;
+            return savedState.equals(String.valueOf(nextState));
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 
     @Deprecated
@@ -64,22 +79,27 @@ public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
     public String getWiredData() {
         return WiredManager.getGson().toJson(new JsonData(
             this.stateMode,
-            this.items.stream().map(HabboItem::getId).collect(Collectors.toList())
+            this.items.keySet().stream().map(HabboItem::getId).collect(Collectors.toList()),
+            this.items.entrySet().stream().collect(Collectors.toMap(
+                entry -> entry.getKey().getId(),
+                Map.Entry::getValue
+            ))
         ));
     }
 
     @Override
     public void loadWiredData(ResultSet set, Room room) throws SQLException {
-        this.items = new THashSet<>();
+        this.items = new HashMap<>();
         String wiredData = set.getString("wired_data");
 
         if (wiredData != null && wiredData.startsWith("{")) {
             JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
-            this.stateMode = data.stateMode;
-            for (Integer id : data.itemIds) {
+            this.stateMode = data.stateMode == 0 ? 0 : 1;
+            for (Integer id : data.itemIds == null ? List.<Integer>of() : data.itemIds) {
                 HabboItem item = room.getHabboItemByDatabaseId(id);
                 if (item != null) {
-                    this.items.add(item);
+                    String savedState = data.savedStates == null ? null : data.savedStates.get(id);
+                    this.items.put(item, savedState == null ? item.getExtradata() : savedState);
                 }
             }
         }
@@ -100,7 +120,7 @@ public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
     protected int[] getWiredIntParams() { return new int[]{ this.stateMode }; }
 
     @Override
-    protected java.util.Collection<HabboItem> getSelectedItems() { return this.items; }
+    protected java.util.Collection<HabboItem> getSelectedItems() { return this.items.keySet(); }
 
     @Override
     protected boolean supportsFurniPicking() { return true; }
@@ -109,7 +129,7 @@ public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
     public void serializeWiredData(ServerMessage message, Room room) {
         THashSet<HabboItem> stale = new THashSet<>();
 
-        for (HabboItem item : this.items) {
+        for (HabboItem item : this.items.keySet()) {
             if (item.getRoomId() != this.getRoomId() || room.getHabboItemByDatabaseId(item.getId()) == null) {
                 stale.add(item);
             }
@@ -122,7 +142,7 @@ public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
         message.appendBoolean(false);
         message.appendInt(WiredManager.MAXIMUM_FURNI_SELECTION);
         message.appendInt(this.items.size());
-        for (HabboItem item : this.items) {
+        for (HabboItem item : this.items.keySet()) {
             message.appendInt(item.getRoomVisibleId());
         }
         message.appendInt(this.getBaseItem().getSpriteId());
@@ -137,7 +157,7 @@ public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
 
     @Override
     public boolean saveData(WiredSettings settings) {
-        this.stateMode = settings.getIntParams().length > 0 ? settings.getIntParams()[0] : 1;
+        this.stateMode = settings.getIntParams().length > 0 && settings.getIntParams()[0] == 0 ? 0 : 1;
         this.items.clear();
 
         Room room = Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId());
@@ -148,11 +168,21 @@ public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
         for (int furniId : settings.getFurniIds()) {
             HabboItem item = room.getHabboItem(furniId);
             if (item != null) {
-                this.items.add(item);
+                this.items.put(item, item.getExtradata());
             }
         }
 
         return true;
+    }
+
+    public void applyStoredStates(Room room) {
+        for (Map.Entry<HabboItem, String> entry : this.items.entrySet()) {
+            String savedState = entry.getValue();
+            if (savedState != null && !savedState.equals(entry.getKey().getExtradata())) {
+                entry.getKey().setExtradata(savedState);
+                room.updateItemState(entry.getKey());
+            }
+        }
     }
 
     @Override
@@ -163,10 +193,12 @@ public class WiredTriggerStuffStateChanged extends InteractionWiredTrigger {
     static class JsonData {
         int stateMode;
         List<Integer> itemIds;
+        Map<Integer, String> savedStates;
 
-        public JsonData(int stateMode, List<Integer> itemIds) {
+        public JsonData(int stateMode, List<Integer> itemIds, Map<Integer, String> savedStates) {
             this.stateMode = stateMode;
             this.itemIds = itemIds;
+            this.savedStates = savedStates;
         }
     }
 }

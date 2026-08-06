@@ -9,7 +9,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredConditionTriggererMatches extends WiredConditionPhase3Base {
+public class WiredConditionTriggererMatches extends WiredConditionConfigBase {
     public static final WiredConditionType type = WiredConditionType.TRIGGERER_MATCHES;
 
     public WiredConditionTriggererMatches(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }

@@ -8,7 +8,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredConditionClockTimeMatches extends WiredConditionPhase3Base {
+public class WiredConditionClockTimeMatches extends WiredConditionConfigBase {
     public static final WiredConditionType type = WiredConditionType.CLOCK_TIME_MATCHES;
 
     public WiredConditionClockTimeMatches(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }

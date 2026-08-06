@@ -10,6 +10,7 @@ import com.eu.habbo.habbohotel.rooms.*;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
+import com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredSimulation;
 import com.eu.habbo.messages.ServerMessage;
@@ -52,7 +53,8 @@ public class WiredEffectMoveRotateFurni extends InteractionWiredEffect implement
         this.items.removeIf(item -> Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId())
                 .getHabboItemByDatabaseId(item.getId()) == null);
 
-        for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
+        for (HabboItem item : WiredMovementAddonRuntime.furniTargets(ctx,
+                resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null))) {
             if (this.itemCooldowns.contains(item))
                 continue;
 
@@ -95,13 +97,12 @@ public class WiredEffectMoveRotateFurni extends InteractionWiredEffect implement
                                     || furniMoveTest == FurnitureMovementError.TILE_HAS_PETS)
                                     && newLocation == oldLocation))) {
                 if (room.furnitureFitsAt(newLocation, item, newRotation, false) == FurnitureMovementError.NONE
-                        && room.moveFurniTo(item, newLocation, newRotation, null,
+                        && WiredMovementAddonRuntime.move(ctx, room, item, newLocation, newRotation,
                                 !slideAnimation) == FurnitureMovementError.NONE) {
                     this.itemCooldowns.add(item);
                     if (slideAnimation) {
                         // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
-                        room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
-                                item, oldLocation, oldZ, newLocation, item.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
+                        WiredMovementAddonRuntime.moved(ctx, room, item, oldLocation, oldZ, newLocation);
                     }
                 }
             }

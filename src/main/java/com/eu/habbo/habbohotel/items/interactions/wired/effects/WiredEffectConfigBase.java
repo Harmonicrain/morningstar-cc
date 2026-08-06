@@ -20,7 +20,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-abstract class WiredEffectPhase3Base extends InteractionWiredEffect {
+abstract class WiredEffectConfigBase extends InteractionWiredEffect {
     protected final List<HabboItem> items = new ArrayList<>();
     protected final List<HabboItem> items2 = new ArrayList<>();
     protected int[] intParams = new int[0];
@@ -29,17 +29,17 @@ abstract class WiredEffectPhase3Base extends InteractionWiredEffect {
     protected int[] userSourceTypes = new int[0];
     protected String[] variableIds = new String[0];
 
-    protected WiredEffectPhase3Base(ResultSet set, Item baseItem) throws SQLException {
+    protected WiredEffectConfigBase(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
     }
 
-    protected WiredEffectPhase3Base(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) {
+    protected WiredEffectConfigBase(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) {
         super(id, userId, item, extradata, limitedStack, limitedSells);
     }
 
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
-        this.serializeWiredDataNew(message, room);
+        this.serializeWiredDataV2(message, room);
     }
 
     @Override
@@ -60,13 +60,13 @@ abstract class WiredEffectPhase3Base extends InteractionWiredEffect {
         return true;
     }
 
-    private void loadItems(Room room, List<HabboItem> target, int[] visibleIds) {
+    private void loadItems(Room room, List<HabboItem> target, int[] databaseIds) {
         target.clear();
-        if (visibleIds == null) {
+        if (databaseIds == null) {
             return;
         }
-        for (int visibleId : visibleIds) {
-            HabboItem item = room.getHabboItem(visibleId);
+        for (int databaseId : databaseIds) {
+            HabboItem item = room.getHabboItemByDatabaseId(databaseId);
             if (item != null) {
                 target.add(item);
             }

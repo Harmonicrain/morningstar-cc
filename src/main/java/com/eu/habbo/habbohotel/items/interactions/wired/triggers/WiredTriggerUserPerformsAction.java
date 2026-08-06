@@ -97,7 +97,7 @@ public class WiredTriggerUserPerformsAction extends InteractionWiredTrigger {
 
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
-        this.serializeWiredDataNew(message, room);
+        this.serializeWiredDataV2(message, room);
     }
 
     static class JsonData {

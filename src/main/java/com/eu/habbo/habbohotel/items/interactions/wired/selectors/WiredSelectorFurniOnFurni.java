@@ -10,7 +10,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredTargets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredSelectorFurniOnFurni extends WiredSelectorPhase4Base {
+public class WiredSelectorFurniOnFurni extends WiredSelectorConfigBase {
     public WiredSelectorFurniOnFurni(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }
     public WiredSelectorFurniOnFurni(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) { super(id, userId, item, extradata, limitedStack, limitedSells); }
     @Override public WiredSelectorType getType() { return WiredSelectorType.FURNI_ON_FURNI; }

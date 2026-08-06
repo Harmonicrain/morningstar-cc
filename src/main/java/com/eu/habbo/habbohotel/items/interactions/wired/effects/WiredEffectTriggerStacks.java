@@ -13,6 +13,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
+import com.eu.habbo.habbohotel.wired.core.WiredSafetyBudget;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
 import gnu.trove.procedure.TObjectProcedure;
@@ -126,8 +127,6 @@ public class WiredEffectTriggerStacks extends InteractionWiredEffect {
     /**
      * Maximum recursion depth to prevent infinite loops when trigger stacks call each other.
      */
-    private static final int MAX_STACK_DEPTH = 10;
-    
     @Override
     public void execute(WiredContext ctx) {
         Room room = ctx.room();
@@ -136,11 +135,6 @@ public class WiredEffectTriggerStacks extends InteractionWiredEffect {
         // Get the current call stack depth from the event
         int currentDepth = ctx.event().getCallStackDepth();
         
-        // Prevent excessive recursion depth
-        if (currentDepth >= MAX_STACK_DEPTH) {
-            return;
-        }
-
         THashSet<RoomTile> usedTiles = new THashSet<>();
 
         for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
@@ -162,8 +156,13 @@ public class WiredEffectTriggerStacks extends InteractionWiredEffect {
             }
         }
         
-        // Execute effects at tiles with incremented call stack depth
-        WiredManager.executeEffectsAtTiles(usedTiles, roomUnit, room, currentDepth + 1);
+        // Execute effects at tiles with incremented call stack depth and the same root budget.
+        long pathKey = ((long) room.getId() << 32) ^ (this.getId() & 0xffffffffL);
+        try (WiredSafetyBudget.PathLease ignored = ctx.state().enter(
+                WiredSafetyBudget.PathKind.TRIGGER_STACK,
+                pathKey)) {
+            WiredManager.executeEffectsAtTiles(usedTiles, roomUnit, room, currentDepth + 1, ctx.state());
+        }
     }
 
     @Deprecated

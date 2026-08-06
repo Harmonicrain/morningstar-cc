@@ -12,6 +12,7 @@ import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
+import com.eu.habbo.habbohotel.wired.core.WiredTextTransform;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
 
@@ -113,6 +114,7 @@ public class WiredEffectBotTalk extends InteractionWiredEffect {
                     .replace(Emulator.getTexts().getValue("wired.variable.roomname", "%roomname%"), room.getName())
                     .replace(Emulator.getTexts().getValue("wired.variable.user_count", "%user_count%"), room.getUserCount() + "");
         }
+        message = WiredTextTransform.apply(ctx, message);
 
         List<Bot> bots = room.getBots(this.botName);
 

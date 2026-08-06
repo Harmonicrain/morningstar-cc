@@ -8,7 +8,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredConditionFurniHasAltitude extends WiredConditionPhase3Base {
+public class WiredConditionFurniHasAltitude extends WiredConditionConfigBase {
     public static final WiredConditionType type = WiredConditionType.FURNI_HAS_ALTITUDE;
 
     public WiredConditionFurniHasAltitude(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }

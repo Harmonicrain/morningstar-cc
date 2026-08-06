@@ -9,7 +9,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredEffectControlClock extends WiredEffectPhase3Base {
+public class WiredEffectControlClock extends WiredEffectConfigBase {
     public static final WiredEffectType type = WiredEffectType.CONTROL_CLOCK;
 
     public WiredEffectControlClock(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }

@@ -14,7 +14,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredTargets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredSelectorUsersInTeam extends WiredSelectorPhase4Base {
+public class WiredSelectorUsersInTeam extends WiredSelectorConfigBase {
     public WiredSelectorUsersInTeam(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }
     public WiredSelectorUsersInTeam(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) { super(id, userId, item, extradata, limitedStack, limitedSells); }
     @Override public WiredSelectorType getType() { return WiredSelectorType.USERS_IN_TEAM; }

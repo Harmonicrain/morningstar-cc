@@ -2,14 +2,14 @@ package com.eu.habbo.habbohotel.items.interactions.wired;
 
 /**
  * Wired 2.0 settings DTO — the expanded save payload read from the new client
- * composers (see wired-port-plan.md "New Server Read Order").
+ * composers using the July field order.
  *
- * Superset of the legacy {@link WiredSettings}. New fields default to empty/zero
+ * Superset of the legacy {@link WiredSettings}. Optional fields default to empty/zero
  * so existing wired types that only read intParams/stringParam/furniIds keep
  * working unchanged. The legacy {@code stuffTypeSelectionCode} is intentionally
  * absent — it was removed from the Wired 2.0 wire format.
  */
-public class WiredSettingsNew {
+public class WiredSettingsV2 {
     private static final int[] EMPTY_INT = new int[0];
     private static final String[] EMPTY_STR = new String[0];
 
@@ -25,7 +25,7 @@ public class WiredSettingsNew {
     private boolean isFilter;         // selectors only
     private boolean isInvert;         // selectors only
 
-    public WiredSettingsNew(int[] intParams, String stringParam, int[] furniIds, int[] furniIds2,
+    public WiredSettingsV2(int[] intParams, String stringParam, int[] furniIds, int[] furniIds2,
                             String[] variableIds, int[] furniSourceTypes, int[] userSourceTypes,
                             int delay, int quantifierCode, boolean isFilter, boolean isInvert) {
         this.intParams = intParams != null ? intParams : EMPTY_INT;
@@ -46,8 +46,10 @@ public class WiredSettingsNew {
      * to the new DTO keep working. stuffTypeSelectionCode is gone in 2.0 -> 0.
      */
     public WiredSettings toLegacy() {
-        return new WiredSettings(this.intParams, this.stringParam, this.furniIds, this.furniIds2, this.variableIds,
+        WiredSettings settings = new WiredSettings(this.intParams, this.stringParam, this.furniIds, this.furniIds2, this.variableIds,
                 this.furniSourceTypes, this.userSourceTypes, 0, this.delay);
+        settings.setQuantifierCode(this.quantifierCode);
+        return settings;
     }
 
     public int[] getIntParams() { return intParams; }

@@ -5,10 +5,12 @@ import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredEffect;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
+import com.eu.habbo.habbohotel.items.interactions.wired.addons.WiredAddonMovementPhysics;
 import com.eu.habbo.habbohotel.rooms.*;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
+import com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredSimulation;
 import com.eu.habbo.messages.ServerMessage;
@@ -44,6 +46,7 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
     private static final long BOT_COLLISION_MIN_INTERVAL_MS = 500L;
 
     private THashSet<HabboItem> items;
+    private int[] furniSourceTypes = new int[0];
 
     private THashMap<Integer, RoomUserRotation> lastDirections;
 
@@ -79,20 +82,19 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
         for (RoomUserRotation rot : rotations) {
             RoomTile tile = layout.getTileInFront(currentTile, rot.getValue());
 
-            if (tile == null || tile.state == RoomTileState.BLOCKED || tile.state == RoomTileState.INVALID)
+            if (tile == null || tile.state == RoomTileState.INVALID)
                 continue;
 
             if (!layout.tileExists(tile.x, tile.y))
                 continue;
 
-            if (room.furnitureFitsAt(tile, item, item.getRotation()) == FurnitureMovementError.INVALID_MOVE)
+            WiredAddonMovementPhysics movementPhysics = WiredMovementAddonRuntime.activePhysics();
+            boolean ignoreFurniStacking = WiredMovementAddonRuntime.bypassFurniCollision(movementPhysics);
+            if (room.furnitureFitsAt(tile, item, item.getRotation(), false,
+                    ignoreFurniStacking) != FurnitureMovementError.NONE)
                 continue;
 
-            HabboItem topItem = room.getTopItemAt(tile.x, tile.y);
-            if (topItem != null && !topItem.getBaseItem().allowStack())
-                continue;
-
-            if (tile.getAllowStack()) {
+            if (tile.getAllowStack() || ignoreFurniStacking) {
                 availableDirections.add(rot);
             }
         }
@@ -115,7 +117,8 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
             this.items.remove(item);
         }
 
-        for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
+        for (HabboItem item : WiredMovementAddonRuntime.furniTargets(ctx,
+                resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null))) {
 
             if (item == null)
                 continue;
@@ -249,11 +252,14 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
 
             if(newTile != null) {
                 lastDirections.put(item.getId(), moveDirection);
-                if(newTile.state != RoomTileState.INVALID && newTile != oldLocation && room.furnitureFitsAt(newTile, item, item.getRotation(), true) == FurnitureMovementError.NONE) {
-                    if (room.moveFurniTo(item, newTile, item.getRotation(), null, false) == FurnitureMovementError.NONE) {
+                WiredAddonMovementPhysics movementPhysics = WiredMovementAddonRuntime.activePhysics();
+                boolean ignoreFurniStacking = WiredMovementAddonRuntime.bypassFurniCollision(movementPhysics);
+                if(newTile.state != RoomTileState.INVALID && newTile != oldLocation
+                        && room.furnitureFitsAt(newTile, item, item.getRotation(), true,
+                                ignoreFurniStacking) == FurnitureMovementError.NONE) {
+                    if (WiredMovementAddonRuntime.move(ctx, room, item, newTile, item.getRotation(), false) == FurnitureMovementError.NONE) {
                         // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
-                        room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
-                                item, oldLocation, oldZ, newTile, item.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
+                        WiredMovementAddonRuntime.moved(ctx, room, item, oldLocation, oldZ, newTile);
                     }
                 }
             }
@@ -336,7 +342,8 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
     public String getWiredData() {
         return WiredManager.getGson().toJson(new JsonData(
                 this.getDelay(),
-                this.items.stream().map(HabboItem::getId).collect(Collectors.toList())
+                this.items.stream().map(HabboItem::getId).collect(Collectors.toList()),
+                this.furniSourceTypes
         ));
     }
 
@@ -348,6 +355,9 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
         if (wiredData.startsWith("{")) {
             JsonData data = WiredManager.getGson().fromJson(wiredData, JsonData.class);
             this.setDelay(data.delay);
+            this.furniSourceTypes = new int[] { normalizeFurniSource(
+                    data.furniSourceTypes != null && data.furniSourceTypes.length > 0
+                            ? data.furniSourceTypes[0] : FURNI_SOURCE_PICKED_1) };
 
             for (Integer id: data.itemIds) {
                 HabboItem item = room.getHabboItemByDatabaseId(id);
@@ -377,6 +387,7 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
     @Override
     public void onPickUp() {
         this.items.clear();
+        this.furniSourceTypes = new int[0];
         this.setDelay(0);
     }
 
@@ -389,34 +400,19 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
     @Override
     protected java.util.Collection<HabboItem> getSelectedItems() { return this.items; }
     @Override
+    protected int[] getWiredFurniSourceTypes() { return this.furniSourceTypes; }
+    @Override
+    protected boolean isWiredAdvancedMode() { return true; }
+    @Override
     protected boolean supportsFurniPicking() { return true; }
+    @Override
+    protected int[] getAllowedFurniSourcesForSlot(int slot) {
+        return new int[] { FURNI_SOURCE_PICKED_1, FURNI_SOURCE_SELECTOR, FURNI_SOURCE_SIGNAL };
+    }
 
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
-        THashSet<HabboItem> items = new THashSet<>();
-
-        for (HabboItem item : this.items) {
-            if (item.getRoomId() != this.getRoomId() || Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId()).getHabboItemByDatabaseId(item.getId()) == null)
-                items.add(item);
-        }
-
-        for (HabboItem item : items) {
-            this.items.remove(item);
-        }
-        message.appendBoolean(false);
-        message.appendInt(WiredManager.MAXIMUM_FURNI_SELECTION);
-        message.appendInt(this.items.size());
-        for (HabboItem item : this.items)
-            message.appendInt(item.getRoomVisibleId());
-
-        message.appendInt(this.getBaseItem().getSpriteId());
-        message.appendInt(this.getRoomVisibleId());
-        message.appendString("");
-        message.appendInt(0);
-        message.appendInt(0);
-        message.appendInt(this.getType().code);
-        message.appendInt(this.getDelay());
-        message.appendInt(0);
+        this.serializeWiredDataV2(message, room);
     }
 
     @Override
@@ -446,9 +442,17 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
 
         this.items.clear();
         this.items.addAll(newItems);
+        this.furniSourceTypes = new int[] { normalizeFurniSource(
+                settings.getFurniSourceTypes() != null && settings.getFurniSourceTypes().length > 0
+                        ? settings.getFurniSourceTypes()[0] : FURNI_SOURCE_PICKED_1) };
         this.setDelay(delay);
 
         return true;
+    }
+
+    private static int normalizeFurniSource(int source) {
+        return source == FURNI_SOURCE_SELECTOR || source == FURNI_SOURCE_SIGNAL
+                ? source : FURNI_SOURCE_PICKED_1;
     }
 
     @Override
@@ -464,10 +468,12 @@ public class WiredEffectMoveFurniTowards extends InteractionWiredEffect {
     static class JsonData {
         int delay;
         List<Integer> itemIds;
+        int[] furniSourceTypes;
 
-        public JsonData(int delay, List<Integer> itemIds) {
+        public JsonData(int delay, List<Integer> itemIds, int[] furniSourceTypes) {
             this.delay = delay;
             this.itemIds = itemIds;
+            this.furniSourceTypes = furniSourceTypes;
         }
     }
 }

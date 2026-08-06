@@ -11,6 +11,7 @@ import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredSimulation;
+import com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
 import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
@@ -50,7 +51,8 @@ public class WiredEffectMoveFurniAway extends InteractionWiredEffect {
 
         this.items.removeAll(items);
 
-        for (HabboItem item : resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)) {
+        for (HabboItem item : WiredMovementAddonRuntime.furniTargets(ctx,
+                resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null))) {
             if (item == null) continue;
 
             RoomTile t = room.getLayout().getTile(item.getX(), item.getY());
@@ -96,10 +98,9 @@ public class WiredEffectMoveFurniAway extends InteractionWiredEffect {
                 double oldZ = item.getZ();
 
                 if(newLocation != null && newLocation.state != RoomTileState.INVALID && newLocation != oldLocation && room.furnitureFitsAt(newLocation, item, item.getRotation(), true) == FurnitureMovementError.NONE) {
-                    if(room.moveFurniTo(item, newLocation, item.getRotation(), null, false) == FurnitureMovementError.NONE) {
+                    if(WiredMovementAddonRuntime.move(ctx, room, item, newLocation, item.getRotation(), false) == FurnitureMovementError.NONE) {
                         // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
-                        room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
-                                item, oldLocation, oldZ, newLocation, item.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
+                        WiredMovementAddonRuntime.moved(ctx, room, item, oldLocation, oldZ, newLocation);
                     }
                 }
             }

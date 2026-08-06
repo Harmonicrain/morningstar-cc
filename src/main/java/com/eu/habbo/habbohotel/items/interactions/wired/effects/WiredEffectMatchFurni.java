@@ -11,6 +11,7 @@ import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
+import com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime;
 import com.eu.habbo.habbohotel.wired.WiredMatchFurniSetting;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
@@ -23,7 +24,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 public class WiredEffectMatchFurni extends InteractionWiredEffect implements InteractionWiredMatchFurniSettings {
@@ -57,9 +60,18 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
         if (room.getLayout() == null)
             return;
 
-        for (WiredMatchFurniSetting setting : this.orderedSettings(room)) {
+        List<WiredMatchFurniSetting> ordered = this.orderedSettings(room);
+        List<HabboItem> configuredItems = new ArrayList<>();
+        for (WiredMatchFurniSetting setting : ordered) {
+            HabboItem configured = room.getHabboItemByDatabaseId(setting.item_id);
+            if (configured != null) configuredItems.add(configured);
+        }
+        Set<HabboItem> movementTargets = new HashSet<>(
+                WiredMovementAddonRuntime.furniTargets(ctx, configuredItems));
+
+        for (WiredMatchFurniSetting setting : ordered) {
             HabboItem item = room.getHabboItemByDatabaseId(setting.item_id);
-            if (item != null) {
+            if (item != null && movementTargets.contains(item)) {
                 if (this.state && (this.checkForWiredResetPermission && item.allowWiredResetState())) {
                     if (!setting.state.equals(" ") && !item.getExtradata().equals(setting.state)) {
                         item.setExtradata(setting.state);
@@ -78,7 +90,7 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
                 if (this.direction && !this.position) {
                     if (item.getRotation() != setting.rotation && room.furnitureFitsAt(oldLocation, item,
                             setting.rotation, false) == FurnitureMovementError.NONE) {
-                        room.moveFurniTo(item, oldLocation, setting.rotation, null, true);
+                        WiredMovementAddonRuntime.move(ctx, room, item, oldLocation, setting.rotation, true);
                         forceUpdate = this.altitude;
                     }
                 } else if (this.position) {
@@ -92,7 +104,7 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
                             && shouldMove
                             && room.furnitureFitsAt(newLocation, item, newRotation,
                                     !this.altitude) == FurnitureMovementError.NONE) {
-                        if (room.moveFurniTo(item, newLocation, newRotation, null,
+                        if (WiredMovementAddonRuntime.move(ctx, room, item, newLocation, newRotation,
                                 !this.altitude && !slideAnimation, !this.altitude) == FurnitureMovementError.NONE) {
                             forceUpdate = this.altitude;
                             if (this.altitude) {
@@ -102,13 +114,11 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
                                 room.updateTiles(room.getLayout().getTilesAt(newLocation, item.getBaseItem().getWidth(),
                                         item.getBaseItem().getLength(), item.getRotation()));
                                 // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
-                                room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
-                                        item, oldLocation, oldZ, newLocation, setting.z, WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
+                                WiredMovementAddonRuntime.moved(ctx, room, item, oldLocation, oldZ, newLocation);
                                 animatedAltitudeMove = true;
                             } else if (slideAnimation) {
                                 // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
-                                room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
-                                        item, oldLocation, oldZ, newLocation, item.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
+                                WiredMovementAddonRuntime.moved(ctx, room, item, oldLocation, oldZ, newLocation);
                             }
                         }
                     }
@@ -202,6 +212,19 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
     }
 
     // Wired 2.0 getters (settings-backed items; resolve via room, fall back to raw item_id)
+    @Override
+    protected java.util.Collection<HabboItem> getSelectedItems() {
+        Room room = Emulator.getGameEnvironment().getRoomManager()
+                .getRoom(this.getRoomId());
+        if (room == null) {
+            return List.of();
+        }
+        return this.settings.stream()
+                .map(setting -> room.getHabboItemByDatabaseId(setting.item_id))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
     @Override
     protected int[] getSelectedItemVisibleIds() {
         Room room = Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId());

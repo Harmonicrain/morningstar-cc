@@ -9,7 +9,7 @@ import com.eu.habbo.messages.outgoing.rooms.users.AvatarEffectMessageComposer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredEffectUnfreezeUser extends WiredEffectPhase3Base {
+public class WiredEffectUnfreezeUser extends WiredEffectConfigBase {
     public static final WiredEffectType type = WiredEffectType.UNFREEZE_USER;
 
     public WiredEffectUnfreezeUser(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }

@@ -42,10 +42,7 @@ public class WiredTriggerHabboSaysKeyword extends InteractionWiredTrigger {
             return false;
         }
 
-        RoomUnit roomUnit = event.getActor().orElse(null);
-        Room room = event.getRoom();
-        Habbo habbo = room.getHabbo(roomUnit);
-        return !this.ownerOnly || (habbo != null && room.getOwnerId() == habbo.getHabboInfo().getId());
+        return matchesActorGate(event);
     }
 
     private boolean matchesText(String text) {
@@ -62,6 +59,17 @@ public class WiredTriggerHabboSaysKeyword extends InteractionWiredTrigger {
         }
 
         return text.toLowerCase().contains(this.key.toLowerCase());
+    }
+
+    public String getKey() { return this.key; }
+    public int getMatchType() { return this.matchType; }
+
+    public boolean matchesActorGate(WiredEvent event) {
+        if (event == null) return false;
+        RoomUnit roomUnit = event.getActor().orElse(null);
+        Room room = event.getRoom();
+        Habbo habbo = roomUnit == null ? null : room.getHabbo(roomUnit);
+        return !this.ownerOnly || (habbo != null && room.getOwnerId() == habbo.getHabboInfo().getId());
     }
 
     @Deprecated

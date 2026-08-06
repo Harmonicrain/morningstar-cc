@@ -3,14 +3,16 @@ package com.eu.habbo.habbohotel.items.interactions.wired.effects;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomTile;
+import com.eu.habbo.habbohotel.rooms.FurnitureMovementError;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
+import com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredEffectMoveFurniToFurni extends WiredEffectPhase3Base {
+public class WiredEffectMoveFurniToFurni extends WiredEffectConfigBase {
     public static final WiredEffectType type = WiredEffectType.MOVE_FURNI_TO_FURNI;
 
     public WiredEffectMoveFurniToFurni(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }
@@ -29,9 +31,15 @@ public class WiredEffectMoveFurniToFurni extends WiredEffectPhase3Base {
         if (target == null) return;
         RoomTile tile = room.getLayout().getTile(target.getX(), target.getY());
         if (tile == null) return;
-        for (HabboItem item : sourceItems(ctx, 0)) {
+        for (HabboItem item : WiredMovementAddonRuntime.furniTargets(ctx, sourceItems(ctx, 0))) {
             if (item != target) {
-                room.moveFurniTo(item, tile, item.getRotation(), null, true, false);
+                RoomTile from = room.getLayout().getTile(item.getX(), item.getY());
+                double fromZ = item.getZ();
+                if (from != null && WiredMovementAddonRuntime.move(
+                        ctx, room, item, tile, item.getRotation(), false, false)
+                        == FurnitureMovementError.NONE) {
+                    WiredMovementAddonRuntime.moved(ctx, room, item, from, fromZ, tile);
+                }
             }
         }
     }

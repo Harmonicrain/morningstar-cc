@@ -10,17 +10,19 @@ import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.*;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
+import com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
-import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
 import gnu.trove.map.hash.THashMap;
 import gnu.trove.set.hash.THashSet;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
     public static final int ACTION_WAIT = 0;
@@ -63,18 +65,27 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
         }
 
         if (this.items.isEmpty()) return;
+        Set<HabboItem> movementTargets = new HashSet<>(
+                WiredMovementAddonRuntime.furniTargets(ctx, this.items.keySet()));
 
         for (Map.Entry<HabboItem, WiredChangeDirectionSetting> entry : this.items.entrySet()) {
             HabboItem item = entry.getKey();
-            if (item == null || entry.getValue() == null) continue;
+            if (item == null || entry.getValue() == null || !movementTargets.contains(item)) continue;
             
             RoomTile itemTile = room.getLayout().getTile(item.getX(), item.getY());
             if (itemTile == null) continue;
             
             RoomTile targetTile = room.getLayout().getTileInFront(itemTile, entry.getValue().direction.getValue());
+            int targetRotation = item.getRotation() != entry.getValue().rotation
+                    ? entry.getValue().rotation
+                    : item.getRotation();
 
             int count = 1;
-            while ((targetTile == null || targetTile.state == RoomTileState.INVALID || room.furnitureFitsAt(targetTile, item, item.getRotation(), false) != FurnitureMovementError.NONE) && count < 8) {
+            while ((targetTile == null
+                    || targetTile.state == RoomTileState.INVALID
+                    || room.furnitureFitsAt(targetTile, item, targetRotation, false)
+                            != FurnitureMovementError.NONE)
+                    && count < 8) {
                 entry.getValue().direction = this.nextRotation(entry.getValue().direction);
 
                 RoomTile tile = room.getLayout().getTileInFront(itemTile, entry.getValue().direction.getValue());
@@ -88,7 +99,7 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
 
         for (Map.Entry<HabboItem, WiredChangeDirectionSetting> entry : this.items.entrySet()) {
             HabboItem item = entry.getKey();
-            if (item == null || entry.getValue() == null) continue;
+            if (item == null || entry.getValue() == null || !movementTargets.contains(item)) continue;
             
             int newDirection = entry.getValue().direction.getValue();
 
@@ -96,40 +107,62 @@ public class WiredEffectChangeFurniDirection extends InteractionWiredEffect {
             if (itemTile == null) continue;
             
             RoomTile targetTile = room.getLayout().getTileInFront(itemTile, newDirection);
+            if (targetTile == null || targetTile.state == RoomTileState.INVALID) continue;
 
-            if(item.getRotation() != entry.getValue().rotation) {
-                if(targetTile == null || room.furnitureFitsAt(targetTile, item, entry.getValue().rotation, false) != FurnitureMovementError.NONE)
-                    continue;
-
-                room.moveFurniTo(entry.getKey(), targetTile, entry.getValue().rotation, null, true);
-            }
-
-            if (targetTile == null) continue;
-
-            boolean hasRoomUnits = false;
-            THashSet<RoomTile> newOccupiedTiles = room.getLayout().getTilesAt(targetTile, item.getBaseItem().getWidth(), item.getBaseItem().getLength(), item.getRotation());
-            for(RoomTile tile : newOccupiedTiles) {
-                for (RoomUnit _roomUnit : room.getRoomUnits(tile)) {
-                    hasRoomUnits = true;
-                    if(_roomUnit.getCurrentLocation() == targetTile) {
-                        Emulator.getThreading().run(() -> {
-                            WiredManager.triggerBotCollision(room, _roomUnit);
-                        });
+            int targetRotation = item.getRotation() != entry.getValue().rotation
+                    ? entry.getValue().rotation
+                    : item.getRotation();
+            RoomUnit collisionTarget = null;
+            if (this.blockOnCollision != 0) {
+                Set<RoomUnit> carryTargets = WiredMovementAddonRuntime.carryTargets(
+                        ctx, room, item, itemTile);
+                THashSet<RoomTile> newOccupiedTiles = room.getLayout().getTilesAt(
+                        targetTile,
+                        item.getBaseItem().getWidth(),
+                        item.getBaseItem().getLength(),
+                        targetRotation);
+                for (RoomTile tile : newOccupiedTiles) {
+                    for (RoomUnit roomUnit : room.getRoomUnits(tile)) {
+                        if (!carryTargets.contains(roomUnit)
+                                && !WiredMovementAddonRuntime.bypassUnitCollision(
+                                        WiredMovementAddonRuntime.activePhysics(), roomUnit)) {
+                            collisionTarget = roomUnit;
+                            break;
+                        }
+                    }
+                    if (collisionTarget != null) {
                         break;
                     }
                 }
             }
 
-            if (targetTile.state != RoomTileState.INVALID && room.furnitureFitsAt(targetTile, item, item.getRotation(), false) == FurnitureMovementError.NONE) {
-                if (!hasRoomUnits) {
-                    RoomTile oldLocation = room.getLayout().getTile(entry.getKey().getX(), entry.getKey().getY());
-                    double oldZ = entry.getKey().getZ();
-                    if(oldLocation != null && room.moveFurniTo(entry.getKey(), targetTile, item.getRotation(), null, false) == FurnitureMovementError.NONE) {
-                        // Wired 2.0: stream a smooth WiredMovements slide instead of the legacy roller hop.
-                        room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
-                                entry.getKey(), oldLocation, oldZ, targetTile, entry.getKey().getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
-                    }
-                }
+            if (collisionTarget != null) {
+                RoomUnit blockedUnit = collisionTarget;
+                Emulator.getThreading().run(
+                        () -> WiredManager.triggerBotCollision(room, blockedUnit));
+                continue;
+            }
+
+            if (room.furnitureFitsAt(targetTile, item, targetRotation, false)
+                    != FurnitureMovementError.NONE) {
+                continue;
+            }
+
+            RoomTile oldLocation = room.getLayout().getTile(item.getX(), item.getY());
+            double oldZ = item.getZ();
+            if (oldLocation != null
+                    && WiredMovementAddonRuntime.move(
+                            ctx,
+                            room,
+                            item,
+                            targetTile,
+                            targetRotation,
+                            false,
+                            this.blockOnCollision != 0) == FurnitureMovementError.NONE) {
+                // One authoritative move produces one July 7115 record. The previous
+                // rotate-first path emitted a legacy update followed by a zero-distance slide.
+                WiredMovementAddonRuntime.moved(
+                        ctx, room, item, oldLocation, oldZ, targetTile);
             }
         }
     }

@@ -14,6 +14,7 @@ import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredSimulation;
+import com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
 import com.eu.habbo.messages.outgoing.rooms.items.WiredMovementsMessageComposer;
@@ -90,7 +91,8 @@ public class WiredEffectMoveFurniTo extends InteractionWiredEffect {
             this.items.remove(item);
         }
 
-        List<HabboItem> targets = new ArrayList<>(resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null));
+        List<HabboItem> targets = new ArrayList<>(WiredMovementAddonRuntime.furniTargets(ctx,
+                resolveFurniSource(ctx, this.getWiredFurniSourceTypes(), 0, this.items, null)));
         if (targets.isEmpty())
             return;
 
@@ -134,9 +136,8 @@ public class WiredEffectMoveFurniTo extends InteractionWiredEffect {
                             double oldZ = moved.getZ();
                             // Wired 2.0: move silently (sendUpdates=false emits no packet) then stream a smooth
                             // WiredMovements slide instead of the legacy side-effecting roller composer.
-                            if (room.moveFurniTo(moved, tile, moved.getRotation(), null, false) == FurnitureMovementError.NONE) {
-                                room.sendComposer(new WiredMovementsMessageComposer(new WiredMovementsMessageComposer.FurniMove(
-                                        moved, sourceTile, oldZ, tile, moved.getZ(), WiredMovementsMessageComposer.DEFAULT_ANIMATION_TIME)).compose());
+                            if (WiredMovementAddonRuntime.move(ctx, room, moved, tile, moved.getRotation(), false) == FurnitureMovementError.NONE) {
+                                WiredMovementAddonRuntime.moved(ctx, room, moved, sourceTile, oldZ, tile);
                             }
 
                             RoomTile newSourceTile = room.getLayout().getTile(((HabboItem) object).getX(),

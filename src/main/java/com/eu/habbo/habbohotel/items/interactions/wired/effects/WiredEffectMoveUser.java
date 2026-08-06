@@ -12,7 +12,7 @@ import com.eu.habbo.messages.outgoing.rooms.users.UserUpdateMessageComposer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredEffectMoveUser extends WiredEffectPhase3Base {
+public class WiredEffectMoveUser extends WiredEffectConfigBase {
     public static final WiredEffectType type = WiredEffectType.MOVE_USER;
 
     public WiredEffectMoveUser(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }

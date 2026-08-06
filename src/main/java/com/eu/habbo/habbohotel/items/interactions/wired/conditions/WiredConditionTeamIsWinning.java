@@ -10,7 +10,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredConditionTeamIsWinning extends WiredConditionPhase3Base {
+public class WiredConditionTeamIsWinning extends WiredConditionConfigBase {
     public static final WiredConditionType type = WiredConditionType.TEAM_IS_WINNING;
 
     public WiredConditionTeamIsWinning(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }

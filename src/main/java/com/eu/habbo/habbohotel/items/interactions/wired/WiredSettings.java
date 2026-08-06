@@ -10,6 +10,7 @@ public class WiredSettings {
     private int[] userSourceTypes;
     private int stuffTypeSelectionCode;
     private int delay;
+    private int quantifierCode;
 
     public WiredSettings(int[] intParams, String stringParam, int[] furniIds, int stuffTypeSelectionCode, int delay)
     {
@@ -89,6 +90,14 @@ public class WiredSettings {
 
     public int getDelay() {
         return delay;
+    }
+
+    public int getQuantifierCode() {
+        return quantifierCode;
+    }
+
+    public void setQuantifierCode(int quantifierCode) {
+        this.quantifierCode = quantifierCode;
     }
 
     public void setDelay(int delay) {

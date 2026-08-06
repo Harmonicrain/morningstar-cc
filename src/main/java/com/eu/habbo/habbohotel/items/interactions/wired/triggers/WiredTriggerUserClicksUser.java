@@ -87,6 +87,10 @@ public class WiredTriggerUserClicksUser extends InteractionWiredTrigger {
         return this.blockMenuOpen == 1;
     }
 
+    public boolean suppressesRotation() {
+        return this.doNotRotate == 1;
+    }
+
     @Override
     public boolean saveData(WiredSettings settings) {
         this.blockMenuOpen = settings.getIntParams().length > 0 ? settings.getIntParams()[0] : 0;

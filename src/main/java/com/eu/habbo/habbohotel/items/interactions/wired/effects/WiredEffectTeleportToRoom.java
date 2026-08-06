@@ -29,7 +29,7 @@ import java.util.List;
  * partner of the picked Wired Room Linker (wf_room_linker, paired like classic
  * teleports via items_teleports). Users arrive on the partner linker's tile.
  */
-public class WiredEffectTeleportToRoom extends WiredEffectPhase3Base {
+public class WiredEffectTeleportToRoom extends WiredEffectConfigBase {
     private static final Logger LOGGER = LoggerFactory.getLogger(WiredEffectTeleportToRoom.class);
 
     public static final WiredEffectType type = WiredEffectType.TELEPORT_TO_ROOM;

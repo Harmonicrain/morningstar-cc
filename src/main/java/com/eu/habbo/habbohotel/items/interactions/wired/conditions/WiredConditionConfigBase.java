@@ -18,25 +18,26 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
+abstract class WiredConditionConfigBase extends InteractionWiredCondition {
     protected final List<HabboItem> items = new ArrayList<>();
     protected int[] intParams = new int[0];
     protected String stringParam = "";
     protected int[] furniSourceTypes = new int[0];
     protected int[] userSourceTypes = new int[0];
     protected String[] variableIds = new String[0];
+    protected int quantifierCode;
 
-    protected WiredConditionPhase3Base(ResultSet set, Item baseItem) throws SQLException {
+    protected WiredConditionConfigBase(ResultSet set, Item baseItem) throws SQLException {
         super(set, baseItem);
     }
 
-    protected WiredConditionPhase3Base(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) {
+    protected WiredConditionConfigBase(int id, int userId, Item item, String extradata, int limitedStack, int limitedSells) {
         super(id, userId, item, extradata, limitedStack, limitedSells);
     }
 
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
-        this.serializeWiredDataNew(message, room);
+        this.serializeWiredDataV2(message, room);
     }
 
     @Override
@@ -51,6 +52,7 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         this.furniSourceTypes = settings.getFurniSourceTypes() != null ? settings.getFurniSourceTypes() : new int[0];
         this.userSourceTypes = settings.getUserSourceTypes() != null ? settings.getUserSourceTypes() : new int[0];
         this.variableIds = settings.getVariableIds() != null ? settings.getVariableIds() : new String[0];
+        this.quantifierCode = settings.getQuantifierCode() == 1 ? 1 : 0;
         this.items.clear();
         if (settings.getFurniIds() != null) {
             for (int visibleId : settings.getFurniIds()) {
@@ -72,7 +74,8 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
                 this.items.stream().map(HabboItem::getId).collect(Collectors.toList()),
                 this.furniSourceTypes,
                 this.userSourceTypes,
-                this.variableIds));
+                this.variableIds,
+                this.quantifierCode));
     }
 
     @Override
@@ -83,6 +86,7 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         this.furniSourceTypes = new int[0];
         this.userSourceTypes = new int[0];
         this.variableIds = new String[0];
+        this.quantifierCode = 0;
         String wiredData = set.getString("wired_data");
         if (wiredData == null || !wiredData.startsWith("{")) {
             return;
@@ -94,6 +98,7 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         this.furniSourceTypes = data.furniSourceTypes != null ? data.furniSourceTypes : new int[0];
         this.userSourceTypes = data.userSourceTypes != null ? data.userSourceTypes : new int[0];
         this.variableIds = data.variableIds != null ? data.variableIds : new String[0];
+        this.quantifierCode = data.quantifierCode == 1 ? 1 : 0;
         if (data.itemIds != null) {
             for (Integer id : data.itemIds) {
                 HabboItem item = room.getHabboItemByDatabaseId(id);
@@ -112,6 +117,7 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         this.furniSourceTypes = new int[0];
         this.userSourceTypes = new int[0];
         this.variableIds = new String[0];
+        this.quantifierCode = 0;
     }
 
     @Deprecated
@@ -148,6 +154,11 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
     @Override
     protected String[] getWiredVariableIds() {
         return this.variableIds;
+    }
+
+    @Override
+    protected int getWiredQuantifierCode() {
+        return this.quantifierCode;
     }
 
     @Override
@@ -191,15 +202,17 @@ abstract class WiredConditionPhase3Base extends InteractionWiredCondition {
         int[] furniSourceTypes;
         int[] userSourceTypes;
         String[] variableIds;
+        int quantifierCode;
 
         JsonData(int[] intParams, String stringParam, List<Integer> itemIds,
-                 int[] furniSourceTypes, int[] userSourceTypes, String[] variableIds) {
+                 int[] furniSourceTypes, int[] userSourceTypes, String[] variableIds, int quantifierCode) {
             this.intParams = intParams;
             this.stringParam = stringParam;
             this.itemIds = itemIds;
             this.furniSourceTypes = furniSourceTypes;
             this.userSourceTypes = userSourceTypes;
             this.variableIds = variableIds;
+            this.quantifierCode = quantifierCode;
         }
     }
 }

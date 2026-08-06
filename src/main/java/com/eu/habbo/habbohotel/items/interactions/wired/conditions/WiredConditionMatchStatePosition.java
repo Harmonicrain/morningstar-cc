@@ -49,6 +49,19 @@ public class WiredConditionMatchStatePosition extends InteractionWiredCondition
 
     // Wired 2.0 getters (settings-backed items; resolve via room, fall back to raw item_id)
     @Override
+    protected java.util.Collection<HabboItem> getSelectedItems() {
+        Room room = Emulator.getGameEnvironment().getRoomManager()
+                .getRoom(this.getRoomId());
+        if (room == null) {
+            return List.of();
+        }
+        return this.settings.stream()
+                .map(setting -> room.getHabboItemByDatabaseId(setting.item_id))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    @Override
     protected int[] getSelectedItemVisibleIds() {
         Room room = Emulator.getGameEnvironment().getRoomManager().getRoom(this.getRoomId());
         int[] ids = new int[this.settings.size()];

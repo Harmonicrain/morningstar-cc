@@ -53,7 +53,7 @@ public class WiredTriggerHabboWalkOnFurni extends InteractionWiredTrigger {
         return type;
     }
 
-    // Wired 2.0: data exposed to the new base serializer (serializeWiredDataNew).
+    // Wired 2.0: data exposed to the new base serializer (serializeWiredDataV2).
     @Override
     protected java.util.Collection<HabboItem> getSelectedItems() { return this.items; }
 

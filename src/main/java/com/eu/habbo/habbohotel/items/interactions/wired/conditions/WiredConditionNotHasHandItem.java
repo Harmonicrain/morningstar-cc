@@ -8,7 +8,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class WiredConditionNotHasHandItem extends WiredConditionPhase3Base {
+public class WiredConditionNotHasHandItem extends WiredConditionConfigBase {
     public static final WiredConditionType type = WiredConditionType.NOT_HAS_HANDITEM;
 
     public WiredConditionNotHasHandItem(ResultSet set, Item baseItem) throws SQLException { super(set, baseItem); }
