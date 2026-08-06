@@ -45,7 +45,7 @@ class SecurityBoundsTest {
         try {
             ClientMessage packet = new ClientMessage(0, buffer);
             assertThrows(MalformedPacketException.class,
-                    () -> InteractionWired.readSettingsNew(packet, WiredCategoryType.TRIGGER, null));
+                    () -> InteractionWired.readSettingsV2(packet, WiredCategoryType.TRIGGER, null));
         } finally {
             buffer.release();
         }

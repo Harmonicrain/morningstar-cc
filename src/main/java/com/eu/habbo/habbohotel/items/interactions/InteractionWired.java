@@ -4,7 +4,7 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
-import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsNew;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsV2;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
@@ -66,6 +66,10 @@ public abstract class InteractionWired extends InteractionDefault {
     protected static final int FURNI_SOURCE_DUAL_MODE = 110;
     protected static final int FURNI_SOURCE_SELECTOR = 200;
     protected static final int USER_SOURCE_SELECTOR = 200;
+    protected static final int FURNI_SOURCE_SIGNAL = 201;
+    protected static final int USER_SOURCE_SIGNAL = 201;
+    protected static final int FURNI_SOURCE_ROOM_FURNI = 900;
+    protected static final int USER_SOURCE_ROOM_USERS = 900;
     
     /**
      * Maximum number of entries in the user execution cache to prevent memory leaks.
@@ -97,8 +101,8 @@ public abstract class InteractionWired extends InteractionDefault {
 
     // Wired 2.0 advanced source settings. Generic storage so every wired type
     // round-trips furniSourceTypes/userSourceTypes; persisted in items.wired_sources.
-    // Subclasses with their own persistence (Phase3/Phase4 bases, Teleport) override
-    // the getWired*SourceTypes getters and keep their JSON as the authority.
+    // Subclasses with type-specific persistence override the getWired*SourceTypes
+    // getters and keep their JSON data as the authority.
     protected int[] wiredFurniSourceTypes = new int[0];
     protected int[] wiredUserSourceTypes = new int[0];
 
@@ -291,10 +295,9 @@ public abstract class InteractionWired extends InteractionDefault {
         return this.userExecutionCache.size();
     }
 
-    // ===== Wired 2.0 serialization (new packet format). ADDITIVE =====
-    // Not yet invoked by the data composers; the switch-over (compose via this
-    // method + drop the legacy serializeWiredData overrides) is a follow-up slice.
-    // Subclasses override only the getters for the data they carry.
+    // ===== July Wired 2.0 editor serialization =====
+    // Used by every trigger/effect/condition/selector/add-on/variable data
+    // composer. Subclasses override only the fields and context blocks they own.
 
     /** Category drives the type-specific blocks. Mid-level bases override. */
     protected WiredCategoryType getWiredCategory() { return WiredCategoryType.TRIGGER; }
@@ -305,6 +308,32 @@ public abstract class InteractionWired extends InteractionDefault {
     protected int getMaxFurniSelection() { return WiredManager.MAXIMUM_FURNI_SELECTION; }
     protected Collection<HabboItem> getSelectedItems() { return Collections.emptyList(); }
     protected Collection<HabboItem> getSelectedItems2() { return Collections.emptyList(); }
+
+    /**
+     * Read-only inspection hook used by July's Wired Menu reference panel.
+     * It intentionally consults the typed selections already exposed by each
+     * editor implementation and never attempts to parse heterogeneous JSON.
+     */
+    public final boolean referencesConfiguredFurni(int databaseItemId) {
+        if (databaseItemId == 0) {
+            return false;
+        }
+        return containsDatabaseItem(getSelectedItems(), databaseItemId)
+                || containsDatabaseItem(getSelectedItems2(), databaseItemId);
+    }
+
+    private static boolean containsDatabaseItem(
+            Collection<HabboItem> items, int databaseItemId) {
+        if (items == null) {
+            return false;
+        }
+        for (HabboItem item : items) {
+            if (item != null && item.getId() == databaseItemId) {
+                return true;
+            }
+        }
+        return false;
+    }
     protected String getWiredStringParam() { return ""; }
     protected int[] getWiredIntParams() { return new int[0]; }
     protected String[] getWiredVariableIds() { return new String[0]; }
@@ -425,10 +454,10 @@ public abstract class InteractionWired extends InteractionDefault {
 
     /**
      * Writes the Wired 2.0 data payload (see wired-port-plan.md "New Server
-     * Serialization Order"). WiredContext is always 0 blocks and defaultIntParams
-     * always empty until Phase 6.
+     * Serialization Order"). Subclasses may append the July context blocks they
+     * actually own; the safe default remains an empty context.
      */
-    public void serializeWiredDataNew(ServerMessage message, Room room) {
+    public void serializeWiredDataV2(ServerMessage message, Room room) {
         WiredCategoryType category = getWiredCategory();
 
         message.appendInt(getMaxFurniSelection());            // furniLimit
@@ -461,8 +490,13 @@ public abstract class InteractionWired extends InteractionDefault {
             message.appendBoolean(isWiredInvert());
         }
 
-        message.appendInt(0);                                 // WiredContext block count (0 until Phase 6)
+        serializeWiredContext(message, room);                 // WiredContext block count + blocks
         message.appendInt(0);                                 // defaultIntParams count
+    }
+
+    /** Writes the complete unframed July WiredContext section, including its block count. */
+    protected void serializeWiredContext(ServerMessage message, Room room) {
+        message.appendInt(0);
     }
 
     /** Room-visible ids of the primary furni selection. Custom classes (settings-
@@ -535,7 +569,17 @@ public abstract class InteractionWired extends InteractionDefault {
             case FURNI_SOURCE_TRIGGERING_ITEM:
                 return ctx.sourceItem().map(Collections::singletonList).orElse(Collections.emptyList());
             case FURNI_SOURCE_SELECTOR:
+                // Selector source is never the context's backwards-compatible
+                // trigger-item seed. With no selector on this stack the result is
+                // deliberately empty, so the effect activates but has no target.
+                if (ctx.stack() == null || !ctx.stack().hasSelectors()) {
+                    return Collections.emptyList();
+                }
                 return new ArrayList<>(ctx.targets().items());
+            case FURNI_SOURCE_SIGNAL:
+                return new ArrayList<>(ctx.event().getSignalPayload().items(ctx.room()));
+            case FURNI_SOURCE_ROOM_FURNI:
+                return new ArrayList<>(ctx.room().getFloorItems());
             case FURNI_SOURCE_PICKED_2:
                 return pickedItems2 != null ? pickedItems2 : Collections.emptyList();
             case FURNI_SOURCE_PICKED_1:
@@ -549,7 +593,14 @@ public abstract class InteractionWired extends InteractionDefault {
         int source = getSourceType(sourceTypes, slot, getDefaultUserSourceForSlot(slot));
         switch (source) {
             case USER_SOURCE_SELECTOR:
+                if (ctx.stack() == null || !ctx.stack().hasSelectors()) {
+                    return Collections.emptyList();
+                }
                 return new ArrayList<>(ctx.targets().users());
+            case USER_SOURCE_SIGNAL:
+                return new ArrayList<>(ctx.event().getSignalPayload().users(ctx.room()));
+            case USER_SOURCE_ROOM_USERS:
+                return new ArrayList<>(ctx.room().getRoomUnits());
             case USER_SOURCE_TRIGGERING_USER:
             default:
                 return ctx.actor().map(Collections::singletonList).orElse(Collections.emptyList());
@@ -587,7 +638,7 @@ public abstract class InteractionWired extends InteractionDefault {
      * {@code category}: EFFECT->delay, CONDITION->quantifierCode,
      * SELECTOR->isFilter+isInvert; others have no type-specific field.
      */
-    public static WiredSettingsNew readSettingsNew(ClientMessage packet, WiredCategoryType category, Room room)
+    public static WiredSettingsV2 readSettingsV2(ClientMessage packet, WiredCategoryType category, Room room)
     {
         // Common prefix
         int[] intParams = readCountedInts(packet, MAX_WIRED_INT_PARAMS, "int parameters");
@@ -624,7 +675,7 @@ public abstract class InteractionWired extends InteractionDefault {
         int[] furniIds2 = resolveVisibleIds(room,
                 readCountedInts(packet, getFurniSelectionLimit(), "second furni selections"));
 
-        return new WiredSettingsNew(intParams, stringParam, furniIds, furniIds2, variableIds,
+        return new WiredSettingsV2(intParams, stringParam, furniIds, furniIds2, variableIds,
                 furniSourceTypes, userSourceTypes, delay, quantifierCode, isFilter, isInvert);
     }
 

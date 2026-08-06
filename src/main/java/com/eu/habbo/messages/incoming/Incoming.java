@@ -95,6 +95,12 @@ public class Incoming {
     public static final int GetRoomChatlogMessageEvent = 2587;
     public static final int UpdateFigureDataMessageEvent = 2730;
     public static final int UseFurnitureMessageEvent = 99;
+    /** July 2026 ClickFurniMessageComposer; free in the local client/server maps. */
+    public static final int ClickFurniMessageEvent = 443;
+    /** July toggle header; free in the local map. */
+    public static final int ToggleAreaHideMessageEvent = 3353;
+    /** July save is 1954, occupied locally by NavigatorDeleteSavedSearch. */
+    public static final int SaveAreaHideMessageEvent = 7309;
     public static final int UnacceptTradingEvent = 1444;
     public static final int UpdateTriggerMessageEvent = 1520;
     public static final int RemoveAllRightsMessageEvent = 2683;
@@ -171,22 +177,46 @@ public class Incoming {
 
     // ===== Wired 2.0 — local collision-free incoming map (client->server). May refs in comments. =====
     public static final int OpenAckMessageEvent = 768;                  // 0x0300 — the clean client's existing wired-open ack composer
-    public static final int UpdateSelectorMessageEvent = 7000;          // May 1155
-    public static final int UpdateAddonMessageEvent = 7001;             // May 3709
-    public static final int UpdateVariableMessageEvent = 7002;          // May 1802
+    public static final int UpdateSelectorMessageEvent = 7000;          // July 510
+    public static final int UpdateAddonMessageEvent = 7001;             // July 1138
+    public static final int UpdateVariableMessageEvent = 7002;          // July 2475
     public static final int WiredClickUserMessageEvent = 7004;          // May 2769
-    public static final int RequestAllVariablesHashMessageEvent = 7005; // May 2908
-    public static final int RequestVariablesDiffMessageEvent = 7006;    // May 3130
-    public static final int OpenWiredMenuMessageEvent = 7007;           // May 515
-    public static final int WiredMenuInspectSearchMessageEvent = 7008;  // May 2343
-    public static final int ManageWiredVariableMessageEvent = 7009;     // May 249
-    public static final int WiredMenuRefreshMessageEvent = 7010;        // May 597
-    public static final int UpdateWiredPermissionsMessageEvent = 7011;  // May 2557
-    public static final int InspectWiredObjectMessageEvent = 7012;      // May 1216
-    public static final int WiredMenuMarker7013MessageEvent = 7013;     // May 2178
-    public static final int WiredRoomLoggingToggleMessageEvent = 7014;  // May 70
-    public static final int WiredMenuMarker7015MessageEvent = 7015;     // May 2246
-    public static final int WiredMenuComplexInspectMessageEvent = 7016; // May 2032
+    public static final int RequestAllVariablesHashMessageEvent = 7005; // July 984
+    public static final int RequestVariablesDiffMessageEvent = 7006;    // July 797
+    public static final int WiredMenuRequestVariableHoldersMessageEvent = 7007;
+    public static final int WiredMenuClearErrorsMessageEvent = 7008;
+    public static final int WiredMenuUpdatePreferencesMessageEvent = 7009;
+    public static final int WiredMenuRequestRoomStatsMessageEvent = 7010;
+    public static final int WiredMenuUpdateRoomSettingsMessageEvent = 7011;
+    public static final int WiredMenuInspectObjectMessageEvent = 7012;
+    public static final int WiredMenuRequestErrorsMessageEvent = 7013;
+    public static final int WiredMenuReloadOrRollbackMessageEvent = 7014;
+    public static final int WiredMenuRequestRoomSettingsMessageEvent = 7015;
+    public static final int WiredMenuModifyVariableMessageEvent = 7016;
+    public static final int WiredMenuRequestLogsMessageEvent = 7017;
+    public static final int WiredMenuRequestUserVariablesMessageEvent = 7018;
+    public static final int WiredMenuMutatePermanentVariableMessageEvent = 7019;
+    public static final int WiredMenuRequestPermanentVariablesMessageEvent = 7020;
+    public static final int ChestOpenMessageEvent = 7021;              // July 806
+    public static final int ChestSetRoomLocksMessageEvent = 7022;      // July 1630
+    public static final int ChestSaveSettingsMessageEvent = 7023;      // July 3830
+    public static final int ChestUpgradeMessageEvent = 7024;           // July 3407
+    public static final int ChestSaveNotificationsMessageEvent = 7025; // July 2905
+    public static final int ChestSaveSafetyMessageEvent = 7026;        // July 2907
+    public static final int ChestWithdrawFurniMessageEvent = 7027;     // July 873
+    public static final int ChestWithdrawAllMessageEvent = 7028;       // July 3611
+    public static final int ChestWithdrawCoinsMessageEvent = 7029;     // July 2843
+    public static final int ChestCloseMessageEvent = 7030;             // July 2935
+    public static final int ChestStartDepositMessageEvent = 7031;      // July 3514
+    public static final int WiredTradeCancelMessageEvent = 7032;       // July 2646
+    public static final int WiredTradeAcceptMessageEvent = 7033;       // July 2818
+    public static final int WiredTradeItemsMessageEvent = 7034;        // July 3111
+    public static final int ChestContractContentsMessageEvent = 7035;  // July contract contents request
+    public static final int ChestContractSaveMessageEvent = 7036;      // July contract save
+    public static final int ChestTransactionLogsMessageEvent = 7037;   // July 1999
+    public static final int ChestRoomTransactionLogsMessageEvent = 7038; // July 2016
+    public static final int ChestTransactionDetailsMessageEvent = 7039; // July 475
+    public static final int RequestWiredCapabilitiesMessageEvent = 7099;
     // ===== end Wired 2.0 incoming =====
 
     public static final int LookToMessageEvent = 3301;

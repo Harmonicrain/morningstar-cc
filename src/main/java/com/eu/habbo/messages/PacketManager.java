@@ -76,11 +76,19 @@ import com.eu.habbo.messages.incoming.unknown.GetBadgePointLimitsEvent;
 import com.eu.habbo.messages.incoming.users.*;
 import com.eu.habbo.messages.incoming.wired.ApplySnapshotMessageEvent;
 import com.eu.habbo.messages.incoming.wired.OpenAckMessageEvent;
+import com.eu.habbo.messages.incoming.wired.RequestAllVariablesHashMessageEvent;
+import com.eu.habbo.messages.incoming.wired.RequestVariablesDiffMessageEvent;
+import com.eu.habbo.messages.incoming.wired.RequestWiredCapabilitiesMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateConditionMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateActionMessageEvent;
+import com.eu.habbo.messages.incoming.wired.UpdateAddonMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateSelectorMessageEvent;
 import com.eu.habbo.messages.incoming.wired.UpdateTriggerMessageEvent;
+import com.eu.habbo.messages.incoming.wired.UpdateVariableMessageEvent;
 import com.eu.habbo.messages.incoming.wired.WiredClickUserMessageEvent;
+import com.eu.habbo.messages.incoming.wired.WiredMenuMessageEvent;
+import com.eu.habbo.messages.incoming.wired.chests.ChestTransactionLogMessageEvent;
+import com.eu.habbo.messages.incoming.wired.chests.*;
 import com.eu.habbo.plugin.EventHandler;
 import com.eu.habbo.plugin.events.emulator.EmulatorConfigUpdatedEvent;
 import gnu.trove.map.hash.THashMap;
@@ -430,6 +438,9 @@ public class PacketManager {
         this.registerHandler(Incoming.StartTypingMessageEvent, StartTypingMessageEvent.class);
         this.registerHandler(Incoming.CancelTypingMessageEvent, CancelTypingMessageEvent.class);
         this.registerHandler(Incoming.UseFurnitureMessageEvent, UseFurnitureMessageEvent.class);
+        this.registerHandler(Incoming.ClickFurniMessageEvent, ClickFurniMessageEvent.class);
+        this.registerHandler(Incoming.ToggleAreaHideMessageEvent, ToggleAreaHideMessageEvent.class);
+        this.registerHandler(Incoming.SaveAreaHideMessageEvent, SaveAreaHideMessageEvent.class);
         this.registerHandler(Incoming.UseWallItemMessageEvent, UseWallItemMessageEvent.class);
         this.registerHandler(Incoming.SetRoomBackgroundColorDataEvent, SetRoomBackgroundColorDataEvent.class);
         this.registerHandler(Incoming.SetMannequinNameEvent, SetMannequinNameEvent.class);
@@ -629,13 +640,51 @@ public class PacketManager {
     }
 
     void registerWired() throws Exception {
+        this.registerHandler(Incoming.RequestWiredCapabilitiesMessageEvent, RequestWiredCapabilitiesMessageEvent.class);
+        this.registerHandler(Incoming.RequestAllVariablesHashMessageEvent, RequestAllVariablesHashMessageEvent.class);
+        this.registerHandler(Incoming.RequestVariablesDiffMessageEvent, RequestVariablesDiffMessageEvent.class);
         this.registerHandler(Incoming.UpdateTriggerMessageEvent, UpdateTriggerMessageEvent.class);
         this.registerHandler(Incoming.UpdateActionMessageEvent, UpdateActionMessageEvent.class);
         this.registerHandler(Incoming.UpdateConditionMessageEvent, UpdateConditionMessageEvent.class);
         this.registerHandler(Incoming.UpdateSelectorMessageEvent, UpdateSelectorMessageEvent.class);
+        this.registerHandler(Incoming.UpdateAddonMessageEvent, UpdateAddonMessageEvent.class);
+        this.registerHandler(Incoming.UpdateVariableMessageEvent, UpdateVariableMessageEvent.class);
         this.registerHandler(Incoming.ApplySnapshotMessageEvent, ApplySnapshotMessageEvent.class);
         this.registerHandler(Incoming.OpenAckMessageEvent, OpenAckMessageEvent.class);
         this.registerHandler(Incoming.WiredClickUserMessageEvent, WiredClickUserMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuRequestVariableHoldersMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuClearErrorsMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuUpdatePreferencesMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuRequestRoomStatsMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuUpdateRoomSettingsMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuInspectObjectMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuRequestErrorsMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuReloadOrRollbackMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuRequestRoomSettingsMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuModifyVariableMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuRequestLogsMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuRequestUserVariablesMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuMutatePermanentVariableMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.WiredMenuRequestPermanentVariablesMessageEvent, WiredMenuMessageEvent.class);
+        this.registerHandler(Incoming.ChestOpenMessageEvent, ChestOpenMessageEvent.class);
+        this.registerHandler(Incoming.ChestSetRoomLocksMessageEvent, ChestSetRoomLocksMessageEvent.class);
+        this.registerHandler(Incoming.ChestSaveSettingsMessageEvent, ChestSaveSettingsMessageEvent.class);
+        this.registerHandler(Incoming.ChestUpgradeMessageEvent, ChestUpgradeMessageEvent.class);
+        this.registerHandler(Incoming.ChestSaveNotificationsMessageEvent, ChestSaveNotificationsMessageEvent.class);
+        this.registerHandler(Incoming.ChestSaveSafetyMessageEvent, ChestSaveSafetyMessageEvent.class);
+        this.registerHandler(Incoming.ChestWithdrawFurniMessageEvent, ChestWithdrawFurniMessageEvent.class);
+        this.registerHandler(Incoming.ChestWithdrawAllMessageEvent, ChestWithdrawAllMessageEvent.class);
+        this.registerHandler(Incoming.ChestWithdrawCoinsMessageEvent, ChestWithdrawCoinsMessageEvent.class);
+        this.registerHandler(Incoming.ChestCloseMessageEvent, ChestCloseMessageEvent.class);
+        this.registerHandler(Incoming.ChestStartDepositMessageEvent, ChestStartDepositMessageEvent.class);
+        this.registerHandler(Incoming.WiredTradeCancelMessageEvent, WiredTradeCancelMessageEvent.class);
+        this.registerHandler(Incoming.WiredTradeAcceptMessageEvent, WiredTradeAcceptMessageEvent.class);
+        this.registerHandler(Incoming.WiredTradeItemsMessageEvent, WiredTradeItemsMessageEvent.class);
+        this.registerHandler(Incoming.ChestContractContentsMessageEvent, ChestContractContentsMessageEvent.class);
+        this.registerHandler(Incoming.ChestContractSaveMessageEvent, ChestContractSaveMessageEvent.class);
+        this.registerHandler(Incoming.ChestTransactionLogsMessageEvent, ChestTransactionLogMessageEvent.class);
+        this.registerHandler(Incoming.ChestRoomTransactionLogsMessageEvent, ChestTransactionLogMessageEvent.class);
+        this.registerHandler(Incoming.ChestTransactionDetailsMessageEvent, ChestTransactionLogMessageEvent.class);
     }
 
     void registerUnknown() throws Exception {

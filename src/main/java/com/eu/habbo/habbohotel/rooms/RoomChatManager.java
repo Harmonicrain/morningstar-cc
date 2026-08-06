@@ -309,7 +309,10 @@ public class RoomChatManager {
         // Handle commands and decide whether the User Says chat should be hidden.
         if (chatType != RoomChatType.WHISPER) {
             if (CommandHandler.handleCommand(habbo.getClient(), roomChatMessage.getUnfilteredMessage())) {
-                WiredManager.triggerUserSays(habbo.getHabboInfo().getCurrentRoom(), habbo.getRoomUnit(), roomChatMessage.getMessage());
+                WiredManager.triggerUserSays(
+                    habbo.getHabboInfo().getCurrentRoom(), habbo.getRoomUnit(),
+                    roomChatMessage.getMessage(), chatType.ordinal(),
+                    roomChatMessage.getBubble().getType());
                 roomChatMessage.isCommand = true;
                 return;
             }
@@ -319,7 +322,8 @@ public class RoomChatManager {
                 hideUserSaysMessage = WiredManager.shouldHideUserSays(
                     habbo.getHabboInfo().getCurrentRoom(),
                     habbo.getRoomUnit(),
-                    roomChatMessage.getMessage());
+                    roomChatMessage.getMessage(), chatType.ordinal(),
+                    roomChatMessage.getBubble().getType());
             }
         }
 
@@ -391,7 +395,8 @@ public class RoomChatManager {
             WiredManager.triggerUserSays(
                 habbo.getHabboInfo().getCurrentRoom(),
                 habbo.getRoomUnit(),
-                roomChatMessage.getMessage());
+                roomChatMessage.getMessage(), chatType.ordinal(),
+                roomChatMessage.getBubble().getType());
         }
 
         // Notify bots and talking furniture

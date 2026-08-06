@@ -11,6 +11,8 @@ import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.api.IWiredEffect;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
+import com.eu.habbo.habbohotel.wired.core.WiredAuthorizationService;
+import com.eu.habbo.habbohotel.wired.core.WiredFeatureCapabilityGuard;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
 import com.eu.habbo.messages.outgoing.wired.WiredEffectDataMessageComposer;
 import com.eu.habbo.messages.outgoing.wired.OpenMessageComposer;
@@ -79,11 +81,15 @@ public abstract class InteractionWiredEffect extends InteractionWired implements
 
     @Override
     public void onClick(GameClient client, Room room, Object[] objects) throws Exception {
-        if (client != null) {
-            if (room.hasRights(client.getHabbo())) {
-                client.sendResponse(new OpenMessageComposer(this));
-                this.activateBox(room);
-            }
+        if (WiredFeatureCapabilityGuard.isEditorReady(client, room, this)
+                && WiredAuthorizationService.isAuthorized(
+                WiredAuthorizationService.Operation.VIEW_EDITOR,
+                client,
+                room,
+                this,
+                WiredCategoryType.EFFECT)) {
+            client.sendResponse(new OpenMessageComposer(this));
+            this.activateBox(room);
         }
     }
 

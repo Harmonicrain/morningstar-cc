@@ -622,6 +622,18 @@ public class RoomUnit {
     }
   }
 
+  /**
+   * Commits a forced runtime movement without changing a bot's configured
+   * spawn/home tile as the general-purpose spawn setter does.
+   */
+  public void setCurrentLocationAndGoal(RoomTile location) {
+    if (location != null) {
+      this.startLocation = location;
+      setCurrentLocation(location);
+      this.goalLocation = location;
+    }
+  }
+
   public RoomTile getBotStartLocation() {
     return this.botStartLocation;
   }

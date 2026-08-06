@@ -286,6 +286,11 @@ public abstract class HabboItem implements Runnable, IEventTriggers {
 
     @Override
     public void run() {
+        if (this.id < 0) {
+            this.needsUpdate = false;
+            this.needsDelete = false;
+            return;
+        }
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
             if (this.needsDelete) {
                 this.needsUpdate = false;
@@ -335,9 +340,6 @@ public abstract class HabboItem implements Runnable, IEventTriggers {
                     return;
                 }
             }
-
-            // Wired 2.0 trigger 18: avatar clicks furni.
-            WiredManager.triggerUserClicksFurni(room, client.getHabbo().getRoomUnit(), this);
 
             if ((this.getBaseItem().getStateCount() > 1 && !(this instanceof InteractionDice))
                     || Arrays.asList(HabboItem.TOGGLING_INTERACTIONS).contains(this.getClass())

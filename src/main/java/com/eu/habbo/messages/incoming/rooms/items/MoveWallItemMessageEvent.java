@@ -37,6 +37,7 @@ public class MoveWallItemMessageEvent extends MessageHandler {
         String oldWallPosition = item.getWallPosition();
         item.setWallPosition(wallPosition);
         item.needsUpdate(true);
+        room.refreshAreaHideVisibility();
         room.updateItem(item);
 
         if (!wallPosition.equals(oldWallPosition) && Emulator.getGameEnvironment().getRewardTrackManager() != null) {

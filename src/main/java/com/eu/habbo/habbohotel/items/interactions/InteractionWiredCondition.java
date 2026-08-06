@@ -10,6 +10,7 @@ import com.eu.habbo.habbohotel.wired.WiredConditionOperator;
 import com.eu.habbo.habbohotel.wired.WiredConditionType;
 import com.eu.habbo.habbohotel.wired.api.IWiredCondition;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
+import com.eu.habbo.habbohotel.wired.core.WiredAuthorizationService;
 import com.eu.habbo.messages.outgoing.wired.WiredConditionDataMessageComposer;
 import com.eu.habbo.messages.outgoing.wired.OpenMessageComposer;
 
@@ -44,11 +45,14 @@ public abstract class InteractionWiredCondition extends InteractionWired impleme
 
     @Override
     public void onClick(GameClient client, Room room, Object[] objects) throws Exception {
-        if (client != null) {
-            if (room.hasRights(client.getHabbo())) {
-                client.sendResponse(new OpenMessageComposer(this));
-                this.activateBox(room);
-            }
+        if (WiredAuthorizationService.isAuthorized(
+                WiredAuthorizationService.Operation.VIEW_EDITOR,
+                client,
+                room,
+                this,
+                WiredCategoryType.CONDITION)) {
+            client.sendResponse(new OpenMessageComposer(this));
+            this.activateBox(room);
         }
     }
 

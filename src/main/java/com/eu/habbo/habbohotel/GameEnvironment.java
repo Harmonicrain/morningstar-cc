@@ -14,6 +14,7 @@ import com.eu.habbo.habbohotel.guides.GuideManager;
 import com.eu.habbo.habbohotel.guilds.GuildManager;
 import com.eu.habbo.habbohotel.hotelview.HotelViewManager;
 import com.eu.habbo.habbohotel.items.ItemManager;
+import com.eu.habbo.habbohotel.items.chests.ChestManager;
 import com.eu.habbo.habbohotel.modtool.ModToolManager;
 import com.eu.habbo.habbohotel.modtool.ModToolSanctions;
 import com.eu.habbo.habbohotel.modtool.WordFilter;
@@ -46,6 +47,7 @@ public class GameEnvironment {
     private NavigatorManager navigatorManager;
     private GuildManager guildManager;
     private ItemManager itemManager;
+    private ChestManager chestManager;
     private CatalogManager catalogManager;
     private HotelViewManager hotelViewManager;
     private RoomManager roomManager;
@@ -77,6 +79,7 @@ public class GameEnvironment {
         this.hotelViewManager = new HotelViewManager();
         this.itemManager = new ItemManager();
         this.itemManager.load();
+        this.chestManager = new ChestManager();
         this.botManager = new BotManager();
         this.petManager = new PetManager();
         this.guildManager = new GuildManager();
@@ -134,6 +137,7 @@ public class GameEnvironment {
         this.catalogManager.dispose();
         this.roomManager.dispose();
         this.itemManager.dispose();
+        this.chestManager.clear();
         this.hotelViewManager.dispose();
         this.subscriptionManager.dispose();
         this.calendarManager.dispose();
@@ -157,6 +161,10 @@ public class GameEnvironment {
 
     public ItemManager getItemManager() {
         return this.itemManager;
+    }
+
+    public ChestManager getChestManager() {
+        return this.chestManager;
     }
 
     public CatalogManager getCatalogManager() {

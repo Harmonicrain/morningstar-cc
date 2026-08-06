@@ -1,6 +1,8 @@
 package com.eu.habbo.messages.outgoing;
 
 public class Outgoing {
+    public final static int ConfigurationItemStatesMessageComposer = 2942; // July 2026 AIR
+    public final static int AreaHideMessageComposer = 1131; // July 2026 AIR
     public static final int PetStatusUpdateMessageComposer = 1907;//error 404
 
     public final static int CfhTopicsInitMessageComposer = 325;
@@ -164,22 +166,44 @@ public class Outgoing {
     public final static int WiredConditionDataMessageComposer = 1108; // PRODUCTION-201611291003-338511768
 
     // ===== Wired 2.0 — local collision-free outgoing map (server->client). May refs in comments. =====
-    public final static int WiredSelectorDataMessageComposer = 7100;   // May 3735
-    public final static int WiredAddonDataMessageComposer = 7101;      // May 2431
-    public final static int WiredVariableDataMessageComposer = 7102;   // May 3573
-    public final static int WiredEnvironmentMessageComposer = 7103;    // May 36
-    public final static int WiredClickUserResponseMessageComposer = 7104; // May 1215
-    public final static int WiredClickSettingsMessageComposer = 7105;  // May 1322
-    public final static int WiredAllVariablesHashMessageComposer = 7106; // May 3007
-    public final static int WiredAllVariablesDiffMessageComposer = 7107; // May 3348
-    public final static int WiredMenuInitMessageComposer = 7108;       // May parser §_-c1q§
-    public final static int WiredMenuListMessageComposer = 7109;       // May parser §_-71n§
-    public final static int WiredMenuSingleValueMessageComposer = 7110;// May parser §_-71V§
-    public final static int WiredMenuMarker7111MessageComposer = 7111; // May parser §_-5c§
-    public final static int WiredMenuMarker7112MessageComposer = 7112; // May parser §_-G3§
-    public final static int WiredMenuMarker7113MessageComposer = 7113; // May parser §_-nT§
-    public final static int WiredMenuHashCountMessageComposer = 7114;  // May parser §_-jM§
+    public final static int WiredSelectorDataMessageComposer = 7100;   // July 722
+    public final static int WiredAddonDataMessageComposer = 7101;      // July 2574
+    public final static int WiredVariableDataMessageComposer = 7102;   // July 1501
+    public final static int WiredEnvironmentMessageComposer = 7103;    // July 2827
+    public final static int WiredClickUserResponseMessageComposer = 7104; // July 309
+    public final static int WiredClickSettingsMessageComposer = 7105;  // July 3931
+    public final static int WiredAllVariablesHashMessageComposer = 7106; // July 3287
+    public final static int WiredAllVariablesDiffMessageComposer = 7107; // July 2733
     public final static int WiredMovementsMessageComposer = 7115;      // May 641/723 runtime room-engine movement
+    public final static int WiredCapabilitiesMessageComposer = 7199;
+    // July Wired Menu semantics on NGH's preserved local IDs.
+    public final static int WiredMenuPermissionsMessageComposer = 7108;
+    public final static int WiredMenuRoomSettingsMessageComposer = 7109;
+    public final static int WiredMenuVariableHoldersMessageComposer = 7110;
+    public final static int WiredMenuObjectInspectionMessageComposer = 7111;
+    public final static int WiredMenuErrorMessageComposer = 7112;
+    public final static int WiredMenuErrorsMessageComposer = 7113;
+    public final static int WiredMenuRoomStatsMessageComposer = 7114;
+    public final static int WiredMenuUserVariablesPageMessageComposer = 7116;
+    public final static int WiredMenuPermanentVariablesMessageComposer = 7117;
+    public final static int WiredMenuPermanentMutationResultMessageComposer = 7118;
+    public final static int WiredMenuLogsPageMessageComposer = 7119;
+    public final static int ChestOpenInstructionComposer = 7120;       // July 1174
+    public final static int ChestFurniContentsComposer = 7121;         // July 2323
+    public final static int ChestFurniContentsUpdateComposer = 7122;   // July 2738
+    public final static int ChestCoinBalanceComposer = 7123;           // July 1022
+    public final static int ChestSettingsResultComposer = 7124;        // July 1957
+    public final static int ChestUpgradeResultComposer = 7125;         // July 2721
+    public final static int WiredTradeCancelledComposer = 7126;        // July 1481
+    public final static int WiredTradeCompletedComposer = 7127;        // July 2137
+    public final static int WiredTradeItemUpdateComposer = 7128;       // July 2488
+    public final static int WiredTradeInitiateComposer = 7129;         // July 3650
+    public final static int ChestContractOpenComposer = 7130;          // July contract open
+    public final static int ChestContractContentsComposer = 7131;      // July contract contents
+    public final static int ChestContractUpdateResultComposer = 7132;  // July contract save result
+    public final static int WiredTransactionSuccessComposer = 7133;    // July 2677
+    public final static int ChestTransactionLogsComposer = 7134;       // July 2910
+    public final static int ChestTransactionDetailsComposer = 7135;    // July 1306
     // ===== end Wired 2.0 outgoing =====
     public final static int PurchasableChatStylesMessageComposer = 7200;
     public final static int PurchasableChatStyleChangedMessageComposer = 7202;

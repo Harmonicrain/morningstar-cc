@@ -39,6 +39,7 @@ import com.eu.habbo.habbohotel.rooms.walkways.WalkwaysEntrance;
 import com.eu.habbo.messages.outgoing.rooms.*;
 import com.eu.habbo.messages.outgoing.rooms.items.ObjectsMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.ItemsMessageComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.ConfigurationItemStatesMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.pets.PetFigureUpdateMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.promotions.RoomPromotionMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.*;
@@ -918,7 +919,10 @@ public class RoomManager {
         habbo.getRoomUnit().isKicked = false;
 
         if (habbo.getRoomUnit().getCurrentLocation() == null && !habbo.getRoomUnit().isTeleporting) {
-            RoomTile doorTile = room.getLayout().getTile(room.getLayout().getDoorX(), room.getLayout().getDoorY());
+            RoomTile doorTile = room.getAreaHideSafeSpawnTile();
+            if (doorTile == null) {
+                doorTile = room.getLayout().getTile(room.getLayout().getDoorX(), room.getLayout().getDoorY());
+            }
 
             if (doorTile != null) {
                 habbo.getRoomUnit().setLocation(doorTile);
@@ -1022,6 +1026,8 @@ public class RoomManager {
                 public boolean execute(HabboItem object) {
                     if (room.isHideWired() && object instanceof InteractionWired)
                         return true;
+                    if (room.isItemHiddenByAreaHide(object))
+                        return true;
 
                     floorItems.add(object);
                     if (floorItems.size() == 250) {
@@ -1036,6 +1042,8 @@ public class RoomManager {
             habbo.getClient().sendResponse(new ObjectsMessageComposer(room.getFurniOwnerNames(), floorItems));
             floorItems.clear();
         }
+
+        habbo.getClient().sendResponse(new ConfigurationItemStatesMessageComposer(room));
 
         if (this.isPublicModel(room.getLayout().getName())) {
             habbo.getClient().sendResponse(new PublicRoomObjectsMessageComposer(room, this.getPublicItems(room.getLayout().getName())));
@@ -1175,6 +1183,8 @@ public class RoomManager {
 
             this.logExit(habbo);
             room.removeHabbo(habbo, true);
+            Emulator.getGameEnvironment().getChestManager()
+                    .autoLockChestsForOwner(room, habbo);
 
             if (redirectToHotelView) {
                 habbo.getClient().sendResponse(new CloseConnectionMessageComposer());

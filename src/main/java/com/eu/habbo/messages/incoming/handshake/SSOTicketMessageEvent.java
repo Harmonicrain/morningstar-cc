@@ -160,6 +160,8 @@ public class SSOTicketMessageEvent extends MessageHandler {
                 }
 
                 this.client.sendResponses(messages);
+                Emulator.getGameEnvironment().getChestManager()
+                        .deliverPendingNotifications(habbo);
 
                 // Hardcoded
                 // this.client.sendResponse(new ForumsTestComposer());

@@ -6,6 +6,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,6 +32,7 @@ import com.eu.habbo.habbohotel.guilds.GuildMember;
 import com.eu.habbo.habbohotel.items.FurnitureType;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.InteractionBackgroundToner;
+import com.eu.habbo.habbohotel.items.interactions.InteractionAreaHide;
 import com.eu.habbo.habbohotel.items.interactions.InteractionFireworks;
 import com.eu.habbo.habbohotel.items.interactions.InteractionGuildFurni;
 import com.eu.habbo.habbohotel.items.interactions.InteractionGamehallSeat;
@@ -54,9 +56,11 @@ import com.eu.habbo.messages.outgoing.inventory.FurniListInvalidateMessageCompos
 import com.eu.habbo.messages.outgoing.rooms.FlatAccessibleMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.HeightMapUpdateMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.ObjectUpdateMessageComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.ObjectAddMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.OneWayDoorStatusMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.ObjectRemoveMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.ItemRemoveMessageComposer;
+import com.eu.habbo.messages.outgoing.rooms.items.ItemAddMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.ObjectsMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.items.ItemUpdateMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.users.UserUpdateMessageComposer;
@@ -134,6 +138,9 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   public volatile boolean preventUncaching = false;
   public Set<ServerMessage> scheduledComposers = ConcurrentHashMap.newKeySet();
   public Set<Runnable> scheduledTasks = ConcurrentHashMap.newKeySet();
+  private final Object areaHideVisibilityLock = new Object();
+  private final Set<Integer> areaHideHiddenFloorItems = ConcurrentHashMap.newKeySet();
+  private final Set<Integer> areaHideHiddenWallItems = ConcurrentHashMap.newKeySet();
   public String wordQuiz = "";
   public int noVotes = 0;
   public int yesVotes = 0;
@@ -193,11 +200,17 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   private volatile boolean muted;
   private RoomSpecialTypes roomSpecialTypes;
   private TraxManager traxManager;
+  /**
+   * Room-load furniture baseline, ported from iSetht's Wired implementation and
+   * adapted to this fork's stable/visible item-ID split.
+   */
+  private final TIntObjectHashMap<FurniLoadSnapshot> furniLoadSnapshot;
 
   public final THashMap<String, Object> cache;
 
   public Room(ResultSet set) throws SQLException {
     this.cache = new THashMap<>(1000);
+    this.furniLoadSnapshot = new TIntObjectHashMap<>();
     this.id = set.getInt("id");
     this.ownerId = set.getInt("owner_id");
     this.ownerName = set.getString("owner_name");
@@ -505,7 +518,8 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
         this.unitManager.clear();
       }
 
-      this.roomSpecialTypes = new RoomSpecialTypes();
+      this.roomSpecialTypes = new RoomSpecialTypes(
+              com.eu.habbo.habbohotel.wired.variables.WiredVariableManager.forRoom(this.id));
 
       // Phase 1: Load layout first (required for bots/pets positioning)
       try {
@@ -601,6 +615,14 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
         LOGGER.error("Error waiting for parallel room data loading", e);
       }
 
+      if (this.roomSpecialTypes.getWiredVariableManager() != null
+              && !this.roomSpecialTypes.getWiredVariableManager().finishHydration()) {
+        LOGGER.warn("Wired variable persistence reconciliation failed for room {}; runtime remains capability-dark",
+                this.id);
+      }
+
+      this.captureFurniLoadSnapshot();
+
       this.cycleManager.resetIdleCycles();
 
       // Cancel any existing cycle task before creating a new one
@@ -634,6 +656,8 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
       this.loadingInProgress = false;
       this.loadingFuture = null;
     }
+
+    this.snapshotAreaHideVisibility();
 
     Emulator.getPluginManager().fireEvent(new RoomLoadedEvent(this));
   }
@@ -672,6 +696,69 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
 
   private synchronized void loadItems(Connection connection) {
     this.itemManager.loadItems(connection);
+  }
+
+  private synchronized void captureFurniLoadSnapshot() {
+    this.furniLoadSnapshot.clear();
+    for (HabboItem item : this.getFloorItems()) {
+      this.furniLoadSnapshot.put(item.getId(), new FurniLoadSnapshot(item));
+    }
+    for (HabboItem item : this.getWallItems()) {
+      this.furniLoadSnapshot.put(item.getId(), new FurniLoadSnapshot(item));
+    }
+  }
+
+  /**
+   * Restores furniture that existed at room load. Items created or removed
+   * afterwards are deliberately not resurrected/deleted, matching Seth's
+   * Wired Menu rollback semantics.
+   */
+  public synchronized int rollbackFurniLoadSnapshot() {
+    if (this.furniLoadSnapshot.isEmpty() || this.layout == null) {
+      return 0;
+    }
+    int restored = 0;
+    THashSet<RoomTile> affectedTiles = new THashSet<>();
+    for (FurniLoadSnapshot snapshot : this.furniLoadSnapshot.valueCollection()) {
+      HabboItem item = this.getHabboItemByDatabaseId(snapshot.itemId);
+      if (item == null || item.getRoomId() != this.id) {
+        continue;
+      }
+      if (item.getBaseItem().getType() == FurnitureType.FLOOR) {
+        RoomTile oldTile = this.layout.getTile(item.getX(), item.getY());
+        if (oldTile != null) {
+          affectedTiles.addAll(this.layout.getTilesAt(oldTile,
+              item.getBaseItem().getWidth(), item.getBaseItem().getLength(),
+              item.getRotation()));
+        }
+      }
+      boolean stateChanged = !String.valueOf(item.getExtradata())
+          .equals(String.valueOf(snapshot.extradata));
+      if (!snapshot.applyTo(item)) {
+        continue;
+      }
+      item.needsUpdate(true);
+      this.updateItem(item);
+      if (stateChanged) {
+        this.updateItemState(item);
+      }
+      if (item.getBaseItem().getType() == FurnitureType.FLOOR) {
+        RoomTile newTile = this.layout.getTile(item.getX(), item.getY());
+        if (newTile != null) {
+          affectedTiles.addAll(this.layout.getTilesAt(newTile,
+              item.getBaseItem().getWidth(), item.getBaseItem().getLength(),
+              item.getRotation()));
+        }
+      }
+      restored++;
+    }
+    this.itemManager.tileCache.clear();
+    this.updateTiles(affectedTiles);
+    for (RoomTile tile : affectedTiles) {
+      this.updateHabbosAt(tile.x, tile.y);
+      this.updateBotsAt(tile.x, tile.y);
+    }
+    return restored;
   }
 
   private synchronized void loadWiredData(Connection connection) {
@@ -984,6 +1071,7 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
             com.eu.habbo.habbohotel.wired.core.WiredManager.getEngine().clearRoomRecursionDepth(this.id);
             com.eu.habbo.habbohotel.wired.core.WiredManager.getEngine().clearRoomRateLimiters(this.id);
           }
+          com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime.clearProjectiles(this);
 
           this.itemManager.clear();
 
@@ -1838,6 +1926,166 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     this.unitManager.removeHabbo(habbo);
   }
 
+  public boolean isItemHiddenByAreaHide(HabboItem item) {
+    if (item == null || this.roomSpecialTypes == null) {
+      return false;
+    }
+    THashSet<HabboItem> controllers = this.roomSpecialTypes.getItemsOfType(InteractionAreaHide.class);
+    if (item instanceof InteractionAreaHide areaHide && areaHide.shouldHideSelf(this)) {
+      return true;
+    }
+    for (HabboItem controller : controllers) {
+      InteractionAreaHide areaHide = (InteractionAreaHide) controller;
+      if (areaHide.hidesFloorItem(this, item) || areaHide.hidesWallItem(this, item)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private void snapshotAreaHideVisibility() {
+    synchronized (this.areaHideVisibilityLock) {
+      this.areaHideHiddenFloorItems.clear();
+      for (HabboItem item : this.getFloorItems()) {
+        if (this.isItemHiddenByAreaHide(item)) {
+          this.areaHideHiddenFloorItems.add(item.getId());
+        }
+      }
+      this.areaHideHiddenWallItems.clear();
+      for (HabboItem item : this.getWallItems()) {
+        if (this.isItemHiddenByAreaHide(item)) {
+          this.areaHideHiddenWallItems.add(item.getId());
+        }
+      }
+    }
+  }
+
+  public void refreshAreaHideVisibility() {
+    if (!this.isLoaded() || this.roomSpecialTypes == null) {
+      return;
+    }
+    THashSet<HabboItem> controllers =
+        this.roomSpecialTypes.getItemsOfType(InteractionAreaHide.class);
+    if (controllers.isEmpty()
+        && this.areaHideHiddenFloorItems.isEmpty()
+        && this.areaHideHiddenWallItems.isEmpty()) {
+      return;
+    }
+    synchronized (this.areaHideVisibilityLock) {
+      Set<Integer> hiddenFloor = new java.util.HashSet<>();
+      Set<Integer> hiddenWall = new java.util.HashSet<>();
+      for (HabboItem item : this.getFloorItems()) {
+        if (this.isItemHiddenByAreaHide(item)) {
+          hiddenFloor.add(item.getId());
+        }
+      }
+      for (HabboItem item : this.getWallItems()) {
+        if (this.isItemHiddenByAreaHide(item)) {
+          hiddenWall.add(item.getId());
+        }
+      }
+
+      for (Integer itemId : this.areaHideHiddenFloorItems) {
+        if (!hiddenFloor.contains(itemId)) {
+          HabboItem item = this.getHabboItem(itemId);
+          if (item != null) {
+            this.sendComposer(new ObjectAddMessageComposer(item, this.getFurniOwnerName(item.getUserId())).compose());
+          }
+        }
+      }
+      for (Integer itemId : this.areaHideHiddenWallItems) {
+        if (!hiddenWall.contains(itemId)) {
+          HabboItem item = this.getHabboItem(itemId);
+          if (item != null) {
+            this.sendComposer(new ItemAddMessageComposer(item, this.getFurniOwnerName(item.getUserId())).compose());
+          }
+        }
+      }
+      for (Integer itemId : hiddenFloor) {
+        if (!this.areaHideHiddenFloorItems.contains(itemId)) {
+          HabboItem item = this.getHabboItem(itemId);
+          if (item != null) {
+            this.sendComposer(new ObjectRemoveMessageComposer(item).compose());
+          }
+        }
+      }
+      for (Integer itemId : hiddenWall) {
+        if (!this.areaHideHiddenWallItems.contains(itemId)) {
+          HabboItem item = this.getHabboItem(itemId);
+          if (item != null) {
+            this.sendComposer(new ItemRemoveMessageComposer(item).compose());
+          }
+        }
+      }
+      this.areaHideHiddenFloorItems.clear();
+      this.areaHideHiddenFloorItems.addAll(hiddenFloor);
+      this.areaHideHiddenWallItems.clear();
+      this.areaHideHiddenWallItems.addAll(hiddenWall);
+    }
+  }
+
+  /**
+   * A user cannot safely enter on a tile removed by Area Hide: AIR renders the
+   * unit at the void-floor fallback altitude. Keep the real door direction but
+   * use the nearest reachable visible floor tile when the door is masked.
+   */
+  public RoomTile getAreaHideSafeSpawnTile() {
+    if (this.layout == null) {
+      return null;
+    }
+    int doorX = this.layout.getDoorX();
+    int doorY = this.layout.getDoorY();
+    boolean doorHidden = false;
+    for (HabboItem item : this.roomSpecialTypes.getItemsOfType(InteractionAreaHide.class)) {
+      if (((InteractionAreaHide) item).hidesRoomTile(doorX, doorY)) {
+        doorHidden = true;
+        break;
+      }
+    }
+    if (!doorHidden) {
+      return null;
+    }
+
+    int mapWidth = this.layout.getMapSizeX();
+    int mapHeight = this.layout.getMapSizeY();
+    boolean[][] visited = new boolean[mapWidth][mapHeight];
+    ArrayDeque<int[]> pending = new ArrayDeque<>();
+    if (doorX < 0 || doorY < 0 || doorX >= mapWidth || doorY >= mapHeight) {
+      return null;
+    }
+    visited[doorX][doorY] = true;
+    pending.add(new int[]{doorX, doorY});
+    int[] dx = {0, 1, 0, -1};
+    int[] dy = {-1, 0, 1, 0};
+
+    while (!pending.isEmpty()) {
+      int[] current = pending.removeFirst();
+      for (int direction = 0; direction < 4; direction++) {
+        int x = current[0] + dx[direction];
+        int y = current[1] + dy[direction];
+        if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight || visited[x][y]) {
+          continue;
+        }
+        visited[x][y] = true;
+        if (this.layout.isVoidTile((short) x, (short) y)) {
+          continue;
+        }
+        boolean hidden = false;
+        for (HabboItem item : this.roomSpecialTypes.getItemsOfType(InteractionAreaHide.class)) {
+          if (((InteractionAreaHide) item).hidesRoomTile(x, y)) {
+            hidden = true;
+            break;
+          }
+        }
+        if (!hidden) {
+          return this.layout.getTile((short) x, (short) y);
+        }
+        pending.addLast(new int[]{x, y});
+      }
+    }
+    return null;
+  }
+
   public void removeHabbo(Habbo habbo, boolean sendRemovePacket) {
     if (this.gamehallManager != null) {
       this.gamehallManager.onRoomLeave(habbo, "left_room");
@@ -2175,10 +2423,20 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   }
 
   public boolean isOwner(Habbo habbo) {
+    if (habbo != null && habbo.getHabboInfo() != null
+        && com.eu.habbo.habbohotel.wired.menu.WiredMenuPreferences.isPlaytesting(
+            habbo.getHabboInfo().getId())) {
+      return false;
+    }
     return this.rightsManager.isOwner(habbo);
   }
 
   public boolean hasRights(Habbo habbo) {
+    if (habbo != null && habbo.getHabboInfo() != null
+        && com.eu.habbo.habbohotel.wired.menu.WiredMenuPreferences.isPlaytesting(
+            habbo.getHabboInfo().getId())) {
+      return false;
+    }
     return this.rightsManager.hasRights(habbo);
   }
 
@@ -2336,13 +2594,17 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
       if (item != null && item.getRoomId() == this.id) {
         if (item.getBaseItem() != null) {
           if (item.getBaseItem().getType() == FurnitureType.FLOOR) {
-            this.sendComposer(new ObjectUpdateMessageComposer(item).compose());
+            if (!this.isItemHiddenByAreaHide(item)) {
+              this.sendComposer(new ObjectUpdateMessageComposer(item).compose());
+            }
             this.updateTiles(this.getLayout()
                 .getTilesAt(this.layout.getTile(item.getX(), item.getY()),
                     item.getBaseItem().getWidth(), item.getBaseItem().getLength(),
                     item.getRotation()));
           } else if (item.getBaseItem().getType() == FurnitureType.WALL) {
-            this.sendComposer(new ItemUpdateMessageComposer(item).compose());
+            if (!this.isItemHiddenByAreaHide(item)) {
+              this.sendComposer(new ItemUpdateMessageComposer(item).compose());
+            }
           }
         }
       }
@@ -2350,6 +2612,9 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
   }
 
   public void updateItemState(HabboItem item) {
+    if (this.isItemHiddenByAreaHide(item)) {
+      return;
+    }
     if (!item.isLimited()) {
       this.sendComposer(new OneWayDoorStatusMessageComposer(item).compose());
     } else {
@@ -2570,9 +2835,29 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     return this.itemManager.furnitureFitsAt(tile, item, rotation, checkForUnits);
   }
 
+  public FurnitureMovementError furnitureFitsAt(RoomTile tile, HabboItem item, int rotation,
+      boolean checkForUnits, boolean ignoreFurniStacking) {
+    return this.itemManager.furnitureFitsAt(tile, item, rotation, checkForUnits,
+        ignoreFurniStacking);
+  }
+
   public FurnitureMovementError placeFloorFurniAt(HabboItem item, RoomTile tile, int rotation,
       Habbo owner) {
     return this.itemManager.placeFloorFurniAt(item, tile, rotation, owner);
+  }
+
+  public FurnitureMovementError placeTemporaryFloorFurniAt(HabboItem item, RoomTile tile, int rotation,
+      double z, String ownerName, boolean checkForUnits, boolean ignoreFurniStacking) {
+    return this.itemManager.placeTemporaryFloorFurniAt(item, tile, rotation, z, ownerName,
+        checkForUnits, ignoreFurniStacking);
+  }
+
+  public void removeTemporaryFloorFurni(HabboItem item) {
+    this.itemManager.removeTemporaryFloorFurni(item);
+  }
+
+  public int getRoomItemCount() {
+    return this.itemManager.getRoomItems().size();
   }
 
   public FurnitureMovementError placeWallFurniAt(HabboItem item, String wallPosition, Habbo owner) {
@@ -2594,6 +2879,12 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
     return this.itemManager.moveFurniTo(item, tile, rotation, actor, sendUpdates, checkForUnits);
   }
 
+  public FurnitureMovementError moveFurniTo(HabboItem item, RoomTile tile, int rotation,
+      Habbo actor, boolean sendUpdates, boolean checkForUnits, boolean ignoreFurniStacking) {
+    return this.itemManager.moveFurniTo(item, tile, rotation, actor, sendUpdates, checkForUnits,
+        ignoreFurniStacking);
+  }
+
   public FurnitureMovementError slideFurniTo(HabboItem item, RoomTile tile, int rotation) {
     return this.itemManager.slideFurniTo(item, tile, rotation);
   }
@@ -2608,5 +2899,44 @@ public class Room implements Comparable<Room>, ISerialize, Runnable {
 
   public Collection<RoomUnit> getRoomUnitsAt(RoomTile tile) {
     return this.unitManager.getRoomUnitsAt(tile);
+  }
+
+  private static final class FurniLoadSnapshot {
+    private final int itemId;
+    private final short x;
+    private final short y;
+    private final int rotation;
+    private final double z;
+    private final String wallPosition;
+    private final String extradata;
+
+    private FurniLoadSnapshot(HabboItem item) {
+      this.itemId = item.getId();
+      this.x = item.getX();
+      this.y = item.getY();
+      this.rotation = item.getRotation();
+      this.z = item.getZ();
+      this.wallPosition = item.getWallPosition();
+      this.extradata = item.getExtradata();
+    }
+
+    private boolean applyTo(HabboItem item) {
+      boolean changed = false;
+      if (item.getX() != this.x) { item.setX(this.x); changed = true; }
+      if (item.getY() != this.y) { item.setY(this.y); changed = true; }
+      if (item.getRotation() != this.rotation) {
+        item.setRotation(this.rotation); changed = true;
+      }
+      if (Double.compare(item.getZ(), this.z) != 0) {
+        item.setZ(this.z); changed = true;
+      }
+      if (!String.valueOf(item.getWallPosition()).equals(String.valueOf(this.wallPosition))) {
+        item.setWallPosition(this.wallPosition); changed = true;
+      }
+      if (!String.valueOf(item.getExtradata()).equals(String.valueOf(this.extradata))) {
+        item.setExtradata(this.extradata); changed = true;
+      }
+      return changed;
+    }
   }
 }

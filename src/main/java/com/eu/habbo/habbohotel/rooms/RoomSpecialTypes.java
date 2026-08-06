@@ -21,10 +21,15 @@ import com.eu.habbo.habbohotel.items.interactions.pets.InteractionPetFood;
 import com.eu.habbo.habbohotel.items.interactions.pets.InteractionPetToy;
 import com.eu.habbo.habbohotel.items.interactions.pets.InteractionPetTree;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.habbohotel.wired.WiredAddonType;
 import com.eu.habbo.habbohotel.wired.WiredConditionType;
 import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.habbohotel.wired.WiredSelectorType;
 import com.eu.habbo.habbohotel.wired.WiredTriggerType;
+import com.eu.habbo.habbohotel.wired.WiredVariableType;
+import com.eu.habbo.habbohotel.wired.variables.WiredVariableManager;
+import com.eu.habbo.habbohotel.wired.variables.WiredCrossRoomAliasRepository;
+import com.eu.habbo.habbohotel.wired.variables.WiredVariableDefinition;
 import gnu.trove.map.hash.THashMap;
 import gnu.trove.set.hash.THashSet;
 
@@ -55,6 +60,11 @@ public class RoomSpecialTypes {
     private final ConcurrentHashMap<WiredEffectType, Set<InteractionWiredEffect>> wiredEffects;
     private final ConcurrentHashMap<WiredConditionType, Set<InteractionWiredCondition>> wiredConditions;
     private final ConcurrentHashMap<WiredSelectorType, Set<InteractionWiredSelector>> wiredSelectors;
+    private final ConcurrentHashMap<WiredAddonType, Set<InteractionWiredAddon>> wiredAddons;
+    private final ConcurrentHashMap<WiredVariableType, Set<InteractionWiredVariable>> wiredVariables;
+    private final ConcurrentHashMap<Integer, InteractionWiredAddon> wiredAddonsById;
+    private final ConcurrentHashMap<Integer, InteractionWiredVariable> wiredVariablesById;
+    private final WiredVariableManager wiredVariableManager;
     private final ConcurrentHashMap<Integer, InteractionWiredExtra> wiredExtras;
     
     // Spatial index for O(1) coordinate-based lookups of wired components
@@ -62,6 +72,8 @@ public class RoomSpecialTypes {
     private final ConcurrentHashMap<Long, Set<InteractionWiredEffect>> wiredEffectsByLocation;
     private final ConcurrentHashMap<Long, Set<InteractionWiredCondition>> wiredConditionsByLocation;
     private final ConcurrentHashMap<Long, Set<InteractionWiredSelector>> wiredSelectorsByLocation;
+    private final ConcurrentHashMap<Long, Set<InteractionWiredAddon>> wiredAddonsByLocation;
+    private final ConcurrentHashMap<Long, Set<InteractionWiredVariable>> wiredVariablesByLocation;
     private final ConcurrentHashMap<Long, Set<InteractionWiredExtra>> wiredExtrasByLocation;
 
     private final THashMap<Integer, InteractionGameScoreboard> gameScoreboards;
@@ -73,6 +85,11 @@ public class RoomSpecialTypes {
     private final Set<ICycleable> cycleTasks;
 
     public RoomSpecialTypes() {
+        this(null);
+    }
+
+    public RoomSpecialTypes(WiredVariableManager wiredVariableManager) {
+        this.wiredVariableManager = wiredVariableManager;
         this.banzaiTeleporters = new THashMap<>(0);
         this.nests = new THashMap<>(0);
         this.petDrinks = new THashMap<>(0);
@@ -85,6 +102,10 @@ public class RoomSpecialTypes {
         this.wiredEffects = new ConcurrentHashMap<>();
         this.wiredConditions = new ConcurrentHashMap<>();
         this.wiredSelectors = new ConcurrentHashMap<>();
+        this.wiredAddons = new ConcurrentHashMap<>();
+        this.wiredVariables = new ConcurrentHashMap<>();
+        this.wiredAddonsById = new ConcurrentHashMap<>();
+        this.wiredVariablesById = new ConcurrentHashMap<>();
         this.wiredExtras = new ConcurrentHashMap<>();
         
         // Initialize spatial indexes
@@ -92,6 +113,8 @@ public class RoomSpecialTypes {
         this.wiredEffectsByLocation = new ConcurrentHashMap<>();
         this.wiredConditionsByLocation = new ConcurrentHashMap<>();
         this.wiredSelectorsByLocation = new ConcurrentHashMap<>();
+        this.wiredAddonsByLocation = new ConcurrentHashMap<>();
+        this.wiredVariablesByLocation = new ConcurrentHashMap<>();
         this.wiredExtrasByLocation = new ConcurrentHashMap<>();
 
         this.gameScoreboards = new THashMap<>(0);
@@ -723,6 +746,194 @@ public class RoomSpecialTypes {
                 .add(selector);
     }
 
+    public InteractionWiredAddon getAddon(int itemId) {
+        return this.wiredAddonsById.get(itemId);
+    }
+
+    public THashSet<InteractionWiredAddon> getAddons() {
+        return new THashSet<>(this.wiredAddonsById.values());
+    }
+
+    public THashSet<InteractionWiredAddon> getAddons(WiredAddonType type) {
+        Set<InteractionWiredAddon> addons = this.wiredAddons.get(type);
+        return addons == null ? new THashSet<>(0) : new THashSet<>(addons);
+    }
+
+    public THashSet<InteractionWiredAddon> getAddons(int x, int y) {
+        Set<InteractionWiredAddon> addons = this.wiredAddonsByLocation.get(coordinateKey(x, y));
+        return addons == null ? new THashSet<>(0) : new THashSet<>(addons);
+    }
+
+    public void addAddon(InteractionWiredAddon addon) {
+        InteractionWiredAddon previous = this.wiredAddonsById.put(addon.getId(), addon);
+        if (previous != null) {
+            removeAddonIndexes(previous);
+            // Re-registering the same mutable object after its coordinates
+            // changed cannot recover the old key from the object itself.
+            removeFromAllLocations(this.wiredAddonsByLocation, previous);
+        }
+        if (this.wiredAddonsById.get(addon.getId()) != addon) {
+            return;
+        }
+        this.wiredAddons.computeIfAbsent(addon.getType(), key -> ConcurrentHashMap.newKeySet()).add(addon);
+        this.wiredAddonsByLocation.computeIfAbsent(
+                coordinateKey(addon.getX(), addon.getY()), key -> ConcurrentHashMap.newKeySet()).add(addon);
+        if (this.wiredAddonsById.get(addon.getId()) != addon) {
+            removeAddonIndexes(addon);
+        }
+    }
+
+    public void removeAddon(InteractionWiredAddon addon) {
+        this.wiredAddonsById.remove(addon.getId(), addon);
+        removeAddonIndexes(addon);
+    }
+
+    private void removeAddonIndexes(InteractionWiredAddon addon) {
+        Set<InteractionWiredAddon> byType = this.wiredAddons.get(addon.getType());
+        if (byType != null) {
+            byType.remove(addon);
+            if (byType.isEmpty()) {
+                this.wiredAddons.remove(addon.getType(), byType);
+            }
+        }
+        removeFromLocation(this.wiredAddonsByLocation, addon, addon.getX(), addon.getY());
+    }
+
+    public void updateAddonLocation(InteractionWiredAddon addon, int oldX, int oldY) {
+        if (this.wiredAddonsById.get(addon.getId()) != addon) {
+            return;
+        }
+        removeFromLocation(this.wiredAddonsByLocation, addon, oldX, oldY);
+        if (this.wiredAddonsById.get(addon.getId()) != addon) {
+            return;
+        }
+        this.wiredAddonsByLocation.computeIfAbsent(
+                coordinateKey(addon.getX(), addon.getY()), key -> ConcurrentHashMap.newKeySet()).add(addon);
+        if (this.wiredAddonsById.get(addon.getId()) != addon) {
+            removeFromLocation(this.wiredAddonsByLocation, addon, addon.getX(), addon.getY());
+        }
+    }
+
+    public InteractionWiredVariable getVariable(int itemId) {
+        return this.wiredVariablesById.get(itemId);
+    }
+
+    public WiredVariableManager getWiredVariableManager() {
+        return this.wiredVariableManager;
+    }
+
+    public THashSet<InteractionWiredVariable> getVariables() {
+        return new THashSet<>(this.wiredVariablesById.values());
+    }
+
+    public THashSet<InteractionWiredVariable> getVariables(WiredVariableType type) {
+        Set<InteractionWiredVariable> variables = this.wiredVariables.get(type);
+        return variables == null ? new THashSet<>(0) : new THashSet<>(variables);
+    }
+
+    public THashSet<InteractionWiredVariable> getVariables(int x, int y) {
+        Set<InteractionWiredVariable> variables = this.wiredVariablesByLocation.get(coordinateKey(x, y));
+        return variables == null ? new THashSet<>(0) : new THashSet<>(variables);
+    }
+
+    public void addVariable(InteractionWiredVariable variable) {
+        InteractionWiredVariable previous = this.wiredVariablesById.put(variable.getId(), variable);
+        if (previous != null) {
+            removeVariableIndexes(previous);
+            removeFromAllLocations(this.wiredVariablesByLocation, previous);
+        }
+        if (this.wiredVariablesById.get(variable.getId()) != variable) {
+            return;
+        }
+        this.wiredVariables.computeIfAbsent(variable.getType(), key -> ConcurrentHashMap.newKeySet()).add(variable);
+        this.wiredVariablesByLocation.computeIfAbsent(
+                coordinateKey(variable.getX(), variable.getY()), key -> ConcurrentHashMap.newKeySet()).add(variable);
+        if (this.wiredVariablesById.get(variable.getId()) != variable) {
+            removeVariableIndexes(variable);
+            return;
+        }
+        refreshVariableDefinition(variable);
+    }
+
+    public void removeVariable(InteractionWiredVariable variable) {
+        boolean removed = this.wiredVariablesById.remove(variable.getId(), variable);
+        removeVariableIndexes(variable);
+        if (removed && this.wiredVariableManager != null) {
+            this.wiredVariableManager.removeDefinition("room:" + variable.getId());
+        }
+        if (removed && Emulator.getDatabase() != null) {
+            WiredCrossRoomAliasRepository.instance().delete(variable.getId());
+        }
+    }
+
+    /** Refreshes the room manager after an editor save without coupling packet code to storage. */
+    public void refreshVariableDefinition(InteractionWiredVariable variable) {
+        if (this.wiredVariableManager == null || variable == null
+                || this.wiredVariablesById.get(variable.getId()) != variable) {
+            return;
+        }
+        if (variable.bindManager(this.wiredVariableManager)) {
+            WiredVariableDefinition definition =
+                    this.wiredVariableManager.definition("room:" + variable.getId());
+            if (definition != null) {
+                variable.syncDefinitionRegistry(definition);
+            }
+        }
+    }
+
+    private void removeVariableIndexes(InteractionWiredVariable variable) {
+        Set<InteractionWiredVariable> byType = this.wiredVariables.get(variable.getType());
+        if (byType != null) {
+            byType.remove(variable);
+            if (byType.isEmpty()) {
+                this.wiredVariables.remove(variable.getType(), byType);
+            }
+        }
+        removeFromLocation(this.wiredVariablesByLocation, variable, variable.getX(), variable.getY());
+    }
+
+    public void updateVariableLocation(InteractionWiredVariable variable, int oldX, int oldY) {
+        if (this.wiredVariablesById.get(variable.getId()) != variable) {
+            return;
+        }
+        removeFromLocation(this.wiredVariablesByLocation, variable, oldX, oldY);
+        if (this.wiredVariablesById.get(variable.getId()) != variable) {
+            return;
+        }
+        this.wiredVariablesByLocation.computeIfAbsent(
+                coordinateKey(variable.getX(), variable.getY()), key -> ConcurrentHashMap.newKeySet()).add(variable);
+        if (this.wiredVariablesById.get(variable.getId()) != variable) {
+            removeFromLocation(this.wiredVariablesByLocation, variable, variable.getX(), variable.getY());
+        }
+    }
+
+    private static <T> void removeFromLocation(
+            ConcurrentHashMap<Long, Set<T>> index,
+            T value,
+            int x,
+            int y) {
+        long key = coordinateKey(x, y);
+        Set<T> values = index.get(key);
+        if (values != null) {
+            values.remove(value);
+            if (values.isEmpty()) {
+                index.remove(key, values);
+            }
+        }
+    }
+
+    private static <T> void removeFromAllLocations(
+            ConcurrentHashMap<Long, Set<T>> index,
+            T value) {
+        for (Map.Entry<Long, Set<T>> entry : index.entrySet()) {
+            Set<T> values = entry.getValue();
+            values.remove(value);
+            if (values.isEmpty()) {
+                index.remove(entry.getKey(), values);
+            }
+        }
+    }
+
 
     /**
      * Gets all wired extras in the room.
@@ -1081,6 +1292,9 @@ public class RoomSpecialTypes {
     }
 
     public synchronized void dispose() {
+        if (this.wiredVariableManager != null) {
+            this.wiredVariableManager.close();
+        }
         this.banzaiTeleporters.clear();
         this.nests.clear();
         this.petDrinks.clear();
@@ -1094,6 +1308,12 @@ public class RoomSpecialTypes {
         this.wiredConditions.clear();
         this.wiredSelectors.clear();
         this.wiredSelectorsByLocation.clear();
+        this.wiredAddons.clear();
+        this.wiredVariables.clear();
+        this.wiredAddonsById.clear();
+        this.wiredVariablesById.clear();
+        this.wiredAddonsByLocation.clear();
+        this.wiredVariablesByLocation.clear();
 
         this.gameScoreboards.clear();
         this.gameGates.clear();

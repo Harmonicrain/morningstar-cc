@@ -85,6 +85,27 @@ public class ClientMessage {
         return this.buffer.readInt();
     }
 
+    public long readRequiredLong() {
+        if (this.bytesAvailable() < Long.BYTES) {
+            throw new MalformedPacketException("missing required long");
+        }
+        return this.buffer.readLong();
+    }
+
+    public int readRequiredShort() {
+        if (this.bytesAvailable() < Short.BYTES) {
+            throw new MalformedPacketException("missing required short");
+        }
+        return this.buffer.readShort();
+    }
+
+    public int readRequiredByte() {
+        if (this.bytesAvailable() < 1) {
+            throw new MalformedPacketException("missing required byte");
+        }
+        return this.buffer.readByte();
+    }
+
     public boolean readRequiredBoolean() {
         if (this.bytesAvailable() < 1) {
             throw new MalformedPacketException("missing required boolean");

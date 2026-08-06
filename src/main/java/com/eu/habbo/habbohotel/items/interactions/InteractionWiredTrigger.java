@@ -10,6 +10,8 @@ import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredTriggerType;
 import com.eu.habbo.habbohotel.wired.api.IWiredTrigger;
 import com.eu.habbo.habbohotel.wired.core.WiredEvent;
+import com.eu.habbo.habbohotel.wired.core.WiredAuthorizationService;
+import com.eu.habbo.habbohotel.wired.core.WiredFeatureCapabilityGuard;
 import com.eu.habbo.messages.outgoing.wired.WiredTriggerDataMessageComposer;
 import com.eu.habbo.messages.outgoing.wired.OpenMessageComposer;
 
@@ -46,11 +48,15 @@ public abstract class InteractionWiredTrigger extends InteractionWired implement
 
     @Override
     public void onClick(GameClient client, Room room, Object[] objects) throws Exception {
-        if (client != null) {
-            if (room.hasRights(client.getHabbo())) {
-                client.sendResponse(new OpenMessageComposer(this));
-                this.activateBox(room);
-            }
+        if (WiredFeatureCapabilityGuard.isEditorReady(client, room, this)
+                && WiredAuthorizationService.isAuthorized(
+                WiredAuthorizationService.Operation.VIEW_EDITOR,
+                client,
+                room,
+                this,
+                WiredCategoryType.TRIGGER)) {
+            client.sendResponse(new OpenMessageComposer(this));
+            this.activateBox(room);
         }
     }
 
@@ -68,6 +74,14 @@ public abstract class InteractionWiredTrigger extends InteractionWired implement
     }
 
     public abstract boolean saveData(WiredSettings settings);
+
+    /**
+     * Optional July localization key describing the most recent save failure.
+     * Returning {@code null} keeps the legacy generic validation message.
+     */
+    public String getSaveErrorLocalizationKey() {
+        return null;
+    }
 
     protected int getDelay() {
         return this.delay;

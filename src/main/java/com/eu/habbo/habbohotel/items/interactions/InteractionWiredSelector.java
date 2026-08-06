@@ -3,8 +3,7 @@ package com.eu.habbo.habbohotel.items.interactions;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredCategoryType;
-import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsNew;
-import com.eu.habbo.habbohotel.permissions.Permission;
+import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettingsV2;
 import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.habbohotel.users.HabboItem;
@@ -12,6 +11,8 @@ import com.eu.habbo.habbohotel.wired.WiredSelectorType;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.habbohotel.wired.core.WiredManager;
 import com.eu.habbo.habbohotel.wired.core.WiredTargets;
+import com.eu.habbo.habbohotel.wired.core.WiredAuthorizationService;
+import com.eu.habbo.habbohotel.wired.core.WiredFeatureCapabilityGuard;
 import com.eu.habbo.messages.ServerMessage;
 import com.eu.habbo.messages.outgoing.wired.OpenMessageComposer;
 
@@ -33,7 +34,7 @@ public abstract class InteractionWiredSelector extends InteractionWired {
 
     public abstract WiredSelectorType getType();
 
-    public abstract boolean saveData(WiredSettingsNew settings);
+    public abstract boolean saveData(WiredSettingsV2 settings);
 
     public abstract WiredTargets resolve(Room room, WiredContext ctx);
 
@@ -72,7 +73,7 @@ public abstract class InteractionWiredSelector extends InteractionWired {
 
     @Override
     public void serializeWiredData(ServerMessage message, Room room) {
-        this.serializeWiredDataNew(message, room);
+        this.serializeWiredDataV2(message, room);
     }
 
     @Override
@@ -82,15 +83,18 @@ public abstract class InteractionWiredSelector extends InteractionWired {
 
     @Override
     public void onClick(GameClient client, Room room, Object[] objects) throws Exception {
-        if (client != null && (room.hasRights(client.getHabbo())
-                || room.getOwnerId() == client.getHabbo().getHabboInfo().getId()
-                || client.getHabbo().hasPermission(Permission.ACC_ANYROOMOWNER)
-                || client.getHabbo().hasPermission(Permission.ACC_MOVEROTATE))) {
+        if (WiredFeatureCapabilityGuard.isEditorReady(client, room, this)
+                && WiredAuthorizationService.isAuthorized(
+                WiredAuthorizationService.Operation.VIEW_EDITOR,
+                client,
+                room,
+                this,
+                WiredCategoryType.SELECTOR)) {
             client.sendResponse(new OpenMessageComposer(this));
         }
     }
 
-    protected boolean saveBase(WiredSettingsNew settings) {
+    protected boolean saveBase(WiredSettingsV2 settings) {
         this.filter = settings.isFilter();
         this.invert = settings.isInvert();
         return true;

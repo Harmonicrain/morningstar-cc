@@ -1,5 +1,6 @@
 -- Wired 2.0 / May 2026 chat: persist the free-flow chat font-size selector.
--- Idempotent for MariaDB 10.2, which has no ADD COLUMN IF NOT EXISTS support.
+-- The metadata guard is idempotent on MariaDB 10.2 and remains compatible with
+-- older MySQL-family deployments that lack ADD COLUMN IF NOT EXISTS.
 
 SET @column_exists := (
     SELECT COUNT(*)
