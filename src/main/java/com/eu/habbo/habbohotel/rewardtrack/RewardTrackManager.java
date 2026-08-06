@@ -153,6 +153,83 @@ public class RewardTrackManager {
         }
     }
 
+    /** Applies July Wired action 58 directly to one configured track task. */
+    public void progressWired(Habbo habbo, String trackId, String taskId, int value, boolean add) {
+        if (!this.enabled || habbo == null || habbo.getClient() == null
+                || value < 0 || trackId == null || taskId == null) {
+            return;
+        }
+        RewardTrackDefinition track = this.tracks.get(trackId);
+        RewardTrackTaskDefinition task = this.getTask(track, taskId);
+        if (track == null || task == null || task.getLevels().isEmpty()) {
+            return;
+        }
+        try {
+            ProgressResult result = this.progressTaskWired(
+                    habbo.getHabboInfo().getId(), track, task, value, add);
+            if (result.changed) {
+                habbo.getClient().sendResponse(new RewardTrackProgressMessageComposer(
+                        trackId, taskId, result.progressCount, result.points));
+            }
+        } catch (Exception e) {
+            LOGGER.error("RewardTrackManager -> Wired progress failed for track {}, task {}, user {}.",
+                    trackId, taskId, habbo.getHabboInfo().getId(), e);
+        }
+    }
+
+    /** Applies July Wired action 59 while preserving premium ownership. */
+    public void resetWired(Habbo habbo, String trackId) {
+        if (!this.enabled || habbo == null || habbo.getClient() == null
+                || trackId == null || !this.tracks.containsKey(trackId)) {
+            return;
+        }
+        int userId = habbo.getHabboInfo().getId();
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "DELETE FROM users_reward_track_tasks WHERE user_id = ? AND track_id = ?")) {
+                    statement.setInt(1, userId);
+                    statement.setString(2, trackId);
+                    statement.executeUpdate();
+                }
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "DELETE FROM users_reward_track_claims WHERE user_id = ? AND track_id = ?")) {
+                    statement.setInt(1, userId);
+                    statement.setString(2, trackId);
+                    statement.executeUpdate();
+                }
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE users_reward_tracks SET points = 0, complete = 0, premium_complete = 0, "
+                                + "updated_at = ? WHERE user_id = ? AND track_id = ?")) {
+                    statement.setInt(1, Emulator.getIntUnixTimestamp());
+                    statement.setInt(2, userId);
+                    statement.setString(3, trackId);
+                    statement.executeUpdate();
+                }
+                connection.commit();
+            } catch (Exception e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(previousAutoCommit);
+            }
+            this.sendFullState(habbo, false);
+        } catch (Exception e) {
+            LOGGER.error("RewardTrackManager -> Wired reset failed for track {}, user {}.",
+                    trackId, userId, e);
+        }
+    }
+
+    public boolean hasTrack(String trackId) {
+        return trackId != null && this.tracks.containsKey(trackId);
+    }
+
+    public boolean hasTask(String trackId, String taskId) {
+        return this.getTask(this.tracks.get(trackId), taskId) != null;
+    }
+
     public Map<String, RewardTrackUserState> loadUserStates(Habbo habbo) {
         Map<String, RewardTrackUserState> states = new LinkedHashMap<>();
         if (habbo == null || !this.enabled) {
@@ -326,6 +403,47 @@ public class RewardTrackManager {
         }
     }
 
+    private ProgressResult progressTaskWired(int userId, RewardTrackDefinition track,
+                                             RewardTrackTaskDefinition task, int value,
+                                             boolean add) throws Exception {
+        try (Connection connection = Emulator.getDatabase().getDataSource().getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                RewardTrackUserState state = this.loadUserState(connection, userId, track.getId());
+                if (state.isComplete() || (task.isPremium() && !state.isPremium())) {
+                    connection.rollback();
+                    return ProgressResult.unchanged();
+                }
+                int oldProgress = this.getTaskProgress(connection, userId, task.getId());
+                int maxProgress = this.getMaxRequiredCount(task);
+                long requested = add ? (long) oldProgress + value : value;
+                int newProgress = (int) Math.max(0, Math.min(maxProgress, requested));
+                int oldLevel = this.getCompletedLevel(task, oldProgress, state.isPremium());
+                int newLevel = this.getCompletedLevel(task, newProgress, state.isPremium());
+                int oldTaskPoints = this.getPointsAwarded(track, task, 0, oldLevel, state.isPremium());
+                int newTaskPoints = this.getPointsAwarded(track, task, 0, newLevel, state.isPremium());
+                int newPoints = Math.max(0, state.getPoints() + newTaskPoints - oldTaskPoints);
+                if (newProgress == oldProgress && newPoints == state.getPoints()) {
+                    connection.rollback();
+                    return ProgressResult.unchanged();
+                }
+                int now = Emulator.getIntUnixTimestamp();
+                this.upsertUserTrack(connection, userId, track.getId(), newPoints, state.isPremium(),
+                        state.isComplete(), state.isPremiumComplete(), now);
+                this.setTaskProgress(connection, userId, track.getId(), task.getId(),
+                        newProgress, newLevel, now);
+                connection.commit();
+                return new ProgressResult(true, newProgress, newPoints);
+            } catch (Exception e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(previousAutoCommit);
+            }
+        }
+    }
+
     private RewardTrackUserState loadUserState(Connection connection, int userId, String trackId) throws SQLException {
         RewardTrackUserState state = new RewardTrackUserState();
 
@@ -385,6 +503,25 @@ public class RewardTrackManager {
 
     private void upsertTaskProgress(Connection connection, int userId, String trackId, String taskId, int progress, int completedLevel, int now) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("INSERT INTO users_reward_track_tasks (user_id, track_id, task_id, progress_count, completed_level, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE progress_count = GREATEST(progress_count, VALUES(progress_count)), completed_level = GREATEST(completed_level, VALUES(completed_level)), updated_at = VALUES(updated_at)")) {
+            statement.setInt(1, userId);
+            statement.setString(2, trackId);
+            statement.setString(3, taskId);
+            statement.setInt(4, progress);
+            statement.setInt(5, completedLevel);
+            statement.setInt(6, now);
+            statement.setInt(7, now);
+            statement.executeUpdate();
+        }
+    }
+
+    private void setTaskProgress(Connection connection, int userId, String trackId, String taskId,
+                                 int progress, int completedLevel, int now) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO users_reward_track_tasks "
+                        + "(user_id, track_id, task_id, progress_count, completed_level, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE "
+                        + "progress_count = VALUES(progress_count), completed_level = VALUES(completed_level), "
+                        + "updated_at = VALUES(updated_at)")) {
             statement.setInt(1, userId);
             statement.setString(2, trackId);
             statement.setString(3, taskId);
@@ -533,6 +670,18 @@ public class RewardTrackManager {
             }
         }
 
+        return null;
+    }
+
+    private RewardTrackTaskDefinition getTask(RewardTrackDefinition track, String taskId) {
+        if (track == null || taskId == null) {
+            return null;
+        }
+        for (RewardTrackTaskDefinition task : track.getTasks()) {
+            if (taskId.equals(task.getId())) {
+                return task;
+            }
+        }
         return null;
     }
 
