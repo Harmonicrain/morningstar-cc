@@ -1,7 +1,7 @@
 package com.eu.habbo.habbohotel.wired.core;
 
 /**
- * Per-room wired clock (Wired 2.0 Phase 3).
+ * Per-room Wired clock.
  * <p>
  * Controlled by the CONTROL_CLOCK effect (start/stop/reset), read by the
  * CLOCK_REACH_TIME trigger and CLOCK_TIME_MATCHES condition. The clock advances

@@ -1,6 +1,7 @@
 package com.eu.habbo.habbohotel.wired.core;
 
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredCondition;
+import com.eu.habbo.habbohotel.items.interactions.InteractionWiredAddon;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredEffect;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredSelector;
 import com.eu.habbo.habbohotel.items.interactions.InteractionWiredTrigger;
@@ -11,6 +12,7 @@ import com.eu.habbo.habbohotel.rooms.Room;
 import com.eu.habbo.habbohotel.rooms.RoomSpecialTypes;
 import com.eu.habbo.habbohotel.rooms.RoomTile;
 import com.eu.habbo.habbohotel.wired.WiredTriggerType;
+import com.eu.habbo.habbohotel.wired.WiredAddonType;
 import com.eu.habbo.habbohotel.wired.api.IWiredCondition;
 import com.eu.habbo.habbohotel.wired.api.IWiredEffect;
 import com.eu.habbo.habbohotel.wired.api.IWiredTrigger;
@@ -180,6 +182,10 @@ public final class RoomWiredStackIndex implements WiredStackIndex {
         boolean useOrMode = specialTypes.hasExtraType(x, y, WiredExtraOrEval.class);
         boolean useRandom = specialTypes.hasExtraType(x, y, WiredExtraRandom.class);
         boolean useUnseen = specialTypes.hasExtraType(x, y, WiredExtraUnseen.class);
+        boolean executeInOrder = hasAddonType(specialTypes, x, y, WiredAddonType.EXECUTE_IN_ORDER)
+                && WiredCapabilityService.isRoomCapabilityReady(WiredCapabilityService.CAPABILITY_ADDONS);
+        List<InteractionWiredAddon> addons = new ArrayList<>(specialTypes.getAddons(x, y));
+        addons.sort(Comparator.comparingInt(InteractionWiredAddon::getId));
 
         return new WiredStack(
                 trigger,
@@ -189,7 +195,9 @@ public final class RoomWiredStackIndex implements WiredStackIndex {
                 selectors,
                 useOrMode,
                 useRandom,
-                useUnseen
+                useUnseen,
+                executeInOrder,
+                addons
         );
     }
 
@@ -211,7 +219,7 @@ public final class RoomWiredStackIndex implements WiredStackIndex {
     /**
      * Collect effects into a list (they already implement IWiredEffect).
      */
-    private List<IWiredEffect> collectEffects(THashSet<InteractionWiredEffect> rawEffects) {
+    static List<IWiredEffect> collectEffects(THashSet<InteractionWiredEffect> rawEffects) {
         if (rawEffects == null || rawEffects.isEmpty()) {
             return Collections.emptyList();
         }
@@ -220,15 +228,36 @@ public final class RoomWiredStackIndex implements WiredStackIndex {
         for (InteractionWiredEffect effect : rawEffects) {
             effects.add(effect);
         }
+        // Habbo's authoritative ordering key is not exposed by the AIR client.
+        // Use the donor's explicit, deterministic emulation: physical Z first,
+        // then database item id. Captured production logs may replace this policy.
+        effects.sort(Comparator
+                .comparingDouble(effect -> ((InteractionWiredEffect) effect).getZ())
+                .thenComparingInt(effect -> ((InteractionWiredEffect) effect).getId()));
         return effects;
     }
 
-    private List<InteractionWiredSelector> collectSelectors(THashSet<InteractionWiredSelector> rawSelectors) {
+    private boolean hasAddonType(RoomSpecialTypes specialTypes, int x, int y, WiredAddonType type) {
+        for (InteractionWiredAddon addon : specialTypes.getAddons(x, y)) {
+            if (addon.getType() == type) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static List<InteractionWiredSelector> collectSelectors(THashSet<InteractionWiredSelector> rawSelectors) {
         if (rawSelectors == null || rawSelectors.isEmpty()) {
             return Collections.emptyList();
         }
 
-        return new ArrayList<>(rawSelectors);
+        List<InteractionWiredSelector> selectors = new ArrayList<>(rawSelectors);
+        // Source 200 consumes targets produced by earlier selectors. Keep that
+        // dependency stable using the same physical-order emulation as effects.
+        selectors.sort(Comparator
+                .comparingDouble(InteractionWiredSelector::getZ)
+                .thenComparingInt(InteractionWiredSelector::getId));
+        return selectors;
     }
 
     /**

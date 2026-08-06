@@ -39,6 +39,13 @@ public enum WiredConditionType {
     USER_DIRECTION(37),
     INPUT_SOURCE_QUANTITY(38),
     CAN_PERFORM_MOVE(39),
+    HAS_VARIABLE(40),
+    NOT_HAS_VARIABLE(41),
+    VARIABLE_VALUE(42),
+    VARIABLE_AGE(43),
+    USER_LEVEL(44),
+    CHEST_HAS_ITEMS(45),
+    CHEST_HAS_ITEM_TYPES(46),
     MOVEMENT_VALIDATION(26); // legacy alias kept for old plugin references
 
     public final int code;

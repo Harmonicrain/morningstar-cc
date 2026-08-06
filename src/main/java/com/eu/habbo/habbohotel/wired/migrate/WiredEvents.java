@@ -6,6 +6,7 @@ import com.eu.habbo.habbohotel.rooms.RoomUnit;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredTriggerType;
 import com.eu.habbo.habbohotel.wired.core.WiredEvent;
+import com.eu.habbo.habbohotel.wired.core.WiredHeldDownContext;
 
 /**
  * Factory methods for creating {@link WiredEvent} instances from various room events.
@@ -90,9 +91,15 @@ public final class WiredEvents {
      * @return the event
      */
     public static WiredEvent userSays(Room room, RoomUnit user, String message) {
+        return userSays(room, user, message, -1, -1);
+    }
+
+    public static WiredEvent userSays(
+            Room room, RoomUnit user, String message, int chatType, int chatStyle) {
         return WiredEvent.builder(WiredEvent.Type.USER_SAYS, room)
                 .actor(user)
                 .text(message)
+                .chat(chatType, chatStyle)
                 .tile(user.getCurrentLocation())
                 .build();
     }
@@ -327,15 +334,21 @@ public final class WiredEvents {
                 .build();
     }
 
-    // ========== Wired 2.0 Phase 3 ==========
+    // ========== Wired 2.0 event adapters ==========
 
     /**
      * Create an event for when a user clicks (uses) furniture.
      */
     public static WiredEvent userClicksFurni(Room room, RoomUnit user, HabboItem item) {
+        return userClicksFurni(room, user, item, 0);
+    }
+
+    public static WiredEvent userClicksFurni(
+            Room room, RoomUnit user, HabboItem item, int heldTicks) {
         return WiredEvent.builder(WiredEvent.Type.USER_CLICKS_FURNI, room)
                 .actor(user)
                 .sourceItem(item)
+                .heldDownContext(WiredHeldDownContext.furni(item, heldTicks))
                 .build();
     }
 
@@ -367,6 +380,21 @@ public final class WiredEvents {
         return WiredEvent.builder(WiredEvent.Type.CLOCK_REACHED, room)
                 .sourceItem(clockTrigger)
                 .score(totalSeconds)
+                .build();
+    }
+
+    /** Creates trigger 21's event for the invisible click-tile furni at the clicked coordinate. */
+    public static WiredEvent userClicksTile(Room room, RoomUnit user, HabboItem item) {
+        return userClicksTile(room, user, item, 0);
+    }
+
+    public static WiredEvent userClicksTile(
+            Room room, RoomUnit user, HabboItem item, int heldTicks) {
+        return WiredEvent.builder(WiredEvent.Type.USER_CLICKS_TILE, room)
+                .actor(user)
+                .sourceItem(item)
+                .tile(room.getLayout().getTile(item.getX(), item.getY()))
+                .heldDownContext(WiredHeldDownContext.furni(item, heldTicks))
                 .build();
     }
 
