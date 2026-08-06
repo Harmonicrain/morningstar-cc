@@ -201,14 +201,16 @@ public class PacketManager {
                 final MessageHandler handler = handlerClass.getDeclaredConstructor().newInstance();
 
                 if (handler.getRatelimit() > 0) {
-                    if (client.messageTimestamps.containsKey(handlerClass) && System.currentTimeMillis() - client.messageTimestamps.get(handlerClass) < handler.getRatelimit()) {
+                    Object ratelimitKey =
+                            handler.getRatelimitKey(packet.getMessageId());
+                    if (client.messageTimestamps.containsKey(ratelimitKey) && System.currentTimeMillis() - client.messageTimestamps.get(ratelimitKey) < handler.getRatelimit()) {
                         if (PacketManager.DEBUG_SHOW_PACKETS) {
                             LOGGER.warn("Client packet {} was ratelimited.", packet.getMessageId());
                         }
 
                         return;
                     } else {
-                        client.messageTimestamps.put(handlerClass, System.currentTimeMillis());
+                        client.messageTimestamps.put(ratelimitKey, System.currentTimeMillis());
                     }
                 }
 
