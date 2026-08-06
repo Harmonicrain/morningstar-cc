@@ -123,6 +123,26 @@ public final class WiredManager {
     }
 
     /**
+     * Register the engine's configuration keys with their code defaults.
+     *
+     * <p>{@link com.eu.habbo.core.ConfigurationManager#register} only inserts a key that is not
+     * already present, so this is safe on every boot and never overwrites an operator's value.
+     * Without it the engine still runs on its defaults, but each key logs "Config key not found"
+     * on startup and never appears in emulator_settings for anyone to tune.</p>
+     */
+    private static void registerConfigDefaults() {
+        Emulator.getConfig().register(CONFIG_MAX_TOTAL_STEPS, String.valueOf(DEFAULT_MAX_TOTAL_STEPS));
+        Emulator.getConfig().register(CONFIG_MAX_SIGNAL_DEPTH, String.valueOf(DEFAULT_MAX_DEPTH));
+        Emulator.getConfig().register(CONFIG_MAX_REMOTE_DEPTH, String.valueOf(DEFAULT_MAX_DEPTH));
+        Emulator.getConfig().register(CONFIG_MAX_TRIGGER_STACK_DEPTH, String.valueOf(DEFAULT_MAX_DEPTH));
+        Emulator.getConfig().register(CONFIG_MAX_FAN_OUT, String.valueOf(DEFAULT_MAX_FAN_OUT));
+        Emulator.getConfig().register(CONFIG_MAX_TARGETS, String.valueOf(DEFAULT_MAX_TARGETS));
+        Emulator.getConfig().register("wired.abuse.protection.enabled", "1");
+        Emulator.getConfig().register("wired.chests.upgrade_cost_credits", "10");
+        Emulator.getConfig().register("wired.chests.upgrade_cost_diamonds", "10");
+    }
+
+    /**
      * Initialize the wired manager and engine.
      * Called during emulator startup.
      */
@@ -132,6 +152,10 @@ public final class WiredManager {
         }
 
         LOGGER.info("Initializing Wired Manager...");
+
+        // Seed any engine setting the database does not carry yet, so operators
+        // can see and tune the limits instead of them living only as code defaults.
+        registerConfigDefaults();
 
         // Load configuration
         boolean enabled = Emulator.getConfig().getBoolean(CONFIG_ENABLED, DEFAULT_ENABLED);
