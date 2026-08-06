@@ -36,7 +36,7 @@ public final class Emulator {
     public final static int BUILD = 3;
     public final static String PREVIEW = "beta";
 
-    public static final String version = "Arcturus Morningstar" + " " + MAJOR + "." + MINOR + "." + BUILD + " " + PREVIEW;
+    public static final String version = "Habbo Daybreak Developer Preview";
     private static final String[] LOGO = {
             "       __            __                    __  ",
             "  ____/ /___ ___  __/ /_  ________  ____ _/ /__",
@@ -143,7 +143,7 @@ public final class Emulator {
                 }
             }
 
-            LOGGER.info("Arcturus Morningstar has successfully loaded.");
+            LOGGER.info("Habbo Daybreak has successfully loaded.");
             LOGGER.info("System launched in: {}ms. Using {} threads!", (System.nanoTime() - startTime) / 1e6, Runtime.getRuntime().availableProcessors() * 2);
             LOGGER.info("Memory: {}/{}MB", (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), (runtime.freeMemory()) / (1024 * 1024));
 
@@ -253,7 +253,7 @@ public final class Emulator {
         if (!fancy) {
             System.out.println("   " + version + tail);
             System.out.println("   open-source fork of Arcturus by TheGeneral");
-            System.out.println("   git.krews.org/morningstar/Arcturus-Community");
+            System.out.println("   github.com/habbo-cc/Habbo-Daybreak");
             System.out.println();
             return;
         }
@@ -276,7 +276,7 @@ public final class Emulator {
         }
         System.out.println("\r   " + tintText(version, n, Integer.MIN_VALUE) + dim + tail + rst);
         System.out.println("   " + dim + "open-source fork of Arcturus by TheGeneral" + rst);
-        System.out.println("   " + dim + "git.krews.org/morningstar/Arcturus-Community" + rst);
+        System.out.println("   " + dim + "github.com/habbo-cc/Habbo-Daybreak" + rst);
         System.out.println();
     }
 
@@ -391,7 +391,7 @@ public final class Emulator {
         Emulator.isShuttingDown = true;
         Emulator.isReady = false;
 
-        LOGGER.info("Stopping Arcturus Morningstar {}", version);
+        LOGGER.info("Stopping Habbo Daybreak {}", version);
 
         try {
             if (Emulator.getPluginManager() != null)
@@ -436,7 +436,7 @@ public final class Emulator {
         } catch (Exception e) {
         }
 
-        LOGGER.info("Stopped Arcturus Morningstar {}", version);
+        LOGGER.info("Stopped Habbo Daybreak {}", version);
 
         if (Emulator.database != null) {
             Emulator.getDatabase().dispose();
