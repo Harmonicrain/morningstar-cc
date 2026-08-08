@@ -381,7 +381,14 @@ public class RoomChatManager {
         roomChatMessage.setMessage(trimmedMessage);
 
         // Send chat before executing User Says wired so effect chat appears after the spoken keyword.
-        if (!hideUserSaysMessage) {
+        // July's "hide the triggerer's message" option does not make the input disappear from the
+        // speaker's own client: it is echoed back as a self-whisper while remaining hidden from the
+        // rest of the room.
+        if (hideUserSaysMessage) {
+            habbo.getClient().sendResponse(new WhisperMessageComposer(
+                new RoomChatMessage(roomChatMessage.getMessage(), habbo, habbo,
+                    roomChatMessage.getBubble())));
+        } else {
             if (chatType == RoomChatType.WHISPER) {
                 this.handleWhisper(habbo, roomChatMessage, prefixMessage, clearPrefixMessage);
             } else if (chatType == RoomChatType.TALK) {
