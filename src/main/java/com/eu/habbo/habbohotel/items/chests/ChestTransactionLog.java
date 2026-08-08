@@ -1,10 +1,14 @@
 package com.eu.habbo.habbohotel.items.chests;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /** Immutable July transaction-log wire model backed by the chest audit tables. */
 public final class ChestTransactionLog {
+  private static final DateTimeFormatter READABLE_TIMESTAMP =
+      DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss").withZone(ZoneId.systemDefault());
   public static final int LIST_CHEST = 0;
   public static final int LIST_ROOM = 1;
 
@@ -62,7 +66,7 @@ public final class ChestTransactionLog {
     }
 
     public String readableTimestamp() {
-      return timestamp <= 0 ? "" : Instant.ofEpochMilli(timestamp).toString();
+      return timestamp <= 0 ? "" : READABLE_TIMESTAMP.format(Instant.ofEpochMilli(timestamp));
     }
   }
 

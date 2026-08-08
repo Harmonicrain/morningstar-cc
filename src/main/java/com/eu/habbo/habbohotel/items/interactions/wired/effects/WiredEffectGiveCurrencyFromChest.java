@@ -44,14 +44,17 @@ public final class WiredEffectGiveCurrencyFromChest extends WiredEffectGiveFromC
         int total = 0;
         for (Habbo receiver : receivers) {
             int remaining = requested;
+            int rewarded = 0;
             for (HabboItem chest : chests) {
                 int given = manager.giveCoinsFromWired(
                         context.room(), chest, receiver, remaining, getId());
                 total += given;
+                rewarded += given;
                 if (mode() != MODE_ALL && (remaining -= given) <= 0) {
                     break;
                 }
             }
+            sendCoinReward(receiver, rewarded);
         }
         if (total > 0) {
             context.contextVariables().set(

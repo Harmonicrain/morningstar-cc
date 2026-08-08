@@ -14,7 +14,8 @@ import java.util.Map;
 public final class ChestTradeSession {
     public enum Phase {
         ADDING,
-        COUNTDOWN
+        COUNTDOWN,
+        CLOSED
     }
 
     private final int userId;
@@ -120,6 +121,9 @@ public final class ChestTradeSession {
     }
 
     public synchronized void resetAcceptance() {
+        if (this.phase == Phase.CLOSED) {
+            return;
+        }
         this.phase = Phase.ADDING;
         this.acceptedAt = 0;
     }
@@ -156,7 +160,8 @@ public final class ChestTradeSession {
 
     public synchronized void clear() {
         this.items.clear();
-        this.resetAcceptance();
+        this.phase = Phase.CLOSED;
+        this.acceptedAt = 0;
     }
 
     public boolean expired(long now) {

@@ -268,6 +268,8 @@ public class RoomUnitManager {
         if (habbo.getClient() != null) {
             Emulator.getGameEnvironment().getChestManager()
                     .abortTrade(habbo.getClient(), false, 3);
+            Emulator.getGameEnvironment().getChestManager()
+                    .closeActiveViewer(habbo.getClient());
         }
 
         if (habbo.getHabboInfo().getId() != this.room.getOwnerId()) {

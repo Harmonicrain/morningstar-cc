@@ -248,6 +248,30 @@ class ChestBaseComposerTest {
         }
     }
 
+    @Test
+    void serializesDirectChestActionRewardSuccess() {
+        ChestContractPlan.Rule reward = new ChestContractPlan.Rule(List.of(
+                new ChestContractPlan.Node(1, 4,
+                        new ChestContractPlan.ItemType(true, 903, "poster-8"))));
+        ByteBuf packet = new WiredTransactionSuccessComposer(
+                reward, "You found a prize", false).compose().get();
+        try {
+            assertHeader(packet, Outgoing.WiredTransactionSuccessComposer, 7133);
+            assertEquals(2, packet.readInt());
+            assertEquals(1, packet.readInt());
+            assertEquals(1, packet.readUnsignedByte());
+            assertEquals(4, packet.readInt());
+            assertTrue(packet.readBoolean());
+            assertEquals(903, packet.readInt());
+            assertEquals("poster-8", readString(packet));
+            assertEquals("You found a prize", readString(packet));
+            assertFalse(packet.readBoolean());
+            assertExhausted(packet);
+        } finally {
+            packet.release();
+        }
+    }
+
     private static void assertHeader(ByteBuf packet, int header, int localHeader) {
         assertEquals(packet.readInt(), packet.readableBytes());
         assertEquals(localHeader, header);

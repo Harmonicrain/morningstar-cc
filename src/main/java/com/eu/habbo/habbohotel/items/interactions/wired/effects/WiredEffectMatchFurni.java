@@ -73,9 +73,14 @@ public class WiredEffectMatchFurni extends InteractionWiredEffect implements Int
             HabboItem item = room.getHabboItemByDatabaseId(setting.item_id);
             if (item != null && movementTargets.contains(item)) {
                 if (this.state && (this.checkForWiredResetPermission && item.allowWiredResetState())) {
-                    if (!setting.state.equals(" ") && !item.getExtradata().equals(setting.state)) {
-                        item.setExtradata(setting.state);
-                        room.updateItemState(item);
+                    if (!setting.state.equals(" ")) {
+                        if (Emulator.getGameEnvironment().getChestManager().isChest(item)) {
+                            Emulator.getGameEnvironment().getChestManager()
+                                    .setStateFromWired(room, item, setting.state);
+                        } else if (!item.getExtradata().equals(setting.state)) {
+                            item.setExtradata(setting.state);
+                            room.updateItemState(item);
+                        }
                     }
                 }
 

@@ -2,7 +2,9 @@ package com.eu.habbo.habbohotel.items.interactions.wired.effects;
 
 import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
+import com.eu.habbo.habbohotel.items.FurnitureType;
 import com.eu.habbo.habbohotel.items.Item;
+import com.eu.habbo.habbohotel.items.chests.ChestContractPlan;
 import com.eu.habbo.habbohotel.items.chests.ChestManager;
 import com.eu.habbo.habbohotel.items.chests.ChestType;
 import com.eu.habbo.habbohotel.items.interactions.wired.WiredSettings;
@@ -13,11 +15,15 @@ import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.core.WiredContext;
 import com.eu.habbo.messages.incoming.wired.WiredSaveException;
+import com.eu.habbo.messages.outgoing.wired.chests.WiredTransactionSuccessComposer;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** July's common six-field contract for chest reward actions 45 and 46. */
 abstract class WiredEffectGiveFromChestBase extends WiredEffectConfigBase {
@@ -109,6 +115,64 @@ abstract class WiredEffectGiveFromChestBase extends WiredEffectConfigBase {
 
     protected boolean showPopup() {
         return this.intParams.length > 4 && this.intParams[4] != 0;
+    }
+
+    /**
+     * Sends July's reward notification for a direct chest action. The packet is sent even when the
+     * dialog is not opened automatically; {@code showPopup} controls only that client-side choice.
+     */
+    protected void sendFurnitureReward(Habbo receiver, List<HabboItem> rewarded) {
+        if (receiver == null || receiver.getClient() == null || rewarded == null || rewarded.isEmpty()) {
+            return;
+        }
+        Map<ChestContractPlan.ItemType, Integer> amounts = new LinkedHashMap<>();
+        for (HabboItem item : rewarded) {
+            if (item == null || item.getBaseItem() == null) {
+                continue;
+            }
+            boolean wall = item.getBaseItem().getType() == FurnitureType.WALL;
+            String poster = wall && "poster".equals(item.getBaseItem().getName())
+                    ? item.getExtradata() : "";
+            ChestContractPlan.ItemType type = new ChestContractPlan.ItemType(
+                    wall, item.getBaseItem().getSpriteId(), poster);
+            amounts.merge(type, 1, Integer::sum);
+        }
+        List<ChestContractPlan.Node> nodes = new ArrayList<>();
+        for (Map.Entry<ChestContractPlan.ItemType, Integer> entry : amounts.entrySet()) {
+            appendRewardNodes(nodes, 1, entry.getValue(), entry.getKey());
+        }
+        sendReward(receiver, nodes);
+    }
+
+    protected void sendCoinReward(Habbo receiver, int amount) {
+        if (receiver == null || receiver.getClient() == null || amount <= 0) {
+            return;
+        }
+        List<ChestContractPlan.Node> nodes = new ArrayList<>();
+        appendRewardNodes(nodes, 0, amount, null);
+        sendReward(receiver, nodes);
+    }
+
+    private static void appendRewardNodes(List<ChestContractPlan.Node> nodes, int type,
+            int amount, ChestContractPlan.ItemType itemType) {
+        int remaining = amount;
+        while (remaining > 0) {
+            int chunk = Math.min(remaining, 100_000);
+            nodes.add(new ChestContractPlan.Node(type, chunk, itemType));
+            remaining -= chunk;
+        }
+    }
+
+    private void sendReward(Habbo receiver, List<ChestContractPlan.Node> nodes) {
+        if (nodes.isEmpty()) {
+            return;
+        }
+        for (int offset = 0; offset < nodes.size(); offset += 256) {
+            int end = Math.min(nodes.size(), offset + 256);
+            receiver.getClient().sendResponse(new WiredTransactionSuccessComposer(
+                    new ChestContractPlan.Rule(nodes.subList(offset, end)), this.stringParam,
+                    offset == 0 && showPopup()));
+        }
     }
 
     @Override protected int getFurniSourceSlotCount() { return 2; }

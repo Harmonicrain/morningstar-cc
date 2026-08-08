@@ -4,6 +4,7 @@ import com.eu.habbo.Emulator;
 import com.eu.habbo.habbohotel.gameclients.GameClient;
 import com.eu.habbo.habbohotel.items.Item;
 import com.eu.habbo.habbohotel.rooms.Room;
+import com.eu.habbo.habbohotel.wired.WiredEffectType;
 import com.eu.habbo.messages.ServerMessage;
 
 import java.sql.ResultSet;
@@ -39,6 +40,12 @@ public class InteractionFurniChest extends InteractionDefault {
 
     @Override
     public void onClick(GameClient client, Room room, Object[] objects) {
+        if (objects != null && objects.length >= 2
+                && objects[1] instanceof WiredEffectType
+                && objects[1] == WiredEffectType.TOGGLE_STATE) {
+            Emulator.getGameEnvironment().getChestManager().toggleStateFromWired(room, this);
+            return;
+        }
         Emulator.getGameEnvironment().getChestManager().open(client, room, this);
     }
 }

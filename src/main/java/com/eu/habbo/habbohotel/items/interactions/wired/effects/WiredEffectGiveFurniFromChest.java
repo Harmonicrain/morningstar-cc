@@ -14,6 +14,7 @@ import com.eu.habbo.habbohotel.wired.core.WiredContext;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 /** July AIR action 46 ({@code wf_act_give_furni}). */
@@ -56,15 +57,18 @@ public final class WiredEffectGiveFurniFromChest extends WiredEffectGiveFromChes
         int total = 0;
         for (Habbo receiver : receivers) {
             int remaining = requested;
+            List<HabboItem> rewarded = new ArrayList<>();
             for (HabboItem chest : chests) {
                 List<HabboItem> given = manager.giveFurnitureFromWired(
                         context.room(), chest, receiver, remaining, types, this.intParams[5],
                         getId());
                 total += given.size();
+                rewarded.addAll(given);
                 if (mode() != MODE_ALL && (remaining -= given.size()) <= 0) {
                     break;
                 }
             }
+            sendFurnitureReward(receiver, rewarded);
         }
         if (total > 0) {
             context.contextVariables().set(

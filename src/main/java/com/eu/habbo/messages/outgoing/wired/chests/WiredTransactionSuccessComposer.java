@@ -9,24 +9,39 @@ import com.eu.habbo.messages.outgoing.Outgoing;
 public final class WiredTransactionSuccessComposer extends MessageComposer {
   private static final int REWARD_CONTENTS = 2;
 
-  private final ChestContractPlan contract;
+  private final ChestContractPlan.Rule rewardRule;
+  private final String rewardText;
+  private final boolean showDialog;
   private final int multiplier;
 
   public WiredTransactionSuccessComposer(ChestContractPlan contract, int multiplier) {
     if (contract == null || contract.getRule() == null || multiplier < 1) {
       throw new IllegalArgumentException("reward contract");
     }
-    this.contract = contract;
+    this.rewardRule = contract.getRule();
+    this.rewardText = contract.rewardText();
+    this.showDialog = contract.showDialog();
     this.multiplier = multiplier;
+  }
+
+  public WiredTransactionSuccessComposer(
+      ChestContractPlan.Rule rewardRule, String rewardText, boolean showDialog) {
+    if (rewardRule == null) {
+      throw new IllegalArgumentException("reward rule");
+    }
+    this.rewardRule = rewardRule;
+    this.rewardText = rewardText == null ? "" : rewardText;
+    this.showDialog = showDialog;
+    this.multiplier = 1;
   }
 
   @Override
   protected ServerMessage composeInternal() {
     this.response.init(Outgoing.WiredTransactionSuccessComposer);
     this.response.appendInt(REWARD_CONTENTS);
-    appendRule(this.contract.getRule());
-    this.response.appendString(this.contract.rewardText());
-    this.response.appendBoolean(this.contract.showDialog());
+    appendRule(this.rewardRule);
+    this.response.appendString(this.rewardText);
+    this.response.appendBoolean(this.showDialog);
     return this.response;
   }
 

@@ -26,8 +26,7 @@ public class GameClient {
     private boolean handshakeFinished;
     private String machineId = "";
     private volatile WiredCapabilityState wiredCapabilityState = WiredCapabilityState.unsupported();
-    private volatile int activeChestId;
-    private volatile int activeChestRoomId;
+    private volatile long activeChestKey;
     private volatile ChestTradeSession chestTradeSession;
 
     public final ConcurrentHashMap<Integer, Integer> incomingPacketCounter = new ConcurrentHashMap<>(25);
@@ -93,25 +92,34 @@ public class GameClient {
                 Emulator.getGameEnvironment().getChestManager()
                         .abortTrade(this, false, 3);
             }
-            this.clearActiveChest();
+            Emulator.getGameEnvironment().getChestManager().closeActiveViewer(this);
         }
         this.wiredCapabilityState = next;
     }
 
-    public void setActiveChest(int roomId, int chestId) {
-        this.activeChestRoomId = Math.max(0, roomId);
-        this.activeChestId = Math.max(0, chestId);
+    public synchronized long setActiveChest(int roomId, int chestId) {
+        int safeRoomId = Math.max(0, roomId);
+        int safeChestId = Math.max(0, chestId);
+        long previous = this.activeChestKey;
+        this.activeChestKey = ((long) safeRoomId << 32) | (safeChestId & 0xffffffffL);
+        return previous;
     }
 
     public boolean isActiveChest(int roomId, int chestId) {
         return roomId > 0 && chestId > 0
-                && this.activeChestRoomId == roomId
-                && this.activeChestId == chestId;
+                && this.activeChestKey == (((long) roomId << 32) | (chestId & 0xffffffffL));
     }
 
-    public void clearActiveChest() {
-        this.activeChestRoomId = 0;
-        this.activeChestId = 0;
+    public long getActiveChestKey() {
+        return this.activeChestKey;
+    }
+
+    public synchronized boolean clearActiveChest(long expectedKey) {
+        if (this.activeChestKey != expectedKey) {
+            return false;
+        }
+        this.activeChestKey = 0L;
+        return true;
     }
 
     public ChestTradeSession getChestTradeSession() {
@@ -130,6 +138,15 @@ public class GameClient {
         ChestTradeSession previous = this.chestTradeSession;
         this.chestTradeSession = null;
         return previous;
+    }
+
+    /** Clears only the session that scheduled the caller, preserving any replacement session. */
+    public synchronized ChestTradeSession clearChestTradeSession(ChestTradeSession expected) {
+        if (expected == null || this.chestTradeSession != expected) {
+            return null;
+        }
+        this.chestTradeSession = null;
+        return expected;
     }
 
     public void sendResponse(MessageComposer composer) {
@@ -190,7 +207,7 @@ public class GameClient {
                         .abortTrade(this, false, 3);
             }
             this.wiredCapabilityState = WiredCapabilityState.unsupported();
-            this.clearActiveChest();
+            Emulator.getGameEnvironment().getChestManager().closeActiveViewer(this);
             this.channel.close();
 
             if (this.habbo != null) {

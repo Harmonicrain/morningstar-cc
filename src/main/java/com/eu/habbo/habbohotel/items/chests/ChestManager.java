@@ -33,10 +33,13 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 /** Room-facing chest domain service; packet handlers do not access SQL directly. */
 public final class ChestManager {
@@ -44,6 +47,7 @@ public final class ChestManager {
   private static final int TRADE_TIMEOUT_SECONDS = 60;
   private static final long TRADE_CONFIRM_COUNTDOWN_MILLIS = 2800L;
   private static final int MAX_TRADE_ITEMS = 1500;
+  private static final int CHEST_LOCK_STRIPES = 256;
   private static final int CONTRACT_CAPABILITIES =
       WiredCapabilityService.CAPABILITY_VARIABLES
           | WiredCapabilityService.CAPABILITY_CHESTS
@@ -56,6 +60,7 @@ public final class ChestManager {
   private static final String NOTIFICATION_WIRED = "wired_chests.chest_wired_transaction";
   private final ChestRepository repository;
   private final Map<Integer, CachedChest> cache = new ConcurrentHashMap<>();
+  private final ReentrantLock[] chestLocks = createChestLocks();
 
   public ChestManager() {
     this(new ChestRepository());
@@ -80,31 +85,48 @@ public final class ChestManager {
   }
 
   public Map<String, String> furnitureData(HabboItem chest) {
-    ChestSettings settings = settings(chest);
-    if (settings == null) {
-      return Map.of();
+    if (!isChest(chest)) {
+      return Map.of("state", "0");
     }
-    LinkedHashMap<String, String> data = new LinkedHashMap<>();
-    data.put("locked", flag(settings.locked()));
-    data.put("auto_lock", flag(settings.autoLock()));
-    data.put("capacity", Integer.toString(settings.capacity()));
-    data.put("contents_count", Integer.toString(contentsCount(chest)));
-    data.put("capacity_level", Integer.toString(settings.capacityLevel()));
-    data.put("chest_name", settings.name());
-    data.put("chest_desc", settings.description());
-    data.put("everyone_can_open", flag(settings.everyoneCanOpen()));
-    data.put("everyone_can_donate", flag(settings.everyoneCanDonate()));
-    data.put("state_control_mode", Integer.toString(settings.stateControlMode()));
-    data.put("is_wired_enabled", flag(settings.wiredEnabled()));
-    data.put("notify_mode", Integer.toString(settings.notifyMode()));
-    data.put("preview_mode", Integer.toString(settings.previewMode()));
-    data.put("preview_amount", Integer.toString(settings.previewAmount()));
-    data.put("notification_chest_full", flag(settings.notifyFull()));
-    data.put("notification_donation", flag(settings.notifyDonation()));
-    data.put("notification_someone_withdraws", flag(settings.notifyWithdraw()));
-    data.put("notification_chest_empty", flag(settings.notifyEmpty()));
-    data.put("notification_wired_transaction", flag(settings.notifyWiredTransaction()));
-    return data;
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          LinkedHashMap<String, String> data = new LinkedHashMap<>();
+          if (settings == null) {
+            data.put("state", "0");
+            if (ChestType.fromItem(chest) == ChestType.FURNI) {
+              data.put("visuals", "");
+            }
+            return data;
+          }
+          int contents = contentsCount(chest);
+          boolean open = isVisuallyOpen(chest, settings);
+          data.put("state", Integer.toString(visualState(chest, settings, contents, open)));
+          if (ChestType.fromItem(chest) == ChestType.FURNI) {
+            data.put("visuals", open ? furnitureVisuals(chest) : "");
+          }
+          data.put("locked", flag(settings.locked()));
+          data.put("auto_lock", flag(settings.autoLock()));
+          data.put("capacity", Integer.toString(settings.capacity()));
+          data.put("contents_count", Integer.toString(contents));
+          data.put("capacity_level", Integer.toString(settings.capacityLevel()));
+          data.put("chest_name", settings.name());
+          data.put("chest_desc", settings.description());
+          data.put("everyone_can_open", flag(settings.everyoneCanOpen()));
+          data.put("everyone_can_donate", flag(settings.everyoneCanDonate()));
+          data.put("state_control_mode", Integer.toString(settings.stateControlMode()));
+          data.put("is_wired_enabled", flag(settings.wiredEnabled()));
+          data.put("notify_mode", Integer.toString(settings.notifyMode()));
+          data.put("preview_mode", Integer.toString(settings.previewMode()));
+          data.put("preview_amount", Integer.toString(settings.previewAmount()));
+          data.put("notification_chest_full", flag(settings.notifyFull()));
+          data.put("notification_donation", flag(settings.notifyDonation()));
+          data.put("notification_someone_withdraws", flag(settings.notifyWithdraw()));
+          data.put("notification_chest_empty", flag(settings.notifyEmpty()));
+          data.put("notification_wired_transaction", flag(settings.notifyWiredTransaction()));
+          return data;
+        });
   }
 
   public boolean canViewLogs(GameClient client, Room room, HabboItem chest) {
@@ -153,24 +175,42 @@ public final class ChestManager {
     if (!allowed(ChestAuthorization.Operation.OPEN, client, room, chest, settings)) {
       return;
     }
-    client.setActiveChest(room.getId(), chest.getId());
-    if (ChestType.fromItem(chest) == ChestType.COINS) {
-      client.sendResponse(
-          new ChestCoinBalanceComposer(
-              chest.getRoomVisibleId(), this.repository.loadCoinBalance(chest.getId()), false));
-      return;
+    long targetKey = chestKey(room.getId(), chest.getId());
+    long previousKey = client.setActiveChest(room.getId(), chest.getId());
+    if (previousKey != 0L && previousKey != targetKey) {
+      refreshViewerKey(previousKey);
     }
-    List<ChestRepository.StoredHabboItem> items =
-        this.repository.loadStoredHabboItems(chest.getId());
-    int fragments =
-        Math.max(1, (items.size() + CONTENTS_FRAGMENT_SIZE - 1) / CONTENTS_FRAGMENT_SIZE);
-    for (int fragment = 0; fragment < fragments; fragment++) {
-      int from = fragment * CONTENTS_FRAGMENT_SIZE;
-      int to = Math.min(items.size(), from + CONTENTS_FRAGMENT_SIZE);
-      client.sendResponse(
-          new ChestFurniContentsComposer(
-              chest.getRoomVisibleId(), fragments, fragment, items.subList(from, to)));
-    }
+    withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings current = settings(chest);
+          if (!client.isActiveChest(room.getId(), chest.getId())
+              || !allowed(ChestAuthorization.Operation.OPEN, client, room, chest, current)) {
+            if (client.clearActiveChest(targetKey)) {
+              refreshAppearance(room, chest);
+            }
+            return null;
+          }
+          if (ChestType.fromItem(chest) == ChestType.COINS) {
+            client.sendResponse(
+                new ChestCoinBalanceComposer(
+                    chest.getRoomVisibleId(), this.repository.loadCoinBalance(chest.getId()), false));
+          } else {
+            List<ChestRepository.StoredHabboItem> items =
+                this.repository.loadStoredHabboItems(chest.getId());
+            int fragments =
+                Math.max(1, (items.size() + CONTENTS_FRAGMENT_SIZE - 1) / CONTENTS_FRAGMENT_SIZE);
+            for (int fragment = 0; fragment < fragments; fragment++) {
+              int from = fragment * CONTENTS_FRAGMENT_SIZE;
+              int to = Math.min(items.size(), from + CONTENTS_FRAGMENT_SIZE);
+              client.sendResponse(
+                  new ChestFurniContentsComposer(
+                      chest.getRoomVisibleId(), fragments, fragment, items.subList(from, to)));
+            }
+          }
+          refreshAppearance(room, chest);
+          return null;
+        });
   }
 
   public void close(GameClient client, Room room, HabboItem chest) {
@@ -182,8 +222,132 @@ public final class ChestManager {
       if (session != null && !session.isContract() && session.chestId() == chest.getId()) {
         abortTrade(client, true, 3);
       }
-      client.clearActiveChest();
+      withChestLock(
+          chest.getId(),
+          () -> {
+            long expectedKey = chestKey(room.getId(), chest.getId());
+            if (client.clearActiveChest(expectedKey)) {
+              refreshAppearance(room, chest);
+            }
+            return null;
+          });
     }
+  }
+
+  /** Clears a viewer on room exit, capability reset or disconnect and refreshes mode 0 state. */
+  public void closeActiveViewer(GameClient client) {
+    if (client == null) {
+      return;
+    }
+    long activeChestKey = client.getActiveChestKey();
+    int roomId = (int) (activeChestKey >>> 32);
+    int chestId = (int) activeChestKey;
+    if (roomId <= 0 || chestId <= 0) {
+      client.clearActiveChest(activeChestKey);
+      return;
+    }
+    Room room =
+        com.eu.habbo.Emulator.getGameEnvironment().getRoomManager().getRoom(roomId);
+    HabboItem chest = room == null ? null : room.getHabboItemByDatabaseId(chestId);
+    withChestLock(
+        chestId,
+        () -> {
+          boolean cleared = client.clearActiveChest(activeChestKey);
+          if (cleared && room != null && chest != null && isChest(chest)) {
+            refreshAppearance(room, chest);
+          }
+          return null;
+        });
+  }
+
+  private void refreshViewerKey(long viewerKey) {
+    int roomId = (int) (viewerKey >>> 32);
+    int chestId = (int) viewerKey;
+    if (roomId <= 0 || chestId <= 0) {
+      return;
+    }
+    Room room =
+        com.eu.habbo.Emulator.getGameEnvironment().getRoomManager().getRoom(roomId);
+    HabboItem chest = room == null ? null : room.getHabboItemByDatabaseId(chestId);
+    if (chest == null || !isChest(chest)) {
+      return;
+    }
+    withChestLock(
+        chestId,
+        () -> {
+          refreshAppearance(room, chest);
+          return null;
+        });
+  }
+
+  private static long chestKey(int roomId, int chestId) {
+    return ((long) roomId << 32) | (chestId & 0xffffffffL);
+  }
+
+  /** Existing toggle-state Wired uses this producer for appearance mode 3. */
+  public void toggleStateFromWired(Room room, HabboItem chest) {
+    if (room == null
+        || !isChest(chest)
+        || chest.getRoomId() != room.getId()
+        || room.getHabboItemByDatabaseId(chest.getId()) != chest
+        || chest.getBaseItem().getStateCount() <= 0) {
+      return;
+    }
+    withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          if (settings == null || settings.stateControlMode() != 3) {
+            return null;
+          }
+          int current = 0;
+          try {
+            current = Integer.parseInt(chest.getExtradata());
+          } catch (RuntimeException ignored) {
+            // Existing item-toggle semantics recover malformed state at zero.
+          }
+          int next = Math.floorMod(current + 1, chest.getBaseItem().getStateCount());
+          chest.setExtradata(Integer.toString(next));
+          chest.needsUpdate(true);
+          invalidate(chest.getId());
+          refreshAppearance(room, chest);
+          return null;
+        });
+  }
+
+  /** Match-furni state changes share the same mode-3 gate and serialization as toggle-state. */
+  public void setStateFromWired(Room room, HabboItem chest, String requestedState) {
+    if (room == null
+        || !isChest(chest)
+        || chest.getRoomId() != room.getId()
+        || room.getHabboItemByDatabaseId(chest.getId()) != chest
+        || chest.getBaseItem().getStateCount() <= 0
+        || requestedState == null) {
+      return;
+    }
+    final int requested;
+    try {
+      requested = Integer.parseInt(requestedState.trim());
+    } catch (RuntimeException ignored) {
+      return;
+    }
+    withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          if (settings == null || settings.stateControlMode() != 3) {
+            return null;
+          }
+          String next = Integer.toString(Math.floorMod(requested, chest.getBaseItem().getStateCount()));
+          if (next.equals(chest.getExtradata())) {
+            return null;
+          }
+          chest.setExtradata(next);
+          chest.needsUpdate(true);
+          invalidate(chest.getId());
+          refreshAppearance(room, chest);
+          return null;
+        });
   }
 
   /** Starts July's inventory Wired Trading flow for a manual chest deposit. */
@@ -221,6 +385,7 @@ public final class ChestManager {
       client.sendResponse(new WiredTradeCancelledComposer(4));
       return;
     }
+    scheduleTradeTimeout(client, session);
     client.sendResponse(new WiredTradeInitiateComposer(type, true, TRADE_TIMEOUT_SECONDS));
     client.sendResponse(new WiredTradeItemUpdateComposer(session, false, 0));
   }
@@ -295,6 +460,7 @@ public final class ChestManager {
     if (!client.beginChestTradeSession(session)) {
       return ChestTransactionFailure.ALREADY_TRADING;
     }
+    scheduleTradeTimeout(client, session);
     client.sendResponse(
         new WiredTradeInitiateComposer(contract, true, false, effectiveTimeout));
     client.sendResponse(new WiredTradeItemUpdateComposer(session, false, 0));
@@ -392,11 +558,13 @@ public final class ChestManager {
       }
       return;
     }
-    if (!session.canConfirm(now, TRADE_CONFIRM_COUNTDOWN_MILLIS)) {
-      abortTrade(client, true, session.expired(now) ? 2 : 18);
-      return;
+    synchronized (session) {
+      if (!session.canConfirm(now, TRADE_CONFIRM_COUNTDOWN_MILLIS)) {
+        abortTrade(client, true, session.expired(now) ? 2 : 18);
+        return;
+      }
+      commitTrade(client, session);
     }
-    commitTrade(client, session);
   }
 
   /**
@@ -408,6 +576,30 @@ public final class ChestManager {
       return;
     }
     ChestTradeSession session = client.clearChestTradeSession();
+    abortClearedTrade(client, session, notifyClient, reason);
+  }
+
+  private void scheduleTradeTimeout(GameClient client, ChestTradeSession session) {
+    if (client == null || session == null || session.expiresAt() == Long.MAX_VALUE) {
+      return;
+    }
+    long delay = Math.max(1L, session.expiresAt() - System.currentTimeMillis());
+    com.eu.habbo.Emulator.getThreading().run(() -> expireTrade(client, session), delay);
+  }
+
+  private void expireTrade(GameClient client, ChestTradeSession expected) {
+    synchronized (expected) {
+      if (!expected.expired(System.currentTimeMillis())) {
+        scheduleTradeTimeout(client, expected);
+        return;
+      }
+      ChestTradeSession session = client.clearChestTradeSession(expected);
+      abortClearedTrade(client, session, true, 2);
+    }
+  }
+
+  private void abortClearedTrade(
+      GameClient client, ChestTradeSession session, boolean notifyClient, int reason) {
     if (session == null) {
       return;
     }
@@ -469,25 +661,29 @@ public final class ChestManager {
       int previewMode,
       int previewAmount,
       boolean enableWired) {
-    ChestSettings settings = settings(chest);
-    if (!allowed(ChestAuthorization.Operation.EDIT, client, room, chest, settings)) {
-      return ChestRepository.Result.NOT_OWNER;
-    }
-    int actorId = client.getHabbo().getHabboInfo().getId();
-    ChestRepository.Result result =
-        this.repository.saveGeneral(
-            chest,
-            room.getId(),
-            actorId,
-            name,
-            description,
-            everyoneCanOpen,
-            everyoneCanDonate,
-            stateControlMode,
-            previewMode,
-            previewAmount,
-            enableWired);
-    return afterMutation(room, chest, result);
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          if (!allowed(ChestAuthorization.Operation.EDIT, client, room, chest, settings)) {
+            return ChestRepository.Result.NOT_OWNER;
+          }
+          int actorId = client.getHabbo().getHabboInfo().getId();
+          ChestRepository.Result result =
+              this.repository.saveGeneral(
+                  chest,
+                  room.getId(),
+                  actorId,
+                  name,
+                  description,
+                  everyoneCanOpen,
+                  everyoneCanDonate,
+                  stateControlMode,
+                  previewMode,
+                  previewAmount,
+                  enableWired);
+          return afterMutation(room, chest, result);
+        });
   }
 
   public ChestRepository.Result saveNotifications(
@@ -500,23 +696,27 @@ public final class ChestManager {
       boolean withdraw,
       boolean empty,
       boolean wiredTransaction) {
-    ChestSettings settings = settings(chest);
-    if (!allowed(ChestAuthorization.Operation.EDIT, client, room, chest, settings)) {
-      return ChestRepository.Result.NOT_OWNER;
-    }
-    int actorId = client.getHabbo().getHabboInfo().getId();
-    ChestRepository.Result result =
-        this.repository.saveNotifications(
-            chest,
-            room.getId(),
-            actorId,
-            notifyMode,
-            full,
-            donation,
-            withdraw,
-            empty,
-            wiredTransaction);
-    return afterMutation(room, chest, result);
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          if (!allowed(ChestAuthorization.Operation.EDIT, client, room, chest, settings)) {
+            return ChestRepository.Result.NOT_OWNER;
+          }
+          int actorId = client.getHabbo().getHabboInfo().getId();
+          ChestRepository.Result result =
+              this.repository.saveNotifications(
+                  chest,
+                  room.getId(),
+                  actorId,
+                  notifyMode,
+                  full,
+                  donation,
+                  withdraw,
+                  empty,
+                  wiredTransaction);
+          return afterMutation(room, chest, result);
+        });
   }
 
   public ChestRepository.Result saveSafety(
@@ -526,16 +726,22 @@ public final class ChestManager {
       boolean locked,
       boolean autoLock,
       int capacity) {
-    ChestSettings settings = settings(chest);
-    ChestAuthorization.Operation operation =
-        locked ? ChestAuthorization.Operation.LOCK : ChestAuthorization.Operation.UNLOCK;
-    if (!allowed(operation, client, room, chest, settings)) {
-      return ChestRepository.Result.NOT_OWNER;
-    }
-    int ownerId = chest.getUserId();
-    ChestRepository.Result result =
-        this.repository.saveSafety(chest, room.getId(), ownerId, locked, autoLock, capacity);
-    ChestRepository.Result applied = afterMutation(room, chest, result);
+    ChestRepository.Result applied =
+        withChestLock(
+            chest.getId(),
+            () -> {
+              ChestSettings settings = settings(chest);
+              ChestAuthorization.Operation operation =
+                  locked ? ChestAuthorization.Operation.LOCK : ChestAuthorization.Operation.UNLOCK;
+              if (!allowed(operation, client, room, chest, settings)) {
+                return ChestRepository.Result.NOT_OWNER;
+              }
+              int ownerId = chest.getUserId();
+              ChestRepository.Result result =
+                  this.repository.saveSafety(
+                      chest, room.getId(), ownerId, locked, autoLock, capacity);
+              return afterMutation(room, chest, result);
+            });
     if (applied == ChestRepository.Result.OK && locked) {
       abortTradesUsingChest(room, chest, 15);
     }
@@ -562,9 +768,21 @@ public final class ChestManager {
       if (current == null || current.locked() || !current.autoLock()) {
         continue;
       }
-      ChestRepository.Result result = this.repository.autoLock(chest, room.getId(), ownerId);
+      ChestRepository.Result result =
+          withChestLock(
+              chest.getId(),
+              () -> {
+                ChestSettings lockedCurrent = settings(chest);
+                if (lockedCurrent == null
+                    || lockedCurrent.locked()
+                    || !lockedCurrent.autoLock()) {
+                  return ChestRepository.Result.CANCELLED;
+                }
+                ChestRepository.Result lockedResult =
+                    this.repository.autoLock(chest, room.getId(), ownerId);
+                return afterMutation(room, chest, lockedResult);
+              });
       if (result == ChestRepository.Result.OK) {
-        afterMutation(room, chest, result);
         abortTradesUsingChest(room, chest, 15);
       }
     }
@@ -582,14 +800,18 @@ public final class ChestManager {
         chest.getRoomId() > 0
             ? com.eu.habbo.Emulator.getGameEnvironment().getRoomManager().getRoom(chest.getRoomId())
             : null;
-    if (room != null) {
-      abortTradesUsingChest(room, chest, 13);
-    }
-    ChestRepository.Result result = this.repository.deleteChest(chest);
-    if (result == ChestRepository.Result.OK) {
-      invalidate(chest.getId());
-    }
-    return result;
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          if (room != null) {
+            abortTradesUsingChest(room, chest, 13);
+          }
+          ChestRepository.Result result = this.repository.deleteChest(chest);
+          if (result == ChestRepository.Result.OK) {
+            invalidate(chest.getId());
+          }
+          return result;
+        });
   }
 
   public ChestRepository.Result upgrade(
@@ -618,29 +840,44 @@ public final class ChestManager {
     if (approvedCredits == null || approvedDiamonds == null) {
       return ChestRepository.Result.CANCELLED;
     }
-    ChestRepository.UpgradeTransfer transfer;
-    synchronized (actor.getHabboInfo()) {
-      transfer =
-          this.repository.upgradeCapacity(
-              chest,
-              room.getId(),
-              actor.getHabboInfo().getId(),
-              levels,
-              approvedCredits,
-              approvedDiamonds.amount(),
-              approvedDiamonds.type());
-      if (transfer.result() == ChestRepository.Result.OK) {
-        if (approvedCredits > 0) {
-          actor.getHabboInfo().applyCommittedCreditBalance(transfer.creditBalance());
-        }
-        if (approvedDiamonds.amount() > 0) {
-          actor
-              .getHabboInfo()
-              .applyCommittedCurrencyBalance(
-                  transfer.currencyType(), transfer.currencyBalance());
-        }
-      }
-    }
+    ChestRepository.UpgradeTransfer transfer =
+        withChestLock(
+            chest.getId(),
+            () -> {
+              ChestSettings current = settings(chest);
+              if (!allowed(ChestAuthorization.Operation.EDIT, client, room, chest, current)) {
+                return ChestRepository.UpgradeTransfer.failure(ChestRepository.Result.NOT_OWNER);
+              }
+              ChestRepository.UpgradeTransfer lockedTransfer;
+              synchronized (actor.getHabboInfo()) {
+                lockedTransfer =
+                    this.repository.upgradeCapacity(
+                        chest,
+                        room.getId(),
+                        actor.getHabboInfo().getId(),
+                        levels,
+                        approvedCredits,
+                        approvedDiamonds.amount(),
+                        approvedDiamonds.type());
+                if (lockedTransfer.result() == ChestRepository.Result.OK) {
+                  if (approvedCredits > 0) {
+                    actor
+                        .getHabboInfo()
+                        .applyCommittedCreditBalance(lockedTransfer.creditBalance());
+                  }
+                  if (approvedDiamonds.amount() > 0) {
+                    actor
+                        .getHabboInfo()
+                        .applyCommittedCurrencyBalance(
+                            lockedTransfer.currencyType(), lockedTransfer.currencyBalance());
+                  }
+                }
+              }
+              if (lockedTransfer.result() == ChestRepository.Result.OK) {
+                afterMutation(room, chest, ChestRepository.Result.OK);
+              }
+              return lockedTransfer;
+            });
     if (transfer.result() == ChestRepository.Result.OK) {
       if (approvedCredits > 0) {
         client.sendResponse(new CreditBalanceMessageComposer(actor));
@@ -648,88 +885,97 @@ public final class ChestManager {
       if (approvedDiamonds.amount() > 0) {
         client.sendResponse(new ActivityPointsMessageComposer(actor));
       }
-      afterMutation(room, chest, ChestRepository.Result.OK);
     }
     return transfer.result();
   }
 
   public ChestRepository.ItemTransfer depositItem(
       GameClient client, Room room, HabboItem chest, HabboItem inventoryItem) {
-    ChestSettings settings = settings(chest);
-    int before = contentsCount(chest);
-    if (inventoryItem == null
-        || !inventoryItem.getBaseItem().allowTrade()
-        || !allowed(ChestAuthorization.Operation.DONATE, client, room, chest, settings)) {
-      return ChestRepository.ItemTransfer.failure(ChestRepository.Result.ITEM_NOT_OWNED);
-    }
-    int actorId = client.getHabbo().getHabboInfo().getId();
-    ChestRepository.ItemTransfer result =
-        this.repository.depositItem(
-            chest,
-            room.getId(),
-            actorId,
-            ChestTransactionLog.Audit.manual(client.getHabbo().getHabboInfo().getUsername()),
-            inventoryItem.getId());
-    if (result.result() == ChestRepository.Result.OK) {
-      inventoryItem.setUserId(0);
-      inventoryItem.setRoomId(0);
-      client.getHabbo().removeFurniture(inventoryItem);
-      afterMutation(room, chest, ChestRepository.Result.OK);
-      broadcastToViewers(
-          room,
-          chest,
-          new ChestFurniContentsUpdateComposer(
-              chest.getRoomVisibleId(),
-              new int[0],
-              List.of(new ChestRepository.StoredHabboItem(inventoryItem, 0, 0))));
-      notifyMutation(
-          settings,
-          room,
-          chest,
-          client.getHabbo(),
-          before,
-          contentsCount(chest),
-          true,
-          false,
-          false);
-    }
-    return result;
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          int before = contentsCount(chest);
+          if (inventoryItem == null
+              || !inventoryItem.getBaseItem().allowTrade()
+              || !allowed(ChestAuthorization.Operation.DONATE, client, room, chest, settings)) {
+            return ChestRepository.ItemTransfer.failure(ChestRepository.Result.ITEM_NOT_OWNED);
+          }
+          int actorId = client.getHabbo().getHabboInfo().getId();
+          ChestRepository.ItemTransfer result =
+              this.repository.depositItem(
+                  chest,
+                  room.getId(),
+                  actorId,
+                  ChestTransactionLog.Audit.manual(
+                      client.getHabbo().getHabboInfo().getUsername()),
+                  inventoryItem.getId());
+          if (result.result() == ChestRepository.Result.OK) {
+            inventoryItem.setUserId(0);
+            inventoryItem.setRoomId(0);
+            client.getHabbo().removeFurniture(inventoryItem);
+            afterMutation(room, chest, ChestRepository.Result.OK);
+            broadcastToViewers(
+                room,
+                chest,
+                new ChestFurniContentsUpdateComposer(
+                    chest.getRoomVisibleId(),
+                    new int[0],
+                    List.of(new ChestRepository.StoredHabboItem(inventoryItem, 0, 0))));
+            notifyMutation(
+                settings,
+                room,
+                chest,
+                client.getHabbo(),
+                before,
+                contentsCount(chest),
+                true,
+                false,
+                false);
+          }
+          return result;
+        });
   }
 
   public ChestRepository.ItemTransfer withdrawItem(
       GameClient client, Room room, HabboItem chest, int itemId) {
-    ChestSettings settings = settings(chest);
-    int before = contentsCount(chest);
-    if (!allowed(ChestAuthorization.Operation.WITHDRAW, client, room, chest, settings)) {
-      return ChestRepository.ItemTransfer.failure(ChestRepository.Result.NOT_OWNER);
-    }
-    int actorId = client.getHabbo().getHabboInfo().getId();
-    ChestRepository.ItemTransfer result =
-        this.repository.withdrawItem(
-            chest,
-            room.getId(),
-            actorId,
-            ChestTransactionLog.Audit.manual(client.getHabbo().getHabboInfo().getUsername()),
-            itemId);
-    if (result.result() == ChestRepository.Result.OK) {
-      HabboItem item =
-          com.eu.habbo.Emulator.getGameEnvironment().getItemManager().loadHabboItem(itemId);
-      if (item != null) {
-        client.getHabbo().addFurniture(item);
-      }
-      afterMutation(room, chest, ChestRepository.Result.OK);
-      notifyMutation(
-          settings,
-          room,
-          chest,
-          client.getHabbo(),
-          before,
-          contentsCount(chest),
-          false,
-          true,
-          false);
-    }
-    return result;
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          int before = contentsCount(chest);
+          if (!allowed(ChestAuthorization.Operation.WITHDRAW, client, room, chest, settings)) {
+            return ChestRepository.ItemTransfer.failure(ChestRepository.Result.NOT_OWNER);
+          }
+          int actorId = client.getHabbo().getHabboInfo().getId();
+          ChestRepository.ItemTransfer result =
+              this.repository.withdrawItem(
+                  chest,
+                  room.getId(),
+                  actorId,
+                  ChestTransactionLog.Audit.manual(
+                      client.getHabbo().getHabboInfo().getUsername()),
+                  itemId);
+          if (result.result() == ChestRepository.Result.OK) {
+            HabboItem item =
+                com.eu.habbo.Emulator.getGameEnvironment().getItemManager().loadHabboItem(itemId);
+            if (item != null) {
+              client.getHabbo().addFurniture(item);
+            }
+            afterMutation(room, chest, ChestRepository.Result.OK);
+            notifyMutation(
+                settings,
+                room,
+                chest,
+                client.getHabbo(),
+                before,
+                contentsCount(chest),
+                false,
+                true,
+                false);
+          }
+          return result;
+        });
   }
 
   public ChestRepository.ItemBatchTransfer withdrawByType(
@@ -740,52 +986,62 @@ public final class ChestManager {
       int typeId,
       String legacyPosterId,
       int amount) {
-    ChestSettings settings = settings(chest);
-    if (amount <= 0
-        || amount > 1000
-        || !allowed(ChestAuthorization.Operation.WITHDRAW, client, room, chest, settings)) {
-      return ChestRepository.ItemBatchTransfer.failure(ChestRepository.Result.INVALID_AMOUNT);
-    }
-    String poster = legacyPosterId == null ? "" : legacyPosterId;
-    List<ChestRepository.StoredHabboItem> stored =
-        this.repository.loadStoredHabboItems(chest.getId());
-    List<ChestRepository.StoredHabboItem> selected =
-        stored.stream()
-            .filter(
-                entry -> {
-                  HabboItem item = entry.item();
-                  boolean itemWall =
-                      item.getBaseItem().getType()
-                          == com.eu.habbo.habbohotel.items.FurnitureType.WALL;
-                  if (itemWall != wall || item.getBaseItem().getSpriteId() != typeId) {
-                    return false;
-                  }
-                  return poster.isEmpty() || poster.equals(item.getExtradata());
-                })
-            .sorted(Comparator.comparingInt(entry -> entry.item().getId()))
-            .limit(amount)
-            .toList();
-    if (selected.isEmpty()) {
-      return ChestRepository.ItemBatchTransfer.failure(ChestRepository.Result.EMPTY);
-    }
-    return completeBatchWithdrawal(client, room, chest, selected);
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          if (amount <= 0
+              || amount > 1000
+              || !allowed(
+                  ChestAuthorization.Operation.WITHDRAW, client, room, chest, settings)) {
+            return ChestRepository.ItemBatchTransfer.failure(
+                ChestRepository.Result.INVALID_AMOUNT);
+          }
+          String poster = legacyPosterId == null ? "" : legacyPosterId;
+          List<ChestRepository.StoredHabboItem> stored =
+              this.repository.loadStoredHabboItems(chest.getId());
+          List<ChestRepository.StoredHabboItem> selected =
+              stored.stream()
+                  .filter(
+                      entry -> {
+                        HabboItem item = entry.item();
+                        boolean itemWall =
+                            item.getBaseItem().getType()
+                                == com.eu.habbo.habbohotel.items.FurnitureType.WALL;
+                        if (itemWall != wall || item.getBaseItem().getSpriteId() != typeId) {
+                          return false;
+                        }
+                        return poster.isEmpty() || poster.equals(item.getExtradata());
+                      })
+                  .sorted(Comparator.comparingInt(entry -> entry.item().getId()))
+                  .limit(amount)
+                  .toList();
+          if (selected.isEmpty()) {
+            return ChestRepository.ItemBatchTransfer.failure(ChestRepository.Result.EMPTY);
+          }
+          return completeBatchWithdrawal(client, room, chest, selected);
+        });
   }
 
   public ChestRepository.ItemBatchTransfer withdrawAll(
       GameClient client, Room room, HabboItem chest) {
-    ChestSettings settings = settings(chest);
-    if (!allowed(ChestAuthorization.Operation.WITHDRAW, client, room, chest, settings)) {
-      return ChestRepository.ItemBatchTransfer.failure(ChestRepository.Result.NOT_OWNER);
-    }
-    List<ChestRepository.StoredHabboItem> selected =
-        this.repository.loadStoredHabboItems(chest.getId()).stream()
-            .filter(entry -> entry.lockState() == 0 && entry.transactionId() == 0)
-            .sorted(Comparator.comparingInt(entry -> entry.item().getId()))
-            .toList();
-    if (selected.isEmpty()) {
-      return ChestRepository.ItemBatchTransfer.failure(ChestRepository.Result.EMPTY);
-    }
-    return completeBatchWithdrawal(client, room, chest, selected);
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          ChestSettings settings = settings(chest);
+          if (!allowed(ChestAuthorization.Operation.WITHDRAW, client, room, chest, settings)) {
+            return ChestRepository.ItemBatchTransfer.failure(ChestRepository.Result.NOT_OWNER);
+          }
+          List<ChestRepository.StoredHabboItem> selected =
+              this.repository.loadStoredHabboItems(chest.getId()).stream()
+                  .filter(entry -> entry.lockState() == 0 && entry.transactionId() == 0)
+                  .sorted(Comparator.comparingInt(entry -> entry.item().getId()))
+                  .toList();
+          if (selected.isEmpty()) {
+            return ChestRepository.ItemBatchTransfer.failure(ChestRepository.Result.EMPTY);
+          }
+          return completeBatchWithdrawal(client, room, chest, selected);
+        });
   }
 
   public ChestRepository.CoinTransfer depositCoins(
@@ -799,26 +1055,43 @@ public final class ChestManager {
     if (approvedAmount == null) {
       return ChestRepository.CoinTransfer.failure(ChestRepository.Result.CANCELLED);
     }
-    ChestRepository.CoinTransfer result;
-    synchronized (actor.getHabboInfo()) {
-      result =
-          this.repository.depositCoins(
-              chest,
-              room.getId(),
-              actor.getHabboInfo().getId(),
-              ChestTransactionLog.Audit.manual(actor.getHabboInfo().getUsername()),
-              approvedAmount);
-      if (result.result() == ChestRepository.Result.OK) {
-        actor.getHabboInfo().applyCommittedCreditBalance(result.userBalance());
-      }
-    }
+    ChestRepository.CoinTransfer result =
+        withChestLock(
+            chest.getId(),
+            () -> {
+              ChestSettings current = settings(chest);
+              if (!allowed(
+                  ChestAuthorization.Operation.DONATE, client, room, chest, current)) {
+                return ChestRepository.CoinTransfer.failure(ChestRepository.Result.NOT_OWNER);
+              }
+              ChestRepository.CoinTransfer lockedResult;
+              synchronized (actor.getHabboInfo()) {
+                lockedResult =
+                    this.repository.depositCoins(
+                        chest,
+                        room.getId(),
+                        actor.getHabboInfo().getId(),
+                        ChestTransactionLog.Audit.manual(
+                            actor.getHabboInfo().getUsername()),
+                        approvedAmount);
+                if (lockedResult.result() == ChestRepository.Result.OK) {
+                  actor
+                      .getHabboInfo()
+                      .applyCommittedCreditBalance(lockedResult.userBalance());
+                }
+              }
+              if (lockedResult.result() == ChestRepository.Result.OK) {
+                afterMutation(room, chest, ChestRepository.Result.OK);
+                broadcastToViewers(
+                    room,
+                    chest,
+                    new ChestCoinBalanceComposer(
+                        chest.getRoomVisibleId(), lockedResult.chestBalance(), true));
+              }
+              return lockedResult;
+            });
     if (result.result() == ChestRepository.Result.OK) {
       client.sendResponse(new CreditBalanceMessageComposer(actor));
-      afterMutation(room, chest, ChestRepository.Result.OK);
-      broadcastToViewers(
-          room,
-          chest,
-          new ChestCoinBalanceComposer(chest.getRoomVisibleId(), result.chestBalance(), true));
       notifyMutation(
           settings,
           room,
@@ -844,26 +1117,43 @@ public final class ChestManager {
     if (approvedAmount == null) {
       return ChestRepository.CoinTransfer.failure(ChestRepository.Result.CANCELLED);
     }
-    ChestRepository.CoinTransfer result;
-    synchronized (actor.getHabboInfo()) {
-      result =
-          this.repository.withdrawCoins(
-              chest,
-              room.getId(),
-              actor.getHabboInfo().getId(),
-              ChestTransactionLog.Audit.manual(actor.getHabboInfo().getUsername()),
-              approvedAmount);
-      if (result.result() == ChestRepository.Result.OK) {
-        actor.getHabboInfo().applyCommittedCreditBalance(result.userBalance());
-      }
-    }
+    ChestRepository.CoinTransfer result =
+        withChestLock(
+            chest.getId(),
+            () -> {
+              ChestSettings current = settings(chest);
+              if (!allowed(
+                  ChestAuthorization.Operation.WITHDRAW, client, room, chest, current)) {
+                return ChestRepository.CoinTransfer.failure(ChestRepository.Result.NOT_OWNER);
+              }
+              ChestRepository.CoinTransfer lockedResult;
+              synchronized (actor.getHabboInfo()) {
+                lockedResult =
+                    this.repository.withdrawCoins(
+                        chest,
+                        room.getId(),
+                        actor.getHabboInfo().getId(),
+                        ChestTransactionLog.Audit.manual(
+                            actor.getHabboInfo().getUsername()),
+                        approvedAmount);
+                if (lockedResult.result() == ChestRepository.Result.OK) {
+                  actor
+                      .getHabboInfo()
+                      .applyCommittedCreditBalance(lockedResult.userBalance());
+                }
+              }
+              if (lockedResult.result() == ChestRepository.Result.OK) {
+                afterMutation(room, chest, ChestRepository.Result.OK);
+                broadcastToViewers(
+                    room,
+                    chest,
+                    new ChestCoinBalanceComposer(
+                        chest.getRoomVisibleId(), lockedResult.chestBalance(), true));
+              }
+              return lockedResult;
+            });
     if (result.result() == ChestRepository.Result.OK) {
       client.sendResponse(new CreditBalanceMessageComposer(actor));
-      afterMutation(room, chest, ChestRepository.Result.OK);
-      broadcastToViewers(
-          room,
-          chest,
-          new ChestCoinBalanceComposer(chest.getRoomVisibleId(), result.chestBalance(), true));
       notifyMutation(
           settings,
           room,
@@ -930,7 +1220,26 @@ public final class ChestManager {
 
   /** July chest appearance preview, also consumed by scanner mode 1. */
   public List<HabboItem> wiredPreviewFurniture(HabboItem chest) {
-    List<HabboItem> stored = new ArrayList<>(wiredStoredFurniture(chest));
+    if (!isWiredUsable(chest, ChestType.FURNI)) {
+      return List.of();
+    }
+    return withChestLock(
+        chest.getId(), () -> previewFurniture(chest, wiredStoredFurniture(chest)));
+  }
+
+  private List<HabboItem> appearancePreviewFurniture(HabboItem chest) {
+    if (chest == null || ChestType.fromItem(chest) != ChestType.FURNI) {
+      return List.of();
+    }
+    List<HabboItem> stored =
+        this.repository.loadStoredHabboItems(chest.getId()).stream()
+            .map(ChestRepository.StoredHabboItem::item)
+            .toList();
+    return previewFurniture(chest, stored);
+  }
+
+  private List<HabboItem> previewFurniture(HabboItem chest, List<HabboItem> candidates) {
+    List<HabboItem> stored = new ArrayList<>(candidates);
     ChestSettings settings = settings(chest);
     if (settings == null || settings.previewMode() == 0 || stored.isEmpty()) {
       return List.of();
@@ -941,33 +1250,43 @@ public final class ChestManager {
     } else if (mode == 3 || mode == 4) {
       Collections.reverse(stored);
     }
-    if (mode == 2 || mode == 4 || mode == 6) {
-      List<HabboItem> distinct = new ArrayList<>();
-      Set<String> seenTypes = new HashSet<>();
-      for (HabboItem item : stored) {
-        String key =
-            item.getBaseItem().getType()
-                + ":"
-                + item.getBaseItem().getSpriteId()
-                + ":"
-                + item.getExtradata();
-        if (seenTypes.add(key)) {
-          distinct.add(item);
-        }
-      }
-      for (HabboItem item : stored) {
-        if (!distinct.contains(item)) {
-          distinct.add(item);
-        }
-      }
-      stored = distinct;
+    int amount = Math.min(settings.previewAmount(), stored.size());
+    if (mode == 2 || mode == 4 || mode == 6 || mode == 7) {
+      return pickDifferentPreviewTypes(stored, amount);
     }
-    return List.copyOf(stored.subList(0, Math.min(settings.previewAmount(), stored.size())));
+    return List.copyOf(stored.subList(0, amount));
+  }
+
+  private static List<HabboItem> pickDifferentPreviewTypes(
+      List<HabboItem> stored, int amount) {
+    LinkedHashMap<String, List<HabboItem>> byType = new LinkedHashMap<>();
+    for (HabboItem item : stored) {
+      byType.computeIfAbsent(appearanceTypeKey(item), ignored -> new ArrayList<>()).add(item);
+    }
+    List<HabboItem> selected = new ArrayList<>();
+    int round = 0;
+    while (selected.size() < amount) {
+      boolean added = false;
+      for (List<HabboItem> typeItems : byType.values()) {
+        if (round < typeItems.size()) {
+          selected.add(typeItems.get(round));
+          added = true;
+          if (selected.size() == amount) {
+            return List.copyOf(selected);
+          }
+        }
+      }
+      if (!added) {
+        break;
+      }
+      round++;
+    }
+    return List.copyOf(selected);
   }
 
   /**
    * Atomically moves stored furniture into a room user's inventory. Iteration codes are July's 0
-   * FIFO, 1 LIFO and 2 random.
+   * random, 1 FIFO and 2 LIFO.
    */
   public List<HabboItem> giveFurnitureFromWired(
       Room room,
@@ -983,58 +1302,76 @@ public final class ChestManager {
         || !isWiredUsable(chest, ChestType.FURNI)) {
       return List.of();
     }
-    List<HabboItem> candidates =
-        new ArrayList<>(
-            wiredStoredFurniture(chest).stream()
-                .filter(item -> matchesAnyType(item, typeItems))
-                .toList());
-    if (iterationMode == 2) {
-      Collections.shuffle(candidates);
-    } else if (iterationMode == 1) {
-      Collections.reverse(candidates);
-    }
-    if (candidates.isEmpty()) {
-      return List.of();
-    }
-    List<HabboItem> selected =
-        new ArrayList<>(candidates.subList(0, Math.min(requestedAmount, candidates.size())));
-    int before = contentsCount(chest);
-    List<Integer> ids = selected.stream().map(HabboItem::getId).toList();
-    int receiverId = receiver.getHabboInfo().getId();
-    ChestRepository.ItemBatchTransfer result =
-        this.repository.withdrawItems(
-            chest,
-            room.getId(),
-            receiverId,
-            ChestTransactionLog.Audit.wired(
-                receiver.getHabboInfo().getUsername(), effectId, requestedAmount),
-            ids);
-    if (result.result() != ChestRepository.Result.OK) {
-      return List.of();
-    }
-    Map<Integer, HabboItem> byId = new LinkedHashMap<>();
-    for (HabboItem item : selected) {
-      byId.put(item.getId(), item);
-    }
-    List<HabboItem> delivered = new ArrayList<>();
-    for (int id : result.itemIds()) {
-      HabboItem item = byId.get(id);
-      if (item != null) {
-        item.setUserId(receiverId);
-        item.setRoomId(0);
-        receiver.addFurniture(item);
-        delivered.add(item);
-      }
-    }
-    afterMutation(room, chest, ChestRepository.Result.OK);
-    int[] removed = result.itemIds().stream().mapToInt(Integer::intValue).toArray();
-    broadcastToViewers(
-        room,
-        chest,
-        new ChestFurniContentsUpdateComposer(chest.getRoomVisibleId(), removed, List.of()));
-    notifyMutation(
-        settings(chest), room, chest, receiver, before, contentsCount(chest), false, true, true);
-    return List.copyOf(delivered);
+    return withChestLock(
+        chest.getId(),
+        () -> {
+          if (!isWiredUsable(chest, ChestType.FURNI)) {
+            return List.of();
+          }
+          ChestSettings settings = settings(chest);
+          List<HabboItem> candidates =
+              new ArrayList<>(
+                  wiredStoredFurniture(chest).stream()
+                      .filter(item -> matchesAnyType(item, typeItems))
+                      .toList());
+          if (iterationMode == 0) {
+            Collections.shuffle(candidates);
+          } else if (iterationMode == 2) {
+            Collections.reverse(candidates);
+          }
+          if (candidates.isEmpty()) {
+            return List.of();
+          }
+          List<HabboItem> selected =
+              new ArrayList<>(
+                  candidates.subList(0, Math.min(requestedAmount, candidates.size())));
+          int before = contentsCount(chest);
+          List<Integer> ids = selected.stream().map(HabboItem::getId).toList();
+          int receiverId = receiver.getHabboInfo().getId();
+          ChestRepository.ItemBatchTransfer result =
+              this.repository.withdrawItems(
+                  chest,
+                  room.getId(),
+                  receiverId,
+                  ChestTransactionLog.Audit.wired(
+                      receiver.getHabboInfo().getUsername(), effectId, requestedAmount),
+                  ids);
+          if (result.result() != ChestRepository.Result.OK) {
+            return List.of();
+          }
+          Map<Integer, HabboItem> byId = new LinkedHashMap<>();
+          for (HabboItem item : selected) {
+            byId.put(item.getId(), item);
+          }
+          List<HabboItem> delivered = new ArrayList<>();
+          for (int id : result.itemIds()) {
+            HabboItem item = byId.get(id);
+            if (item != null) {
+              item.setUserId(receiverId);
+              item.setRoomId(0);
+              receiver.addFurniture(item);
+              delivered.add(item);
+            }
+          }
+          afterMutation(room, chest, ChestRepository.Result.OK);
+          int[] removed = result.itemIds().stream().mapToInt(Integer::intValue).toArray();
+          broadcastToViewers(
+              room,
+              chest,
+              new ChestFurniContentsUpdateComposer(
+                  chest.getRoomVisibleId(), removed, List.of()));
+          notifyMutation(
+              settings,
+              room,
+              chest,
+              receiver,
+              before,
+              contentsCount(chest),
+              false,
+              true,
+              true);
+          return List.copyOf(delivered);
+        });
   }
 
   /** Atomically transfers credits from a Wired-enabled coin chest to a room user. */
@@ -1055,33 +1392,48 @@ public final class ChestManager {
     if (approvedAmount == null) {
       return 0;
     }
-    ChestRepository.CoinTransfer result;
-    synchronized (receiver.getHabboInfo()) {
-      result =
-          this.repository.withdrawCoins(
-              chest,
-              room.getId(),
-              receiver.getHabboInfo().getId(),
-              ChestTransactionLog.Audit.wired(
-                  receiver.getHabboInfo().getUsername(), effectId, requestedAmount),
-              approvedAmount);
-      if (result.result() == ChestRepository.Result.OK) {
-        receiver.getHabboInfo().applyCommittedCreditBalance(result.userBalance());
-      }
-    }
+    ChestSettings settings = settings(chest);
+    ChestRepository.CoinTransfer result =
+        withChestLock(
+            chest.getId(),
+            () -> {
+              if (!isWiredUsable(chest, ChestType.COINS)) {
+                return ChestRepository.CoinTransfer.failure(ChestRepository.Result.LOCKED);
+              }
+              ChestRepository.CoinTransfer lockedResult;
+              synchronized (receiver.getHabboInfo()) {
+                lockedResult =
+                    this.repository.withdrawCoins(
+                        chest,
+                        room.getId(),
+                        receiver.getHabboInfo().getId(),
+                        ChestTransactionLog.Audit.wired(
+                            receiver.getHabboInfo().getUsername(), effectId, requestedAmount),
+                        approvedAmount);
+                if (lockedResult.result() == ChestRepository.Result.OK) {
+                  receiver
+                      .getHabboInfo()
+                      .applyCommittedCreditBalance(lockedResult.userBalance());
+                }
+              }
+              if (lockedResult.result() == ChestRepository.Result.OK) {
+                afterMutation(room, chest, ChestRepository.Result.OK);
+                broadcastToViewers(
+                    room,
+                    chest,
+                    new ChestCoinBalanceComposer(
+                        chest.getRoomVisibleId(), lockedResult.chestBalance(), true));
+              }
+              return lockedResult;
+            });
     if (result.result() != ChestRepository.Result.OK) {
       return 0;
     }
     if (receiver.getClient() != null) {
       receiver.getClient().sendResponse(new CreditBalanceMessageComposer(receiver));
     }
-    afterMutation(room, chest, ChestRepository.Result.OK);
-    broadcastToViewers(
-        room,
-        chest,
-        new ChestCoinBalanceComposer(chest.getRoomVisibleId(), result.chestBalance(), true));
     notifyMutation(
-        settings(chest), room, chest, receiver, before, result.chestBalance(), false, true, true);
+        settings, room, chest, receiver, before, result.chestBalance(), false, true, true);
     return approvedAmount;
   }
 
@@ -1298,13 +1650,13 @@ public final class ChestManager {
       return 0;
     }
     String name = item.getBaseItem().getName();
-    if (name == null
-        || name.contains("_diamond_")
-        || (!name.startsWith("CF_") && !name.startsWith("CFC_"))) {
+    String normalized = name == null ? "" : name.toUpperCase(Locale.ROOT);
+    if (normalized.contains("_DIAMOND_")
+        || (!normalized.startsWith("CF_") && !normalized.startsWith("CFC_"))) {
       return 0;
     }
     try {
-      int value = Integer.parseInt(name.split("_", 3)[1]);
+      int value = Integer.parseInt(normalized.split("_", 3)[1]);
       return Math.max(0, value);
     } catch (RuntimeException ignored) {
       return 0;
@@ -1322,6 +1674,9 @@ public final class ChestManager {
       abortTrade(client, true, 13);
       return;
     }
+    ReentrantLock chestLock = chestLock(chest.getId());
+    chestLock.lock();
+    try {
     ChestSettings chestSettings = settings(chest);
     int before = contentsCount(chest);
     ChestType chestType = session.chestType();
@@ -1390,6 +1745,9 @@ public final class ChestManager {
         true,
         false,
         false);
+    } finally {
+      chestLock.unlock();
+    }
   }
 
   private void commitContractTrade(GameClient client, ChestTradeSession session) {
@@ -1446,6 +1804,9 @@ public final class ChestManager {
       }
     }
 
+    ChestRepository.ContractTransfer transfer;
+    List<ReentrantLock> contractLocks = lockChestStripes(chests);
+    try {
     Map<Integer, HabboItem> offeredById = new LinkedHashMap<>();
     for (HabboItem item : offeredItems) {
       offeredById.put(item.getId(), item);
@@ -1463,7 +1824,6 @@ public final class ChestManager {
       }
     }
 
-    ChestRepository.ContractTransfer transfer;
     synchronized (user.getHabboInfo()) {
       transfer =
           this.repository.executeContract(
@@ -1554,6 +1914,9 @@ public final class ChestManager {
                   .isEmpty(),
           true);
     }
+    } finally {
+      unlockChestStripes(contractLocks);
+    }
 
     if (completeTradeUi) {
       ChestTradeSession active = client.clearChestTradeSession();
@@ -1607,8 +1970,185 @@ public final class ChestManager {
     }
   }
 
+  private static ReentrantLock[] createChestLocks() {
+    ReentrantLock[] locks = new ReentrantLock[CHEST_LOCK_STRIPES];
+    for (int index = 0; index < locks.length; index++) {
+      locks[index] = new ReentrantLock();
+    }
+    return locks;
+  }
+
+  private ReentrantLock chestLock(int chestId) {
+    return this.chestLocks[Math.floorMod(chestId, this.chestLocks.length)];
+  }
+
+  private <T> T withChestLock(int chestId, Supplier<T> action) {
+    ReentrantLock lock = chestLock(chestId);
+    lock.lock();
+    try {
+      return action.get();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  /** Multi-chest order is unique ascending stripe, then HabboInfo inside those locks. */
+  private List<ReentrantLock> lockChestStripes(List<HabboItem> chests) {
+    List<ReentrantLock> locks =
+        chests == null
+            ? List.of()
+            : chests.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(HabboItem::getId)
+                .map(id -> Math.floorMod(id, this.chestLocks.length))
+                .distinct()
+                .sorted()
+                .map(index -> this.chestLocks[index])
+                .toList();
+    for (ReentrantLock lock : locks) {
+      lock.lock();
+    }
+    return locks;
+  }
+
+  private static void unlockChestStripes(List<ReentrantLock> locks) {
+    for (int index = locks.size() - 1; index >= 0; index--) {
+      locks.get(index).unlock();
+    }
+  }
+
+  private boolean isVisuallyOpen(HabboItem chest, ChestSettings settings) {
+    return switch (settings.stateControlMode()) {
+      case 0 -> hasActiveViewer(chest);
+      case 1 -> true;
+      case 2 -> false;
+      case 3 -> wiredControlledOpen(chest);
+      default -> false;
+    };
+  }
+
+  private boolean hasActiveViewer(HabboItem chest) {
+    if (chest == null || chest.getRoomId() <= 0) {
+      return false;
+    }
+    Room room =
+        com.eu.habbo.Emulator.getGameEnvironment().getRoomManager().getRoom(chest.getRoomId());
+    if (room == null) {
+      return false;
+    }
+    boolean found = false;
+    for (Habbo habbo : new ArrayList<>(room.getHabbos())) {
+      GameClient viewer = habbo == null ? null : habbo.getClient();
+      if (viewer == null || !viewer.isActiveChest(room.getId(), chest.getId())) {
+        continue;
+      }
+      if (habbo.getHabboInfo().getCurrentRoom() == room
+          && habbo.getRoomUnit() != null
+          && habbo.getRoomUnit().isInRoom()
+          && viewer
+              .getWiredCapabilityState()
+              .supportsRoom(WiredCapabilityService.CAPABILITY_CHESTS, room.getId())) {
+        found = true;
+        continue;
+      }
+      long expectedKey = chestKey(room.getId(), chest.getId());
+      viewer.clearActiveChest(expectedKey);
+    }
+    return found;
+  }
+
+  private static boolean wiredControlledOpen(HabboItem chest) {
+    String state = chest == null ? null : chest.getExtradata();
+    if (state == null || state.isBlank()) {
+      return false;
+    }
+    try {
+      return Integer.parseInt(state.trim()) > 0;
+    } catch (NumberFormatException ignored) {
+      return "true".equalsIgnoreCase(state) || "open".equalsIgnoreCase(state);
+    }
+  }
+
+  private static int visualState(
+      HabboItem chest, ChestSettings settings, int contents, boolean open) {
+    if (!open) {
+      return 0;
+    }
+    if (ChestType.fromItem(chest) != ChestType.COINS) {
+      return 1;
+    }
+    long balance = Math.max(0L, contents);
+    if (balance == 0) {
+      return 1;
+    }
+    long capacity = Math.max(0L, settings.capacity());
+    if (capacity == 0) {
+      return 4;
+    }
+    if (balance * 100L <= capacity * 33L) {
+      return 2;
+    }
+    if (balance * 100L <= capacity * 66L) {
+      return 3;
+    }
+    return 4;
+  }
+
+  private String furnitureVisuals(HabboItem chest) {
+    StringBuilder visuals = new StringBuilder();
+    for (HabboItem item : appearancePreviewFurniture(chest)) {
+      if (item == null || item.getBaseItem() == null) {
+        continue;
+      }
+      if (visuals.length() > 0) {
+        visuals.append(';');
+      }
+      boolean wall =
+          item.getBaseItem().getType()
+              == com.eu.habbo.habbohotel.items.FurnitureType.WALL;
+      visuals.append(wall).append(',').append(item.getBaseItem().getSpriteId());
+      String poster = legacyPosterExtra(item);
+      if (!poster.isEmpty()) {
+        visuals.append(',').append(poster);
+      }
+    }
+    return visuals.toString();
+  }
+
+  private static String appearanceTypeKey(HabboItem item) {
+    if (item == null || item.getBaseItem() == null) {
+      return "";
+    }
+    boolean wall =
+        item.getBaseItem().getType()
+            == com.eu.habbo.habbohotel.items.FurnitureType.WALL;
+    return wall + ":" + item.getBaseItem().getSpriteId() + ":" + legacyPosterExtra(item);
+  }
+
+  private static String legacyPosterExtra(HabboItem item) {
+    if (item == null
+        || item.getBaseItem() == null
+        || item.getBaseItem().getType()
+            != com.eu.habbo.habbohotel.items.FurnitureType.WALL
+        || !"poster".equals(item.getBaseItem().getName())) {
+      return "";
+    }
+    return item.getExtradata() == null ? "" : item.getExtradata();
+  }
+
+  private void refreshAppearance(Room room, HabboItem chest) {
+    if (room != null && chest != null && isChest(chest)) {
+      room.sendComposer(new ObjectDataUpdateMessageComposer(chest).compose());
+    }
+  }
+
   public void invalidate(int chestId) {
-    this.cache.remove(chestId);
+    withChestLock(
+        chestId,
+        () -> {
+          this.cache.remove(chestId);
+          return null;
+        });
   }
 
   public void clear() {
@@ -1619,32 +2159,44 @@ public final class ChestManager {
     if (!isChest(chest)) {
       return null;
     }
-    return this.cache.computeIfAbsent(
+    return withChestLock(
         chest.getId(),
-        ignored -> {
-          ChestSettings settings = this.repository.loadSettings(chest);
-          if (settings == null) {
-            return null;
-          }
-          ChestType type = ChestType.fromItem(chest);
-          int count =
-              type == ChestType.COINS
-                  ? this.repository.loadCoinBalance(chest.getId())
-                  : this.repository.loadStoredItems(chest.getId()).size();
-          return new CachedChest(settings, count);
-        });
+        () ->
+            this.cache.computeIfAbsent(
+                chest.getId(),
+                ignored -> {
+                  ChestSettings settings = this.repository.loadSettings(chest);
+                  if (settings == null) {
+                    return null;
+                  }
+                  ChestType type = ChestType.fromItem(chest);
+                  int count =
+                      type == ChestType.COINS
+                          ? this.repository.loadCoinBalance(chest.getId())
+                          : this.repository.loadStoredItems(chest.getId()).size();
+                  return new CachedChest(settings, count);
+                }));
   }
 
   private ChestRepository.Result afterMutation(
       Room room, HabboItem chest, ChestRepository.Result result) {
     if (result == ChestRepository.Result.OK) {
       invalidate(chest.getId());
-      room.sendComposer(new ObjectDataUpdateMessageComposer(chest).compose());
+      refreshAppearance(room, chest);
     }
     return result;
   }
 
   private ChestRepository.ItemBatchTransfer completeBatchWithdrawal(
+      GameClient client,
+      Room room,
+      HabboItem chest,
+      List<ChestRepository.StoredHabboItem> selected) {
+    return withChestLock(
+        chest.getId(), () -> completeBatchWithdrawalLocked(client, room, chest, selected));
+  }
+
+  private ChestRepository.ItemBatchTransfer completeBatchWithdrawalLocked(
       GameClient client,
       Room room,
       HabboItem chest,
@@ -1707,6 +2259,7 @@ public final class ChestManager {
     if (room == null || chest == null) {
       return;
     }
+    boolean viewerCleared = false;
     for (Habbo habbo : new ArrayList<>(room.getHabbos())) {
       GameClient client = habbo.getClient();
       ChestTradeSession session = client == null ? null : client.getChestTradeSession();
@@ -1714,8 +2267,17 @@ public final class ChestManager {
         abortTrade(client, true, reason);
       }
       if (client != null && client.isActiveChest(room.getId(), chest.getId())) {
-        client.clearActiveChest();
+        long expectedKey = chestKey(room.getId(), chest.getId());
+        viewerCleared |= client.clearActiveChest(expectedKey);
       }
+    }
+    if (viewerCleared && room.getHabboItemByDatabaseId(chest.getId()) == chest) {
+      withChestLock(
+          chest.getId(),
+          () -> {
+            refreshAppearance(room, chest);
+            return null;
+          });
     }
   }
 
