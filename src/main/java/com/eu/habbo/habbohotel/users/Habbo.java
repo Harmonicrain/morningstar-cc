@@ -482,6 +482,9 @@ public class Habbo implements Runnable {
 
             AchievementManager.progressAchievement(this.client.getHabbo(), Emulator.getGameEnvironment().getAchievementManager().getAchievement("RespectGiven"));
             AchievementManager.progressAchievement(target, Emulator.getGameEnvironment().getAchievementManager().getAchievement("RespectEarned"));
+            if (Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+                Emulator.getGameEnvironment().getRewardTrackManager().progress(this.client.getHabbo(), "give_respect");
+            }
 
             this.client.getHabbo().getHabboInfo().getCurrentRoom().unIdle(this.client.getHabbo());
             this.client.getHabbo().getHabboInfo().getCurrentRoom().dance(this.client.getHabbo().getRoomUnit(), DanceType.NONE);

@@ -118,14 +118,15 @@ public class Messenger {
         return false;
     }
 
-    public static void makeFriendRequest(int userFrom, int userTo) {
+    public static boolean makeFriendRequest(int userFrom, int userTo) {
         try (Connection connection = Emulator.getDatabase().getDataSource().getConnection(); PreparedStatement statement = connection.prepareStatement("INSERT INTO messenger_friendrequests (user_to_id, user_from_id) VALUES (?, ?)")) {
             statement.setInt(1, userTo);
             statement.setInt(2, userFrom);
-            statement.executeUpdate();
+            return statement.executeUpdate() > 0;
         } catch (SQLException e) {
             LOGGER.error("Caught SQL exception", e);
         }
+        return false;
     }
 
     public static int getFriendCount(int userId) {

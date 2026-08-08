@@ -11,6 +11,8 @@ import com.eu.habbo.habbohotel.pets.RideablePet;
 import com.eu.habbo.habbohotel.users.DanceType;
 import com.eu.habbo.habbohotel.users.Habbo;
 import com.eu.habbo.habbohotel.users.HabboItem;
+import com.eu.habbo.habbohotel.wired.WiredUserAction;
+import com.eu.habbo.habbohotel.wired.core.WiredMovementAddonRuntime;
 import com.eu.habbo.messages.outgoing.generic.alerts.GenericErrorMessagesComposer;
 import com.eu.habbo.messages.outgoing.inventory.PetAddedToInventoryMessageComposer;
 import com.eu.habbo.messages.outgoing.rooms.pets.PetFigureUpdateMessageComposer;
@@ -220,6 +222,14 @@ public class RoomUnitManager {
             return;
         }
 
+        // User-variable values deliberately survive a leave/reconnect under
+        // their stable Habbo ID. This hook makes every normal departure pass
+        // through the manager's holder-lifecycle boundary.
+        RoomSpecialTypes specialTypes = this.room.getRoomSpecialTypes();
+        if (specialTypes != null && specialTypes.getWiredVariableManager() != null) {
+            specialTypes.getWiredVariableManager().onUserLeaves(habbo.getHabboInfo().getId());
+        }
+
         if (habbo.getRoomUnit() != null && habbo.getRoomUnit().getCurrentLocation() != null) {
             habbo.getRoomUnit().getCurrentLocation().removeUnit(habbo.getRoomUnit());
         }
@@ -254,6 +264,12 @@ public class RoomUnitManager {
 
         if (trade != null) {
             trade.stopTrade(habbo);
+        }
+        if (habbo.getClient() != null) {
+            Emulator.getGameEnvironment().getChestManager()
+                    .abortTrade(habbo.getClient(), false, 3);
+            Emulator.getGameEnvironment().getChestManager()
+                    .closeActiveViewer(habbo.getClient());
         }
 
         if (habbo.getHabboInfo().getId() != this.room.getOwnerId()) {
@@ -348,9 +364,11 @@ public class RoomUnitManager {
         }
 
         HabboItem topItem = this.room.getTopItemAt(x, y);
+        THashSet<Habbo> updatedHabbos = new THashSet<>();
 
         for (Habbo habbo : habbos) {
-            if (habbo.getRoomUnit() == null) {
+            if (habbo.getRoomUnit() == null
+                    || WiredMovementAddonRuntime.isCarryTarget(habbo.getRoomUnit())) {
                 continue;
             }
 
@@ -359,7 +377,8 @@ public class RoomUnitManager {
             if (habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT) 
                 || (topItem != null && topItem.getBaseItem().allowSit())) {
                 if (topItem != null && topItem.getBaseItem().allowSit()) {
-                    if (!habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT)) {
+                    boolean wasSitting = habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT);
+                    if (!wasSitting) {
                         this.dance(habbo, DanceType.NONE);
                     }
                     habbo.getRoomUnit().setZ(topItem.getZ());
@@ -368,37 +387,54 @@ public class RoomUnitManager {
                     habbo.getRoomUnit().setStatus(RoomUnitStatus.SIT, 
                         String.valueOf(Item.getCurrentHeight(topItem)));
                     habbo.getRoomUnit().cmdSit = false;
+                    if (!wasSitting) {
+                        WiredManager.triggerUserPerformsAction(this.room, habbo.getRoomUnit(), WiredUserAction.SIT, "");
+                    }
                 } else if (habbo.getRoomUnit().cmdSit) {
                     habbo.getRoomUnit().setZ(z - 0.5);
                     habbo.getRoomUnit().setPreviousLocationZ(z - 0.5);
                 } else {
-                    habbo.getRoomUnit().removeStatus(RoomUnitStatus.SIT);
+                    if (habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT)) {
+                        habbo.getRoomUnit().removeStatus(RoomUnitStatus.SIT);
+                        WiredManager.triggerUserPerformsAction(this.room, habbo.getRoomUnit(), WiredUserAction.STAND, "");
+                    }
                     habbo.getRoomUnit().setZ(z);
                     habbo.getRoomUnit().setPreviousLocationZ(z);
                 }
             } else if (topItem != null && topItem.getBaseItem().allowLay()) {
+                boolean wasLaying = habbo.getRoomUnit().hasStatus(RoomUnitStatus.LAY);
                 habbo.getRoomUnit().setZ(topItem.getZ());
                 habbo.getRoomUnit().setPreviousLocationZ(topItem.getZ());
                 habbo.getRoomUnit().setRotation(RoomUserRotation.fromValue(topItem.getRotation() % 4));
                 habbo.getRoomUnit().setStatus(RoomUnitStatus.LAY, 
                     String.valueOf(Item.getCurrentHeight(topItem)));
+                if (!wasLaying) {
+                    WiredManager.triggerUserPerformsAction(this.room, habbo.getRoomUnit(), WiredUserAction.LAY, "");
+                }
             } else {
+                boolean stoodUp = false;
                 if (habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT)) {
                     habbo.getRoomUnit().removeStatus(RoomUnitStatus.SIT);
+                    stoodUp = true;
                 }
                 if (habbo.getRoomUnit().hasStatus(RoomUnitStatus.LAY)) {
                     habbo.getRoomUnit().removeStatus(RoomUnitStatus.LAY);
+                    stoodUp = true;
+                }
+                if (stoodUp) {
+                    WiredManager.triggerUserPerformsAction(this.room, habbo.getRoomUnit(), WiredUserAction.STAND, "");
                 }
                 habbo.getRoomUnit().setZ(z);
                 habbo.getRoomUnit().setPreviousLocationZ(z);
             }
 
             habbo.getRoomUnit().statusUpdate(true);
+            updatedHabbos.add(habbo);
         }
 
-        if (!habbos.isEmpty()) {
+        if (!updatedHabbos.isEmpty()) {
             THashSet<RoomUnit> roomUnits = new THashSet<>();
-            for (Habbo habbo : habbos) {
+            for (Habbo habbo : updatedHabbos) {
                 roomUnits.add(habbo.getRoomUnit());
             }
             this.room.sendComposer(new UserUpdateMessageComposer(roomUnits, true).compose());
@@ -680,9 +716,11 @@ public class RoomUnitManager {
 
         THashSet<Bot> bots = this.getBotsAt(tile);
         HabboItem topItem = this.room.getTopItemAt(x, y);
+        THashSet<Bot> updatedBots = new THashSet<>();
 
         for (Bot bot : bots) {
-            if (bot.getRoomUnit() == null) {
+            if (bot.getRoomUnit() == null
+                    || WiredMovementAddonRuntime.isCarryTarget(bot.getRoomUnit())) {
                 continue;
             }
 
@@ -711,11 +749,12 @@ public class RoomUnitManager {
             }
 
             bot.getRoomUnit().statusUpdate(true);
+            updatedBots.add(bot);
         }
 
-        if (!bots.isEmpty()) {
+        if (!updatedBots.isEmpty()) {
             this.room.sendComposer(new UserUpdateMessageComposer(
-                bots.stream().map(Bot::getRoomUnit).collect(Collectors.toCollection(THashSet::new)), 
+                updatedBots.stream().map(Bot::getRoomUnit).collect(Collectors.toCollection(THashSet::new)),
                 true).compose());
         }
     }
@@ -1159,6 +1198,13 @@ public class RoomUnitManager {
     public void giveHandItem(RoomUnit roomUnit, int handItem) {
         roomUnit.setHandItem(handItem);
         this.room.sendComposer(new CarryObjectMessageComposer(roomUnit).compose());
+
+        if (handItem > 0 && Emulator.getGameEnvironment().getRewardTrackManager() != null) {
+            Habbo habbo = this.room.getHabbo(roomUnit);
+            if (habbo != null) {
+                Emulator.getGameEnvironment().getRewardTrackManager().progress(habbo, "find_hand_item");
+            }
+        }
     }
 
     // ==================== IDLE AND DANCE ====================
@@ -1344,6 +1390,7 @@ public class RoomUnitManager {
                 - habbo.getRoomUnit().getBodyRotation().getValue() % 2]);
         habbo.getRoomUnit().setStatus(RoomUnitStatus.SIT, 0.5 + "");
         this.room.sendComposer(new UserUpdateMessageComposer(habbo.getRoomUnit()).compose());
+        WiredManager.triggerUserPerformsAction(this.room, habbo.getRoomUnit(), WiredUserAction.SIT, "");
     }
 
     /**
@@ -1355,13 +1402,19 @@ public class RoomUnitManager {
         }
 
         HabboItem item = this.room.getTopItemAt(habbo.getRoomUnit().getX(), habbo.getRoomUnit().getY());
+        boolean wasSittingOrLaying = habbo.getRoomUnit().hasStatus(RoomUnitStatus.SIT)
+            || habbo.getRoomUnit().hasStatus(RoomUnitStatus.LAY);
         if (item == null || !item.getBaseItem().allowSit() || !item.getBaseItem().allowLay()) {
             habbo.getRoomUnit().cmdStand = true;
             habbo.getRoomUnit().setBodyRotation(
                 RoomUserRotation.values()[habbo.getRoomUnit().getBodyRotation().getValue()
                     - habbo.getRoomUnit().getBodyRotation().getValue() % 2]);
             habbo.getRoomUnit().removeStatus(RoomUnitStatus.SIT);
+            habbo.getRoomUnit().removeStatus(RoomUnitStatus.LAY);
             this.room.sendComposer(new UserUpdateMessageComposer(habbo.getRoomUnit()).compose());
+            if (wasSittingOrLaying) {
+                WiredManager.triggerUserPerformsAction(this.room, habbo.getRoomUnit(), WiredUserAction.STAND, "");
+            }
         }
     }
 

@@ -95,6 +95,12 @@ public class Incoming {
     public static final int GetRoomChatlogMessageEvent = 2587;
     public static final int UpdateFigureDataMessageEvent = 2730;
     public static final int UseFurnitureMessageEvent = 99;
+    /** July 2026 ClickFurniMessageComposer; free in the local client/server maps. */
+    public static final int ClickFurniMessageEvent = 443;
+    /** July toggle header; free in the local map. */
+    public static final int ToggleAreaHideMessageEvent = 3353;
+    /** July save is 1954, occupied locally by NavigatorDeleteSavedSearch. */
+    public static final int SaveAreaHideMessageEvent = 7309;
     public static final int UnacceptTradingEvent = 1444;
     public static final int UpdateTriggerMessageEvent = 1520;
     public static final int RemoveAllRightsMessageEvent = 2683;
@@ -168,6 +174,51 @@ public class Incoming {
     public static final int GetMemberGuildItemCountMessageEvent = 3593;
     public static final int KickMemberMessageEvent = 593;
     public static final int UpdateConditionMessageEvent = 3203;
+
+    // ===== Wired 2.0 — local collision-free incoming map (client->server). May refs in comments. =====
+    public static final int OpenAckMessageEvent = 768;                  // 0x0300 — the clean client's existing wired-open ack composer
+    public static final int UpdateSelectorMessageEvent = 7000;          // July 510
+    public static final int UpdateAddonMessageEvent = 7001;             // July 1138
+    public static final int UpdateVariableMessageEvent = 7002;          // July 2475
+    public static final int WiredClickUserMessageEvent = 7004;          // May 2769
+    public static final int RequestAllVariablesHashMessageEvent = 7005; // July 984
+    public static final int RequestVariablesDiffMessageEvent = 7006;    // July 797
+    public static final int WiredMenuRequestVariableHoldersMessageEvent = 7007;
+    public static final int WiredMenuClearErrorsMessageEvent = 7008;
+    public static final int WiredMenuUpdatePreferencesMessageEvent = 7009;
+    public static final int WiredMenuRequestRoomStatsMessageEvent = 7010;
+    public static final int WiredMenuUpdateRoomSettingsMessageEvent = 7011;
+    public static final int WiredMenuInspectObjectMessageEvent = 7012;
+    public static final int WiredMenuRequestErrorsMessageEvent = 7013;
+    public static final int WiredMenuReloadOrRollbackMessageEvent = 7014;
+    public static final int WiredMenuRequestRoomSettingsMessageEvent = 7015;
+    public static final int WiredMenuModifyVariableMessageEvent = 7016;
+    public static final int WiredMenuRequestLogsMessageEvent = 7017;
+    public static final int WiredMenuRequestUserVariablesMessageEvent = 7018;
+    public static final int WiredMenuMutatePermanentVariableMessageEvent = 7019;
+    public static final int WiredMenuRequestPermanentVariablesMessageEvent = 7020;
+    public static final int ChestOpenMessageEvent = 7021;              // July 806
+    public static final int ChestSetRoomLocksMessageEvent = 7022;      // July 1630
+    public static final int ChestSaveSettingsMessageEvent = 7023;      // July 3830
+    public static final int ChestUpgradeMessageEvent = 7024;           // July 3407
+    public static final int ChestSaveNotificationsMessageEvent = 7025; // July 2905
+    public static final int ChestSaveSafetyMessageEvent = 7026;        // July 2907
+    public static final int ChestWithdrawFurniMessageEvent = 7027;     // July 873
+    public static final int ChestWithdrawAllMessageEvent = 7028;       // July 3611
+    public static final int ChestWithdrawCoinsMessageEvent = 7029;     // July 2843
+    public static final int ChestCloseMessageEvent = 7030;             // July 2935
+    public static final int ChestStartDepositMessageEvent = 7031;      // July 3514
+    public static final int WiredTradeCancelMessageEvent = 7032;       // July 2646
+    public static final int WiredTradeAcceptMessageEvent = 7033;       // July 2818
+    public static final int WiredTradeItemsMessageEvent = 7034;        // July 3111
+    public static final int ChestContractContentsMessageEvent = 7035;  // July contract contents request
+    public static final int ChestContractSaveMessageEvent = 7036;      // July contract save
+    public static final int ChestTransactionLogsMessageEvent = 7037;   // July 1999
+    public static final int ChestRoomTransactionLogsMessageEvent = 7038; // July 2016
+    public static final int ChestTransactionDetailsMessageEvent = 7039; // July 475
+    public static final int RequestWiredCapabilitiesMessageEvent = 7099;
+    // ===== end Wired 2.0 incoming =====
+
     public static final int LookToMessageEvent = 3301;
     public static final int RoomDimmerChangeStateMessageEvent = 2296;
     public static final int RoomDimmerGetPresetsMessageEvent = 2813;
@@ -259,6 +310,21 @@ public class Incoming {
     public static final int GetSongInfoMessageEvent = 3082;
     public static final int ToggleStaffPickMessageEvent = 1918;
     public static final int TogglePublicRoomMessageEvent = 1919;
+    public static final int TryBusMessageEvent = 5205;
+    public static final int ChangeWorldMessageEvent = 5206;
+    public static final int GameBoardMoveMessageEvent = 5223;
+    public static final int RequestGamehallLeaderboardMessageEvent = 5225;
+    public static final int ClaimRewardTrackRewardMessageEvent = 1376;
+    public static final int PurchaseRewardTrackPremiumMessageEvent = 1789;
+    public static final int RequestHabbiconShopDataMessageEvent = 7300;
+    public static final int RequestHabbiconInfoMessageEvent = 7301;
+    public static final int BuyHabbiconCollectionMessageEvent = 7302;
+    public static final int BuyHabbiconMessageEvent = 7303;
+    public static final int ClaimHabbiconRewardMessageEvent = 7304;
+    public static final int FavouriteHabbiconMessageEvent = 7305;
+    public static final int UnfavouriteHabbiconMessageEvent = 7306;
+    public static final int UseHabbiconInRoomMessageEvent = 7307;
+    public static final int SendHabbiconInstantMessageEvent = 7308;
     public static final int RoomRequestBannedUsersEvent = 2267;
     public static final int GetNowPlayingMessageEvent = 1325;
     public static final int GetUserSongDisksMessageEvent = 2304;
@@ -336,11 +402,15 @@ public class Incoming {
     public static final int OpenPetPackageMessageEvent = 3698;
 
     public static final int GetGameListMessageEvent = 741;
+    public static final int GetGameAchievementsMessageEvent = 2399;
     public static final int GetGameStatusMessageEvent = 3171;
+    public static final int GetUserGameAchievementsMessageEvent = 389;
     public static final int Game2GetAccountGameStatusMessageEvent = 11;
     public static final int PublishPhotoMessageEvent = 2068;
 
     public static final int JoinQueueMessageEvent = 1458;
+    public static final int GetWeeklyCompetitiveFriendsLeaderboardEvent = 1081;
+    public static final int Game2GetWeeklyLeaderboardEvent = 2565;
     public static final int GetWeeklyGameRewardWinnersEvent = 1054;
     public static final int GetWeeklyGameRewardEvent = 2914;
     public static final int GameUnloadedMessageEvent = 3207;
