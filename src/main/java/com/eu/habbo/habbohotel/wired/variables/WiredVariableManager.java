@@ -33,10 +33,28 @@ import java.util.function.Predicate;
 public final class WiredVariableManager implements AutoCloseable {
     /** Replaceable emulation hash revision; July's canonical algorithm needs a live capture. */
     public static final int EMULATED_HASH_REVISION = 1;
-    public static final int MAX_DEFINITIONS = 512;
-    public static final int MAX_VALUES_PER_DEFINITION = 10_000;
-    public static final int MAX_VALUES_PER_ROOM = 50_000;
-    public static final int MAX_DIFF_HASHES = 2_048;
+    /**
+     * Room capacity limits, loaded from emulator_settings in
+     * PluginManager.globalOnConfigurationUpdated using the wired.variables.* keys, so they apply at
+     * boot and on every config reload. The initialisers are the shipped defaults and are what unit
+     * tests and any pre-boot code observe.
+     *
+     * <p>These are the single source of truth: read them through these fields rather than calling
+     * Emulator.getConfig() again at the point of use, so a configured value cannot drift between
+     * call sites.</p>
+     */
+    public static int MAX_DEFINITIONS = 512;
+
+    public static int MAX_VALUES_PER_DEFINITION = 10_000;
+
+    public static int MAX_VALUES_PER_ROOM = 50_000;
+
+    /**
+     * Bounds the client-supplied hash list accepted by a variables-diff request. This is an abuse
+     * limit rather than a capacity one; lowering it breaks diff synchronisation and raising it
+     * weakens the bound, so operators should leave it at the default.
+     */
+    public static int MAX_DIFF_HASHES = 2_048;
 
     private final int roomId;
     private final Repository repository;

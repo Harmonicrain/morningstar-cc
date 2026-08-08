@@ -15,6 +15,7 @@ import com.eu.habbo.habbohotel.users.HabboBadge;
 import com.eu.habbo.habbohotel.users.HabboItem;
 import com.eu.habbo.habbohotel.wired.WiredGiveRewardItem;
 import com.eu.habbo.habbohotel.wired.WiredTriggerType;
+import com.eu.habbo.habbohotel.wired.variables.WiredVariableManager;
 import com.eu.habbo.habbohotel.wired.variables.WiredVariableMutation;
 import com.eu.habbo.habbohotel.wired.migrate.WiredEvents;
 import com.eu.habbo.habbohotel.wired.tick.WiredTickService;
@@ -140,6 +141,18 @@ public final class WiredManager {
         Emulator.getConfig().register("wired.abuse.protection.enabled", "1");
         Emulator.getConfig().register("wired.chests.upgrade_cost_credits", "10");
         Emulator.getConfig().register("wired.chests.upgrade_cost_diamonds", "10");
+
+        // Core Variables room capacity. Read back into WiredVariableManager's static fields by
+        // PluginManager.globalOnConfigurationUpdated; see that class for the single-source-of-truth
+        // rule on these keys.
+        Emulator.getConfig().register("wired.variables.max.definitions.per.room",
+                String.valueOf(WiredVariableManager.MAX_DEFINITIONS));
+        Emulator.getConfig().register("wired.variables.max.values.per.room",
+                String.valueOf(WiredVariableManager.MAX_VALUES_PER_ROOM));
+        Emulator.getConfig().register("wired.variables.max.values.per.definition",
+                String.valueOf(WiredVariableManager.MAX_VALUES_PER_DEFINITION));
+        Emulator.getConfig().register("wired.variables.max.diff.hashes",
+                String.valueOf(WiredVariableManager.MAX_DIFF_HASHES));
     }
 
     /**
